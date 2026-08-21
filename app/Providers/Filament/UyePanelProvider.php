@@ -32,7 +32,7 @@ class UyePanelProvider extends PanelProvider
         return $panel
             ->id('uye')
             ->path('panel')
-            ->brandName('Medya Merkezi')
+            ->brandName('Basın Paneli')
             ->colors([
                 'primary' => Color::hex('#C11119'),
             ])
