@@ -33,6 +33,13 @@ class UyePanelProvider extends PanelProvider
             ->id('uye')
             ->path('panel')
             ->brandName('Basın Paneli')
+            // Kulüp arması + sistem adı birlikte (arma tek başına 48px'te okunmuyor).
+            ->brandLogo(fn () => view('filament.marka', ['altBaslik' => 'Basın Paneli']))
+            // 🪤 Htmlable marka SABİT yükseklikli bir div'e sarılır (varsayılan
+            //    1.5rem). Bunu yazmazsan içerik taşar ve 'Oturum Aç' başlığının
+            //    üstüne biner.
+            ->brandLogoHeight('3rem')
+            ->favicon(asset('marka/favicon-64.png'))
             ->colors([
                 'primary' => KulupRengi::birincil(),   // kulüp kırmızısı #C11119
             ])
