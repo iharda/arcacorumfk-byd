@@ -3,7 +3,35 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
+/*
+ * ARCA Çorum FK · Basın Yönetim Sistemi — kamuya açık yüz.
+ * Kulüp paleti: kırmızı #C11119, koyu #16181D.
+ * Yazı tipi SİSTEM yığını: dış kaynağa istek yok (KVKK + CSP 'self').
+ */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    /* Instrument Sans build sırasında İNDİRİLİP public/build altına yazılır —
+       fonts.bunny.net'e çalışma anında istek GİTMEZ (KVKK + CSP 'self'). */
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system,
+        'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+    --color-kulup-50:  oklch(0.977 0.014 27.1);
+    --color-kulup-100: oklch(0.950 0.035 27.1);
+    --color-kulup-200: oklch(0.905 0.070 27.1);
+    --color-kulup-300: oklch(0.840 0.118 27.1);
+    --color-kulup-400: oklch(0.740 0.170 27.1);
+    --color-kulup-500: oklch(0.620 0.196 27.1);
+    --color-kulup-600: oklch(0.5152 0.2028 27.1);   /* #C11119 */
+    --color-kulup-700: oklch(0.4155 0.1688 27.1);   /* #920011 */
+    --color-kulup-800: oklch(0.360 0.140 27.1);
+    --color-kulup-900: oklch(0.315 0.112 27.1);
+    --color-kulup-950: oklch(0.230 0.078 27.1);
+
+    --color-koyu: #16181D;
+}
+
+/* Zorunlu alan yıldızı — her formda tekrar yazmamak için */
+.zorunlu::after {
+    content: '*';
+    color: var(--color-kulup-600);
+    margin-inline-start: 0.15rem;
 }

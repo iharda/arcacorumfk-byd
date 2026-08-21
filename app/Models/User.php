@@ -24,7 +24,12 @@ use Spatie\Permission\Traits\HasRoles;
  * durum + evrak gorunur. Sistem sifre uretmez, kullanici aktivasyon linkiyle
  * kendi belirler.
  */
-#[Fillable(['name', 'email', 'password'])]
+/*
+ * 🪤 Laravel 13'te doldurulabilir alanlar bu ÖZNİTELİKTE tanımlı. Listede
+ * olmayan bir alanı User::create()'e verirsen hata almazsın — alan SESSİZCE
+ * DÜŞER. kurum_id ve telefon tam olarak böyle kaybolmuştu.
+ */
+#[Fillable(['name', 'email', 'password', 'telefon', 'adres', 'il', 'ilce', 'kurum_id', 'aktif', 'email_verified_at'])]
 #[Hidden(['password', 'remember_token', 'iki_adimli_gizli', 'iki_adimli_kurtarma_kodlari'])]
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery, MustVerifyEmail
 {
@@ -77,7 +82,11 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 
         return match ($panel->getId()) {
             'yonetim' => $this->hasAnyRole([self::ROL_SUPER, self::ROL_YETKILI]),
-            'kurum'   => $this->hasRole(self::ROL_KURUM) && $this->kurum?->akrediteMi() === true,
+            // ⚠️ Akreditasyon ŞARTI YOK: hesap başvuru anında açılır ve kullanıcı
+            // onaya kadar panelde yalnızca "başvuru durumu + evrak yükleme"
+            // görür (Plan v1.0 md.5.5). Akreditasyona bağlı ekranlar panel
+            // içinde tek tek kapatılır.
+            'kurum'   => $this->hasRole(self::ROL_KURUM),
             'uye'     => $this->hasAnyRole([self::ROL_BASIN, self::ROL_ICERIK]),
             default   => false,
         };

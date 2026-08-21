@@ -2,23 +2,43 @@
 
 namespace App\Providers;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         //
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
-        //
+        $this->hizSinirlari();
+    }
+
+    /**
+     * Adlandırılmış hız sınırları.
+     *
+     * 🪤 `throttle:5,10` gibi ANONİM sınırlar, anahtarı rota URI'sinden üretir.
+     * Aynı adreste GET ve POST varsa İKİSİ AYNI SAYACI paylaşır: formu birkaç
+     * kez açmak, gönderme hakkını tüketir ve kullanıcı sessizce 429 alır.
+     * Adlandırılmış sınır kendi anahtarını kullanır, bu çakışma olmaz.
+     */
+    private function hizSinirlari(): void
+    {
+        // Form sayfasını görüntüleme
+        RateLimiter::for('basvuru-goruntule', fn (Request $r) => Limit::perMinute(60)->by($r->ip()));
+
+        // Başvuru gönderimi: hesap açar ve e-posta gönderir, dar tutulur.
+        RateLimiter::for('basvuru-gonder', fn (Request $r) => Limit::perMinutes(10, 5)->by($r->ip()));
+
+        // Aktivasyon: imzalı bağlantı, yine de kaba kuvvete kapalı olsun.
+        RateLimiter::for('hesap-aktivasyon', fn (Request $r) => Limit::perMinutes(10, 15)->by($r->ip()));
+
+        // Evrak görüntüleme: inceleme ekranı hızlı gezinir, bol bırakılır.
+        RateLimiter::for('evrak-goruntule', fn (Request $r) => Limit::perMinute(120)->by($r->user()?->id ?: $r->ip()));
     }
 }
