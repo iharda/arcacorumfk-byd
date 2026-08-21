@@ -8,6 +8,14 @@ return [
     'evrak_disk' => env('BYD_EVRAK_DISK', 'evrak'),
     'kart_disk' => env('BYD_KART_DISK', 'kart'),
 
+    /*
+     * Yetkili panelinde iki adımlı doğrulama zorunluluğu.
+     * Plan v1.0 md.11 bunu ZORUNLU sayıyor; kapatmak yalnızca geliştirme ve
+     * deneme içindir. Kapalıyken 2FA'sını kurmuş kullanıcılardan yine kod
+     * istenir — sadece "kurmadan giremezsin" dayatması kalkar.
+     */
+    '2fa_zorunlu' => (bool) env('BYD_2FA_ZORUNLU', true),
+
     'qr' => [
         'anahtar_surumu' => (int) env('BYD_QR_ANAHTAR_SURUMU', 1),
         'anahtarlar' => array_filter([

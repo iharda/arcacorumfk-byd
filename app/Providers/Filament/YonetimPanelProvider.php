@@ -51,9 +51,16 @@ class YonetimPanelProvider extends PanelProvider
             ->login()
             ->passwordReset()
             ->profile(isSimple: false)
+            /*
+             * ⚠️ İkinci argümandaki varsayılan (true) BİLEREK: `config:cache`
+             * uygulamayı ESKİ önbellekle açar; yeni bir ayar anahtarı henüz
+             * orada yoksa null gelir, panel çöker ve çöktüğü için önbellek de
+             * yenilenemez — kilitlenirsin. Varsayılan bu döngüyü kırar ve
+             * güvenli tarafa (2FA açık) düşer.
+             */
             ->multiFactorAuthentication([
                 AppAuthentication::make()->recoverable(),
-            ], isRequired: true)
+            ], isRequired: (bool) config('byd.2fa_zorunlu', true))
             // Avatar YERELDE uretilir; ui-avatars.com'a kullanıcı adı GİTMEZ.
             ->defaultAvatarProvider(YerelAvatar::class)
             ->databaseNotifications()

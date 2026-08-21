@@ -33,6 +33,9 @@ Sistem canlıya çıkmadan önce buradaki her maddenin **evet** olması gerekir.
 
 ## 4 · Güvenlik
 
+- [ ] ⚠️ **`BYD_2FA_ZORUNLU=true`** — yetkili panelinde iki adımlı doğrulama
+      zorunluluğu. Deneme sırasında **kapatıldı** (21.08.2026); canlıya
+      çıkmadan geri açılacak (Plan v1.0 md.11 zorunlu sayıyor)
 - [x] `APP_DEBUG=false`, `APP_ENV=production`
 - [x] Oturum çerezi Secure + oturum verisi şifreli
 - [x] Denetim kaydı veritabanı seviyesinde kilitli

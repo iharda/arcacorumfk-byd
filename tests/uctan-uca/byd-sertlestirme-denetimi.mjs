@@ -35,6 +35,7 @@ echo 'ENV:' . config('app.env')
    . ' HTTPONLY:' . json_encode(config('session.http_only'))
    . ' SAMESITE:' . config('session.same_site')
    . ' MAIL:' . config('mail.default')
+   . ' IKIADIMLI:' . json_encode(config('byd.2fa_zorunlu'))
    . ' QRANAHTAR:' . (filled(config('byd.qr.anahtarlar')[1] ?? null) ? 'var' : 'YOK')
    . ' APPKEY:' . (filled(config('app.key')) ? 'var' : 'YOK');`);
 
@@ -58,6 +59,13 @@ const posta = artisan(`
 Illuminate\\Support\\Facades\\Mail::raw('denetim', fn ($m) => $m->to('denetim@ornek.test')->subject('denetim'));
 echo 'ENGEL:' . (str_contains(file_get_contents(storage_path('logs/laravel.log')), 'Gönderilemez adrese posta engellendi') ? 'var' : 'yok');`);
 kontrol('Gönderilemez adres koruması etkin (.test/.invalid)', cek(posta, 'ENGEL') === 'var', cek(posta, 'ENGEL'));
+
+// Plan v1.0 md.11: yetkili hesaplarinda 2FA ZORUNLU. Kapaliysa canliya cikilmaz.
+if (cek(cfg, 'IKIADIMLI') === 'true') {
+  kontrol('Yetkili panelinde 2FA zorunlu', true);
+} else {
+  uyari('Yetkili panelinde 2FA ZORUNLU DEĞİL', 'canlıya çıkmadan BYD_2FA_ZORUNLU=true yapılmalı');
+}
 
 console.log('\n── HTTP başlıkları ──');
 const basliklar = istek('/yonetim/login').toLowerCase();
