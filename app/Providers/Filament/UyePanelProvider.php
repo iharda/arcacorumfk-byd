@@ -7,10 +7,10 @@ use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Pages\Dashboard;
+use App\Support\KulupRengi;
 use App\Support\YerelAvatar;
 use Filament\Panel;
 use Filament\PanelProvider;
-use Filament\Support\Colors\Color;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -34,7 +34,7 @@ class UyePanelProvider extends PanelProvider
             ->path('panel')
             ->brandName('Basın Paneli')
             ->colors([
-                'primary' => Color::hex('#C11119'),
+                'primary' => KulupRengi::birincil(),   // kulüp kırmızısı #C11119
             ])
             ->login()
             ->passwordReset()
