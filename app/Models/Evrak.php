@@ -34,6 +34,11 @@ class Evrak extends Model
          * Kayıt kalıcı silinince DOSYA da gider. Aksi hâlde kimlik görselleri
          * diskte yetim kalır — hem KVKK ihlali hem de sessiz disk şişmesi.
          * (Soft delete'te dosya KORUNUR: karar geçmişi hâlâ ona bakabilir.)
+         *
+         * 🪤 TOPLU silme model olaylarını TETİKLEMEZ:
+         *   Evrak::where(...)->forceDelete()   → dosya diskte KALIR
+         *   Evrak::where(...)->get()->each->forceDelete()  → dosya da silinir
+         * Toplu silmen gerekiyorsa ya modelden geç ya da dosyaları elle temizle.
          */
         static::forceDeleted(function (self $evrak) {
             rescue(fn () => Storage::disk($evrak->disk)->delete($evrak->yol), report: false);
