@@ -1,0 +1,65 @@
+<?php
+
+namespace App\Providers\Filament;
+
+use Filament\Http\Middleware\Authenticate;
+use Filament\Http\Middleware\AuthenticateSession;
+use Filament\Http\Middleware\DisableBladeIconComponents;
+use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Pages\Dashboard;
+use App\Support\YerelAvatar;
+use Filament\Panel;
+use Filament\PanelProvider;
+use Filament\Support\Colors\Color;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Session\Middleware\StartSession;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
+
+/**
+ * KURUM PANELI -- medya kurulusu. Plan v1.0 md.8.
+ * Calisan listesi, davetle basvuru, ayrilis bildirimi, bilgi guncelleme.
+ *
+ * 🔒 Kapsam: kurum YALNIZCA kendi calisanlarini gorur. Bu, panel kaydinda
+ * degil POLICY'de uygulanir -- ekran unutulsa bile veri sizmaz.
+ */
+class KurumPanelProvider extends PanelProvider
+{
+    public function panel(Panel $panel): Panel
+    {
+        return $panel
+            ->id('kurum')
+            ->path('kurum')
+            ->brandName('Kurum Paneli')
+            ->colors([
+                'primary' => Color::hex('#C11119'),
+            ])
+            ->login()
+            ->passwordReset()
+            ->emailVerification()
+            ->profile(isSimple: false)
+            // Avatar YERELDE uretilir; ui-avatars.com'a kullanıcı adı GİTMEZ.
+            ->defaultAvatarProvider(YerelAvatar::class)
+            ->databaseNotifications()
+            ->discoverResources(in: app_path('Filament/Kurum/Resources'), for: 'App\Filament\Kurum\Resources')
+            ->discoverPages(in: app_path('Filament/Kurum/Pages'), for: 'App\Filament\Kurum\Pages')
+            ->pages([Dashboard::class])
+            ->discoverWidgets(in: app_path('Filament/Kurum/Widgets'), for: 'App\Filament\Kurum\Widgets')
+            ->middleware([
+                EncryptCookies::class,
+                AddQueuedCookiesToResponse::class,
+                StartSession::class,
+                AuthenticateSession::class,
+                ShareErrorsFromSession::class,
+                PreventRequestForgery::class,
+                SubstituteBindings::class,
+                DisableBladeIconComponents::class,
+                DispatchServingFilamentEvent::class,
+            ])
+            ->authMiddleware([
+                Authenticate::class,
+            ]);
+    }
+}
