@@ -1,0 +1,374 @@
+/**
+ * BYD — bireysel başvuru akışlarının uçtan uca testi (Aşama 03).
+ *
+ * Kapsam: içerik üreticisi · basın mensubu "Yol A" + kurum teyidi ·
+ *         "Yol B" davet linki · ayrılış → akreditasyon otomatik iptal.
+ *
+ * ⚠️ ÜRETİME YAZAR. Kendi oluşturduğu kayıtları siler, `kurum_teyidi_istensin`
+ *    ayarının ESKİ DEĞERİNİ saklayıp finally'de aynen geri yazar.
+ *
+ * node /root/byd-bireysel-akis-testi.mjs
+ */
+import puppeteer from 'puppeteer-core';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { totp } from './byd-totp.mjs';
+
+const K = '/root/.cache/puppeteer/chrome';
+const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
+const ALAN = 'byd.ordolive.com';
+const KOK = `https://${ALAN}`;
+const LOG = '/home/byd.ordolive.com/laravel/storage/logs/laravel.log';
+const D = '/root/byd-test-dosyalari';
+const SIFRE = 'Kirmizi-Kartal-2026-x9';
+
+const damga = Date.now();
+const KURUM_YETKILI = `b3kurum+${damga}@ornek.test`;
+const ICERIK = `b3icerik+${damga}@ornek.test`;
+const BASIN = `b3basin+${damga}@ornek.test`;
+const DAVETLI = `b3davetli+${damga}@ornek.test`;
+const UNVAN = `B3 Test Ajans ${damga}`;
+
+const sonuc = [];
+const kontrol = (ad, gecti, ek = '') => { sonuc.push({ ad, gecti, ek }); console.log(`${gecti ? '✅' : '❌'} ${ad}${ek ? '  → ' + ek : ''}`); };
+const bekle = ms => new Promise(r => setTimeout(r, ms));
+const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
+  { cwd: '/home/byd.ordolive.com/laravel', encoding: 'utf8', timeout: 90000 });
+
+/** Logdan bir bağlantıyı bekle (MAIL_MAILER=log). */
+async function baglantiBekle(desen, isaret, saniye = 40) {
+  for (let i = 0; i < saniye; i++) {
+    // 🪤 statSync BAYT verir, String.slice KARAKTER sayar. Logda Türkçe harf
+    //    çoğaldıkça bu ikisi kayar ve yeni satırlar atlanır. Buffer'da dilim.
+    const bolum = readFileSync(LOG).subarray(isaret).toString('utf8');
+    const m = bolum.match(desen);
+    if (m) return m[m.length - 1].replace(/&amp;/g, '&');
+    await bekle(1000);
+  }
+  return null;
+}
+
+async function girisYap(sayfa, yol, eposta, sifre) {
+  await sayfa.goto(`${KOK}${yol}/login`, { waitUntil: 'networkidle2' });
+  await sayfa.type('#form\\.email', eposta);
+  await sayfa.type('#form\\.password', sifre);
+  await Promise.all([
+    sayfa.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
+    sayfa.click('button[type="submit"]'),
+  ]);
+  await bekle(900);
+}
+
+/** Aktivasyon bağlantısından şifre belirle. */
+async function aktiflestir(sayfa, baglanti) {
+  await sayfa.goto(baglanti, { waitUntil: 'networkidle2' });
+  await sayfa.type('[name="sifre"]', SIFRE);
+  await sayfa.type('[name="sifre_confirmation"]', SIFRE);
+  await Promise.all([
+    sayfa.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
+    sayfa.click('button[type="submit"]'),
+  ]);
+  await bekle(900);
+}
+
+/** Panelde tüm evrakları sırayla yükle ve gönder. */
+async function evrakYukleVeGonder(sayfa, panelYolu, dosyalar) {
+  await sayfa.goto(`${KOK}${panelYolu}/basvurum`, { waitUntil: 'networkidle2' });
+  const girisler = await sayfa.$$('input[type="file"]');
+  for (let i = 0; i < girisler.length; i++) {
+    await girisler[i].uploadFile(dosyalar[i % dosyalar.length]);
+    await bekle(1700);
+    await sayfa.evaluate(idx => {
+      [...document.querySelectorAll('button[wire\\:click^="yukle("]')][idx]?.click();
+    }, i);
+    await bekle(2300);
+  }
+  await sayfa.reload({ waitUntil: 'networkidle2' });
+  await sayfa.evaluate(() => [...document.querySelectorAll('button')]
+    .find(b => b.innerText.trim() === 'Başvuruyu gönder')?.click());
+  await bekle(2500);
+  await sayfa.reload({ waitUntil: 'networkidle2' });
+  return sayfa.evaluate(() => document.body.innerText);
+}
+
+const b = await puppeteer.launch({
+  executablePath: CHROME, headless: 'new',
+  args: ['--no-sandbox', '--disable-dev-shm-usage', `--host-resolver-rules=MAP ${ALAN} 127.0.0.1`, '--ignore-certificate-errors'],
+});
+
+// 🔁 Ayarın ESKİ değerini sakla — finally'de aynen geri yazılacak.
+const eskiAyar = (artisan(`echo 'ESKI:' . json_encode(App\\Models\\Ayar::al('kurum_teyidi_istensin'));`)
+  .match(/ESKI:(\S+)/) || [, 'null'])[1];
+
+try {
+  /* ═════ HAZIRLIK: akredite kurum + yetkilisi ═════ */
+  artisan(`
+$k = App\\Models\\Kurum::create(['resmi_unvan' => '${UNVAN}', 'akreditasyon_durumu' => 'akredite']);
+$u = App\\Models\\User::create(['name' => 'B3 Kurum Yetkilisi', 'email' => '${KURUM_YETKILI}',
+    'password' => bcrypt('${SIFRE}'), 'kurum_id' => $k->id, 'aktif' => true, 'email_verified_at' => now()]);
+$u->assignRole(App\\Models\\User::ROL_KURUM);
+App\\Models\\Ayar::yaz('kurum_teyidi_istensin', true);
+echo 'HAZIR';`);
+  kontrol('Hazırlık: akredite kurum + teyit ayarı açık', true);
+
+  /* ═════ 1) İÇERİK ÜRETİCİSİ ═════ */
+  const c1 = await b.createBrowserContext();
+  const s1 = await c1.newPage();
+  await s1.setViewport({ width: 1400, height: 1000 });
+  await s1.goto(`${KOK}/basvuru/icerik-ureticisi`, { waitUntil: 'networkidle2' });
+  await s1.type('[name="ad_soyad"]', 'Bağımsız Gazeteci');
+  await s1.type('[name="eposta"]', ICERIK);
+  await s1.type('[name="telefon"]', '0533 111 22 33');
+  await s1.type('[name="adres"]', 'Yeni Mahalle 5');
+  await s1.type('[name="il"]', 'Çorum');
+  await s1.type('[name="ilce"]', 'Merkez');
+  await s1.type('[name="sosyal_medya[x]"]', 'https://ornek.test/x');
+  await s1.evaluate(() => {
+    document.querySelector('input[name="basin_karti_var"][value="0"]').click();
+    document.querySelector('input[name="kvkk_aydinlatma"]').click();
+    document.querySelector('input[name="kvkk_riza"]').click();
+  });
+  const isaret1 = statSync(LOG).size;
+  await Promise.all([s1.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}), s1.click('button[type="submit"]')]);
+  kontrol('İçerik üreticisi başvurusu alındı', s1.url().includes('gonderildi'), s1.url().replace(KOK, ''));
+
+  const bag1 = await baglantiBekle(/https:\/\/byd\.ordolive\.com\/hesap\/aktivasyon\/[^\s"'<>\]]+/g, isaret1);
+  kontrol('Aktivasyon bağlantısı geldi', !!bag1);
+  await aktiflestir(s1, bag1);
+  kontrol('Birey ÜYE paneline yönlendi', s1.url().includes('/panel'), s1.url().replace(KOK, ''));
+
+  const g1 = await evrakYukleVeGonder(s1, '/panel', [`${D}/foto.jpg`, `${D}/kimlik.jpg`]);
+  kontrol('İçerik üreticisi evrakları yüklendi ve gönderildi', g1.includes('Gönderildi'),
+    (g1.match(/Taslak|Gönderildi|İncelemede|Onaylandı/) || ['?'])[0]);
+
+  /* ═════ 2) BASIN MENSUBU — Yol A (kurum teyidi açık) ═════ */
+  const c2 = await b.createBrowserContext();
+  const s2 = await c2.newPage();
+  await s2.setViewport({ width: 1400, height: 1000 });
+  await s2.goto(`${KOK}/basvuru/basin-mensubu`, { waitUntil: 'networkidle2' });
+  await s2.type('[name="ad_soyad"]', 'Muhabir Aday');
+  await s2.type('[name="eposta"]', BASIN);
+  await s2.type('[name="telefon"]', '0534 222 33 44');
+  await s2.type('[name="adres"]', 'Gazi Cad. 9');
+  await s2.type('[name="il"]', 'Çorum');
+  await s2.type('[name="ilce"]', 'Merkez');
+  await s2.type('[name="calisma_yili"]', '6');
+  const kurumSecildi = await s2.evaluate((unvan) => {
+    const sec = document.querySelector('select[name="kurum_ulid"]');
+    const opt = [...sec.options].find(o => o.text.includes(unvan));
+    if (!opt) return false;
+    sec.value = opt.value;
+    sec.dispatchEvent(new Event('change', { bubbles: true }));
+    document.querySelector('input[name="sigorta_212_var"][value="1"]').click();
+    document.querySelector('input[name="basin_karti_var"][value="1"]').click();
+    document.querySelector('input[name="kvkk_aydinlatma"]').click();
+    document.querySelector('input[name="kvkk_riza"]').click();
+    return true;
+  }, UNVAN);
+  kontrol('Akredite kurum listede görünüyor', kurumSecildi);
+
+  const isaret2 = statSync(LOG).size;
+  await Promise.all([s2.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}), s2.click('button[type="submit"]')]);
+  kontrol('Basın mensubu başvurusu alındı', s2.url().includes('gonderildi'), s2.url().replace(KOK, ''));
+
+  const bag2 = await baglantiBekle(/https:\/\/byd\.ordolive\.com\/hesap\/aktivasyon\/[^\s"'<>\]]+/g, isaret2);
+  await aktiflestir(s2, bag2);
+  const g2 = await evrakYukleVeGonder(s2, '/panel', [`${D}/foto.jpg`, `${D}/kimlik.jpg`, `${D}/calisma-belgesi.jpg`]);
+  kontrol('Basın mensubu gönderildi, KURUM TEYİDİ bekliyor',
+    g2.includes('Kurum teyidi bekleniyor'), g2.includes('Kurum teyidi bekleniyor') ? '' : g2.slice(0, 80));
+
+  /* Yetkili kuyruğunda GÖRÜNMEMELİ */
+  const kuyruktaMi = artisan(`
+$b = App\\Models\\Basvuru::whereHas('kullanici', fn ($q) => $q->where('email', '${BASIN}'))->first();
+echo 'KUYRUKTA:' . (App\\Models\\Basvuru::kuyrukta()->whereKey($b->id)->exists() ? 'evet' : 'hayir');`);
+  kontrol('Teyit bekleyen başvuru yetkili kuyruğunda YOK', /KUYRUKTA:hayir/.test(kuyruktaMi),
+    (kuyruktaMi.match(/KUYRUKTA:\w+/) || ['?'])[0]);
+
+  /* ═════ 3) KURUM: teyit ver + davet gönder ═════ */
+  const c3 = await b.createBrowserContext();
+  const s3 = await c3.newPage();
+  await s3.setViewport({ width: 1500, height: 1000 });
+  await girisYap(s3, '/kurum', KURUM_YETKILI, SIFRE);
+  await s3.goto(`${KOK}/kurum/calisanlar`, { waitUntil: 'networkidle2' });
+  await bekle(900);
+  const cal = await s3.evaluate(() => document.body.innerText);
+  kontrol('Kurum teyit bekleyen başvuruyu görüyor', cal.includes('Muhabir Aday'), '');
+  await s3.screenshot({ path: '/root/byd-calisanlar.png', fullPage: true });
+
+  await s3.evaluate(() => [...document.querySelectorAll('button')].find(b => b.innerText.trim() === 'Teyit et')?.click());
+  await bekle(1500);
+  await s3.evaluate(() => [...document.querySelectorAll('button')]
+    .find(b => /^(Onayla|Teyit et|Evet)$/i.test(b.innerText.trim()) && b.closest('.fi-modal, [role="dialog"]'))?.click());
+  await bekle(2800);
+  const kuyruktaMi2 = artisan(`
+$b = App\\Models\\Basvuru::whereHas('kullanici', fn ($q) => $q->where('email', '${BASIN}'))->first();
+echo 'KUYRUKTA:' . (App\\Models\\Basvuru::kuyrukta()->whereKey($b->id)->exists() ? 'evet' : 'hayir');`);
+  kontrol('Teyit sonrası başvuru kuyruğa girdi', /KUYRUKTA:evet/.test(kuyruktaMi2),
+    (kuyruktaMi2.match(/KUYRUKTA:\w+/) || ['?'])[0]);
+
+  /* Davet gönder (Yol B) */
+  const isaret3 = statSync(LOG).size;
+  await s3.reload({ waitUntil: 'networkidle2' });
+  await s3.evaluate(() => [...document.querySelectorAll('button')].find(b => b.innerText.trim() === 'Çalışan davet et')?.click());
+  await bekle(1600);
+  // 🪤 Livewire alanına .value atamak YETMEZ; gerçek tuş vuruşu gerekiyor.
+  //    Filament kip alanlarının id'si: mountedActionSchema0.<alan>
+  await s3.type('#mountedActionSchema0\\.ad_soyad', 'Davetli Muhabir');
+  await s3.type('#mountedActionSchema0\\.eposta', DAVETLI);
+  await bekle(900);
+  await s3.evaluate(() => [...document.querySelectorAll('button')]
+    .find(b => b.innerText.trim() === 'Daveti gönder')?.click());
+  await bekle(3000);
+
+  const davetBag = await baglantiBekle(/https:\/\/byd\.ordolive\.com\/davet\/[A-Za-z0-9]+/g, isaret3);
+  kontrol('Davet bağlantısı üretildi ve gönderildi', !!davetBag, davetBag ? 'bağlantı var' : 'yok');
+
+  /* ═════ 4) Yol B: davetli formu doldurur ═════ */
+  if (davetBag) {
+    const c4 = await b.createBrowserContext();
+    const s4 = await c4.newPage();
+    await s4.setViewport({ width: 1400, height: 1000 });
+    await s4.goto(davetBag, { waitUntil: 'networkidle2' });
+    const dv = await s4.evaluate(() => document.body.innerText);
+    kontrol('Davet formu kurumu ve kişiyi gösteriyor',
+      dv.includes('Davetli Muhabir') && dv.includes(UNVAN.slice(0, 18)));
+    kontrol('Davet formunda ad/e-posta alanı YOK (kurumdan gelir)',
+      await s4.evaluate(() => !document.querySelector('[name="ad_soyad"]')));
+
+    await s4.type('[name="telefon"]', '0535 333 44 55');
+    await s4.type('[name="adres"]', 'İnönü Cad. 3');
+    await s4.type('[name="il"]', 'Çorum');
+    await s4.type('[name="ilce"]', 'Merkez');
+    await s4.type('[name="calisma_yili"]', '3');
+    const isaret4 = statSync(LOG).size;
+    await s4.evaluate(() => {
+      document.querySelector('input[name="sigorta_212_var"][value="1"]').click();
+      document.querySelector('input[name="basin_karti_var"][value="0"]').click();
+      document.querySelector('input[name="kvkk_aydinlatma"]').click();
+      document.querySelector('input[name="kvkk_riza"]').click();
+    });
+    await Promise.all([s4.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}), s4.click('button[type="submit"]')]);
+    kontrol('Davetli başvurusu alındı', s4.url().includes('gonderildi'), s4.url().replace(KOK, ''));
+
+    const bag4 = await baglantiBekle(/https:\/\/byd\.ordolive\.com\/hesap\/aktivasyon\/[^\s"'<>\]]+/g, isaret4);
+    await aktiflestir(s4, bag4);
+    const g4 = await evrakYukleVeGonder(s4, '/panel', [`${D}/foto.jpg`, `${D}/kimlik.jpg`, `${D}/calisma-belgesi.jpg`]);
+    // Yol B'de kurum zaten başlattı → İKİNCİ teyit istenmez.
+    kontrol('Davetli başvurusunda kurum teyidi İSTENMİYOR',
+      g4.includes('Gönderildi') && !g4.includes('Kurum teyidi bekleniyor'));
+  }
+
+  /* ═════ 5) YETKİLİ: içerik üreticisini onayla → kart no ═════ */
+  const c5 = await b.createBrowserContext();
+  const y = await c5.newPage();
+  await y.setViewport({ width: 1600, height: 1000 });
+  await y.goto(`${KOK}/yonetim/login`, { waitUntil: 'networkidle2' });
+  await y.type('#form\\.email', 'admin@byd.ordolive.com');
+  await y.type('#form\\.password', readFileSync('/root/.byd-admin-pass', 'utf8').trim());
+  await Promise.all([y.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}), y.click('button[type="submit"]')]);
+  await bekle(1200);
+  const kutular = await y.$$('input[inputmode="numeric"]');
+  if (kutular.length >= 6) {
+    await kutular[0].click();
+    await y.keyboard.type(totp(readFileSync('/root/.byd-admin-totp', 'utf8').trim()), { delay: 60 });
+    await bekle(900);
+    await y.evaluate(() => [...document.querySelectorAll('button')].find(b => /Girişi doğrula/i.test(b.innerText))?.click());
+    await bekle(3000);
+  }
+  kontrol('Yetkili giriş yaptı', !y.url().includes('/login'), y.url().replace(KOK, ''));
+
+  const incUlid = (artisan(`
+$b = App\\Models\\Basvuru::whereHas('kullanici', fn ($q) => $q->where('email', '${ICERIK}'))->first();
+echo 'ULID:' . $b->ulid;`).match(/ULID:(\w+)/) || [])[1];
+
+  await y.goto(`${KOK}/yonetim/basvurular/${incUlid}/inceleme`, { waitUntil: 'networkidle2' });
+  await bekle(800);
+  await y.evaluate(() => [...document.querySelectorAll('button, a')].find(e => e.innerText.trim() === 'İncelemeye al')?.click());
+  await bekle(2500);
+  await y.evaluate(() => [...document.querySelectorAll('button, a')].find(e => e.innerText.trim() === 'Onayla')?.click());
+  await bekle(1500);
+  await y.evaluate(() => [...document.querySelectorAll('button')]
+    .find(b => b.innerText.trim() === 'Onayla' && b.closest('.fi-modal, [role="dialog"]'))?.click());
+  await bekle(3000);
+
+  const kart = artisan(`
+$u = App\\Models\\User::where('email', '${ICERIK}')->first();
+$a = $u?->akreditasyon;
+echo 'KART:' . ($a?->kart_no ?? 'yok') . ' DURUM:' . ($a?->durum?->value ?? 'yok') . ' ROL:' . $u?->getRoleNames()->implode(',');`);
+  kontrol('Onayda akreditasyon ve kart no üretildi', /KART:\d{4}-I-\d{4}/.test(kart),
+    (kart.match(/KART:\S+/) || ['?'])[0]);
+  kontrol('Bireye içerik üreticisi rolü verildi', /ROL:icerik_ureticisi/.test(kart),
+    (kart.match(/ROL:\S*/) || ['?'])[0]);
+
+  /* ═════ 6) AYRILIŞ: kurum işaretler → akreditasyon iptal ═════ */
+  // Basın mensubunu önce onayla ki iptal edilecek bir akreditasyon olsun.
+  const basinUlid = (artisan(`
+$b = App\\Models\\Basvuru::whereHas('kullanici', fn ($q) => $q->where('email', '${BASIN}'))->first();
+echo 'ULID:' . $b->ulid;`).match(/ULID:(\w+)/) || [])[1];
+  await y.goto(`${KOK}/yonetim/basvurular/${basinUlid}/inceleme`, { waitUntil: 'networkidle2' });
+  await bekle(800);
+  await y.evaluate(() => [...document.querySelectorAll('button, a')].find(e => e.innerText.trim() === 'İncelemeye al')?.click());
+  await bekle(2300);
+  await y.evaluate(() => [...document.querySelectorAll('button, a')].find(e => e.innerText.trim() === 'Onayla')?.click());
+  await bekle(1400);
+  await y.evaluate(() => [...document.querySelectorAll('button')]
+    .find(b => b.innerText.trim() === 'Onayla' && b.closest('.fi-modal, [role="dialog"]'))?.click());
+  await bekle(3000);
+
+  const kart2 = artisan(`$u = App\\Models\\User::where('email','${BASIN}')->first(); echo 'KART:' . ($u?->akreditasyon?->kart_no ?? 'yok');`);
+  kontrol('Basın mensubuna kart no verildi', /KART:\d{4}-K-\d{4}/.test(kart2), (kart2.match(/KART:\S+/) || ['?'])[0]);
+
+  await s3.goto(`${KOK}/kurum/calisanlar`, { waitUntil: 'networkidle2' });
+  await bekle(1000);
+  await s3.evaluate(() => {
+    const satir = [...document.querySelectorAll('div')].find(d => d.innerText?.startsWith('Muhabir Aday'));
+    const kok = satir?.closest('div[style*="border"]') ?? document;
+    [...kok.querySelectorAll('button')].find(b => /Ayrıldı olarak işaretle/.test(b.innerText))?.click();
+  });
+  await bekle(1600);
+  await s3.evaluate(() => [...document.querySelectorAll('button')]
+    .find(b => b.innerText.trim() === 'Ayrılışı bildir')?.click());
+  await bekle(3000);
+
+  const ayrilis = artisan(`
+$u = App\\Models\\User::where('email','${BASIN}')->first();
+echo 'AYRILDI:' . ($u?->ayrildi_at ? 'evet' : 'hayir') . ' AKRDURUM:' . ($u?->akreditasyon?->durum?->value ?? 'yok');`);
+  kontrol('Ayrılış kaydedildi', /AYRILDI:evet/.test(ayrilis), (ayrilis.match(/AYRILDI:\w+/) || ['?'])[0]);
+  kontrol('Ayrılışta akreditasyon OTOMATİK iptal oldu', /AKRDURUM:iptal/.test(ayrilis),
+    (ayrilis.match(/AKRDURUM:\w+/) || ['?'])[0]);
+
+  await b.close();
+} catch (e) {
+  console.log('💥 ' + e.message);
+  sonuc.push({ ad: 'Beklenmeyen hata', gecti: false, ek: e.message });
+  try { await b.close(); } catch {}
+} finally {
+  /* ═════ Temizlik + ayarı ESKİ HÂLİNE getir ═════ */
+  try {
+    const t = artisan(`
+foreach (['${ICERIK}', '${BASIN}', '${DAVETLI}', '${KURUM_YETKILI}'] as $mail) {
+    $u = App\\Models\\User::withTrashed()->where('email', $mail)->first();
+    if (! $u) continue;
+    $bIds = App\\Models\\Basvuru::withTrashed()->where('kullanici_id', $u->id)->pluck('id');
+    App\\Models\\Evrak::withTrashed()->whereIn('basvuru_id', $bIds)->get()->each->forceDelete();
+    // 🪤 Toplu delete model olayını tetiklemez → kart dosyaları diskte kalır.
+    App\\Models\\Akreditasyon::whereIn('basvuru_id', $bIds)->get()->each(function ($a) {
+        $a->kartlar()->get()->each->delete();
+        $a->gecisKayitlari()->delete();
+        $a->delete();
+    });
+    App\\Models\\Davet::where('eposta', $mail)->delete();
+    App\\Models\\Basvuru::withTrashed()->whereIn('id', $bIds)->forceDelete();
+    $u->forceDelete();
+}
+$k = App\\Models\\Kurum::withTrashed()->where('resmi_unvan', '${UNVAN}')->first();
+if ($k) { App\\Models\\Davet::where('kurum_id', $k->id)->delete(); $k->forceDelete(); }
+App\\Models\\Ayar::yaz('kurum_teyidi_istensin', json_decode('${eskiAyar}', true));
+echo 'TEMIZ+AYAR_GERI';`);
+    console.log('🧹 ' + t.trim().split('\n').pop());
+  } catch (e) { console.log('⚠️ temizlik: ' + e.message); }
+}
+
+const hata = sonuc.filter(r => !r.gecti).length;
+console.log(`\n${sonuc.length - hata}/${sonuc.length} geçti`);
+process.exit(hata ? 1 : 0);
