@@ -10,6 +10,7 @@ use App\Servisler\EvrakYukleyici;
 use BackedEnum;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
@@ -28,7 +29,7 @@ abstract class BasvurumSayfasi extends Page
 
     protected string $view = 'filament.ortak.basvurum';
 
-    protected static string | BackedEnum | null $navigationIcon = 'heroicon-o-document-text';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-document-text';
 
     protected static ?string $navigationLabel = 'Başvurum';
 
@@ -62,7 +63,7 @@ abstract class BasvurumSayfasi extends Page
         return Basvuru::where('kullanici_id', Auth::id())->exists();
     }
 
-    /** @return \Illuminate\Support\Collection<int, EvrakTuru> */
+    /** @return Collection<int, EvrakTuru> */
     public function getEvrakTurleriProperty()
     {
         return EvrakTuru::turIcin($this->basvuru->tur);
@@ -102,7 +103,7 @@ abstract class BasvurumSayfasi extends Page
         unset($this->dosyalar[$evrakTuruId]);
         $this->basvuru->refresh()->load('evraklar.turu');
 
-        Notification::make()->title($tur->ad . ' yüklendi.')->success()->send();
+        Notification::make()->title($tur->ad.' yüklendi.')->success()->send();
     }
 
     public function gonder(): void

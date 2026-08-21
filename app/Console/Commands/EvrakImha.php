@@ -42,7 +42,7 @@ class EvrakImha extends Command
         $sayac = 0;
 
         foreach ($adaylar as $evrak) {
-            $this->line(($kuru ? '[kuru] ' : '') . $evrak->ulid . ' · ' . $evrak->orijinal_ad);
+            $this->line(($kuru ? '[kuru] ' : '').$evrak->ulid.' · '.$evrak->orijinal_ad);
 
             if ($kuru) {
                 continue;

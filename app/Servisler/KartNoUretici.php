@@ -26,7 +26,7 @@ class KartNoUretici
     public function uret(BasvuruTuru $tur, callable $kaydet): Akreditasyon
     {
         $kod = $tur->kartKodu()
-            ?? throw new RuntimeException('Bu başvuru türünden kart üretilmez: ' . $tur->value);
+            ?? throw new RuntimeException('Bu başvuru türünden kart üretilmez: '.$tur->value);
 
         $yil = (int) (Ayar::al('kart_yil') ?: now()->year);
 
@@ -35,10 +35,10 @@ class KartNoUretici
 
             try {
                 return $kaydet([
-                    'kart_no'  => sprintf('%d-%s-%04d', $yil, $kod, $sira),
-                    'yil'      => $yil,
+                    'kart_no' => sprintf('%d-%s-%04d', $yil, $kod, $sira),
+                    'yil' => $yil,
                     'tur_kodu' => $kod,
-                    'sira'     => $sira,
+                    'sira' => $sira,
                 ]);
             } catch (QueryException $e) {
                 // 23505 = unique_violation (PostgreSQL). MySQL'de 23000.

@@ -1,0 +1,25 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    # Bilinen ve şimdilik kabul edilen bulgular burada (çoğu Eloquent ilişki
+    # dönüş tipi gürültüsü). YENİ hata eklenirse analiz KIRILIR — amaç bu.
+    # Temel dosyası zamanla boşaltılacak.
+    - phpstan-baseline.neon
+
+parameters:
+    paths:
+        - app
+        - config
+        - database
+        - routes
+
+    # Seviye 5'ten başlıyoruz. Kod tabanı temizlendikçe kademeli yükselecek;
+    # tek seferde 9'a çıkıp 500 hatayla boğulmak işe yaramıyor.
+    level: 5
+
+    ignoreErrors:
+        # Filament/Livewire dinamik özellikleri (getXProperty -> $this->x)
+        - identifier: property.notFound
+          path: app/Filament/*
+
+    excludePaths:
+        - app/Filament/*/Resources/*/Pages/*

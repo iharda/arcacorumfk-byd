@@ -32,9 +32,9 @@ class BasinKartiHazir extends Notification implements ShouldQueue
     {
         $mesaj = (new MailMessage)
             ->subject('Basın kartınız hazır — ARCA Çorum FK')
-            ->greeting('Merhaba ' . $notifiable->name . ',')
+            ->greeting('Merhaba '.$notifiable->name.',')
             ->line('Akreditasyonunuz onaylandı ve basın kartınız üretildi.')
-            ->line('**Kart no:** ' . $this->akreditasyon->kart_no)
+            ->line('**Kart no:** '.$this->akreditasyon->kart_no)
             ->line('Kartı telefonunuzdan gösterebilir veya çıktısını alabilirsiniz. Kapıda QR okutulur, görevli fotoğrafınızla eşleştirir.')
             ->action('Panelde görüntüle', url('/panel/kartim'))
             ->salutation('ARCA Çorum FK');
@@ -43,7 +43,7 @@ class BasinKartiHazir extends Notification implements ShouldQueue
         if ($this->kart->pdf_yolu && Storage::disk($this->kart->disk)->exists($this->kart->pdf_yolu)) {
             $mesaj->attachData(
                 Storage::disk($this->kart->disk)->get($this->kart->pdf_yolu),
-                'basin-karti-' . $this->akreditasyon->kart_no . '.pdf',
+                'basin-karti-'.$this->akreditasyon->kart_no.'.pdf',
                 ['mime' => 'application/pdf'],
             );
         }

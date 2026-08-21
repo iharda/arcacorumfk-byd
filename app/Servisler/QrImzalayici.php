@@ -75,7 +75,7 @@ class QrImzalayici
             throw new RuntimeException("QR imza anahtarı tanımsız: sürüm {$surum}");
         }
 
-        $ham = hash_hmac('sha256', $ulid . '|' . $surum, $anahtar, binary: true);
+        $ham = hash_hmac('sha256', $ulid.'|'.$surum, $anahtar, binary: true);
 
         return substr(rtrim(strtr(base64_encode($ham), '+/', '-_'), '='), 0, self::IMZA_UZUNLUK);
     }

@@ -37,7 +37,7 @@ class YerelAvatar implements AvatarProvider
         </svg>
         SVG;
 
-        return 'data:image/svg+xml;base64,' . base64_encode($svg);
+        return 'data:image/svg+xml;base64,'.base64_encode($svg);
     }
 
     private function basHarfler(string $ad): string
@@ -53,6 +53,6 @@ class YerelAvatar implements AvatarProvider
 
         // ⚠️ Türkçe: buyuk harfe cevirmeden ONCE i → İ. Sonra yapilirsa
         // mb_strtoupper zaten "I" uretmis olur ve degistirecek "i" kalmaz.
-        return mb_strtoupper(str_replace('i', 'İ', $ilk . $son), 'UTF-8');
+        return mb_strtoupper(str_replace('i', 'İ', $ilk.$son), 'UTF-8');
     }
 }

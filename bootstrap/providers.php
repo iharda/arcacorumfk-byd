@@ -1,9 +1,15 @@
 <?php
 
+use App\Providers\AppServiceProvider;
+use App\Providers\Filament\KurumPanelProvider;
+use App\Providers\Filament\UyePanelProvider;
+use App\Providers\Filament\YonetimPanelProvider;
+use App\Providers\HorizonServiceProvider;
+
 return [
-    App\Providers\AppServiceProvider::class,
-    App\Providers\Filament\KurumPanelProvider::class,
-    App\Providers\Filament\UyePanelProvider::class,
-    App\Providers\Filament\YonetimPanelProvider::class,
-    App\Providers\HorizonServiceProvider::class,
+    AppServiceProvider::class,
+    KurumPanelProvider::class,
+    UyePanelProvider::class,
+    YonetimPanelProvider::class,
+    HorizonServiceProvider::class,
 ];

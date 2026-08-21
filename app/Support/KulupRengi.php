@@ -18,7 +18,7 @@ class KulupRengi
 
     /** @var array<int, array{float, float}> shade => [açıklık, doygunluk] */
     private const MERDIVEN = [
-        50  => [0.977, 0.014],
+        50 => [0.977, 0.014],
         100 => [0.950, 0.035],
         200 => [0.905, 0.070],
         300 => [0.840, 0.118],
@@ -35,7 +35,7 @@ class KulupRengi
     public static function birincil(): array
     {
         return array_map(
-            fn (array $d): string => "oklch({$d[0]} {$d[1]} " . self::TON . ')',
+            fn (array $d): string => "oklch({$d[0]} {$d[1]} ".self::TON.')',
             self::MERDIVEN,
         );
     }

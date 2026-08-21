@@ -6,8 +6,28 @@ use App\Concerns\UlidAnahtari;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * @property int $id
+ * @property string $ulid
+ * @property int $basvuru_id
+ * @property int $evrak_turu_id
+ * @property string $disk
+ * @property ?string $yol
+ * @property string $orijinal_ad
+ * @property string $mime
+ * @property int $boyut
+ * @property ?string $sha256
+ * @property bool $icerik_dogrulandi
+ * @property bool $sifreli
+ * @property string $dogrulama_durumu
+ * @property ?string $dogrulama_notu
+ * @property ?Carbon $imha_tarihi
+ * @property ?EvrakTuru $turu
+ * @property ?Basvuru $basvuru
+ */
 class Evrak extends Model
 {
     use SoftDeletes, UlidAnahtari;
@@ -21,10 +41,10 @@ class Evrak extends Model
     protected function casts(): array
     {
         return [
-            'boyut'             => 'integer',
+            'boyut' => 'integer',
             'icerik_dogrulandi' => 'boolean',
-            'sifreli'           => 'boolean',
-            'imha_tarihi'       => 'date',
+            'sifreli' => 'boolean',
+            'imha_tarihi' => 'date',
         ];
     }
 

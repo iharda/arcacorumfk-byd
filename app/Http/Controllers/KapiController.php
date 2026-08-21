@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\KapiIstemcisi;
 use App\Servisler\KapiDogrulama;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Response;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 /**
@@ -29,15 +29,15 @@ class KapiController extends Controller
     public function manifest(): JsonResponse
     {
         return response()->json([
-            'name'             => 'ARCA Çorum FK — Kapı Doğrulama',
-            'short_name'       => 'BYD Kapı',
-            'start_url'        => '/kapi',
-            'scope'            => '/kapi',
-            'display'          => 'standalone',
-            'orientation'      => 'portrait',
+            'name' => 'ARCA Çorum FK — Kapı Doğrulama',
+            'short_name' => 'BYD Kapı',
+            'start_url' => '/kapi',
+            'scope' => '/kapi',
+            'display' => 'standalone',
+            'orientation' => 'portrait',
             'background_color' => '#16181D',
-            'theme_color'      => '#16181D',
-            'icons'            => [
+            'theme_color' => '#16181D',
+            'icons' => [
                 ['src' => asset('marka/favicon-64.png'), 'sizes' => '64x64', 'type' => 'image/png'],
                 ['src' => asset('marka/apple-touch-icon.png'), 'sizes' => '180x180', 'type' => 'image/png'],
                 ['src' => asset('marka/kulup-logo-512.png'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],
@@ -87,7 +87,7 @@ class KapiController extends Controller
         JS;
 
         return response($js, 200, [
-            'Content-Type'  => 'application/javascript; charset=utf-8',
+            'Content-Type' => 'application/javascript; charset=utf-8',
             'Cache-Control' => 'no-cache',
         ]);
     }
@@ -97,7 +97,7 @@ class KapiController extends Controller
         $istemci = $istek->attributes->get('kapi_istemcisi');
 
         return response()->json([
-            'kapi'     => $istemci->ad,
+            'kapi' => $istemci->ad,
             'kapiKodu' => $istemci->kapi_kodu,
             'bolgeler' => $istemci->bolgeler ?? [],
         ]);
@@ -106,8 +106,8 @@ class KapiController extends Controller
     public function dogrula(Request $istek): JsonResponse
     {
         $veri = $istek->validate([
-            'yuk'   => ['required', 'string', 'max:200'],
-            'yon'   => ['nullable', 'in:giris,cikis'],
+            'yuk' => ['required', 'string', 'max:200'],
+            'yon' => ['nullable', 'in:giris,cikis'],
             'bolge' => ['nullable', 'string', 'max:40'],
         ]);
 
@@ -125,18 +125,18 @@ class KapiController extends Controller
         $akreditasyon = $sonuc['akreditasyon'];
 
         return response()->json([
-            'sonuc'    => $sonuc['sonuc']->value,
-            'izinli'   => $sonuc['sonuc']->basarili(),
-            'etiket'   => $sonuc['sonuc']->etiket(),
-            'mesaj'    => $sonuc['mesaj'],
-            'kisi'     => $akreditasyon ? [
-                'isim'     => $akreditasyon->kullanici?->name,
-                'kurum'    => $akreditasyon->kurum?->resmi_unvan,
-                'kartNo'   => $akreditasyon->kart_no,
+            'sonuc' => $sonuc['sonuc']->value,
+            'izinli' => $sonuc['sonuc']->basarili(),
+            'etiket' => $sonuc['sonuc']->etiket(),
+            'mesaj' => $sonuc['mesaj'],
+            'kisi' => $akreditasyon ? [
+                'isim' => $akreditasyon->kullanici?->name,
+                'kurum' => $akreditasyon->kurum?->resmi_unvan,
+                'kartNo' => $akreditasyon->kart_no,
                 'bolgeler' => $akreditasyon->bolge_yetkileri ?? [],
-                'foto'     => $this->dogrulama->fotoVeri($akreditasyon),
+                'foto' => $this->dogrulama->fotoVeri($akreditasyon),
             ] : null,
-            'zaman'    => now()->timezone('Europe/Istanbul')->format('H:i:s'),
+            'zaman' => now()->timezone('Europe/Istanbul')->format('H:i:s'),
         ]);
     }
 }

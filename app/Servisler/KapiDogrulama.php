@@ -41,7 +41,7 @@ class KapiDogrulama
             // akreditasyon referansı olabilir. Aynı sahte kartın tekrar tekrar
             // denendiğini görebilmek için parmak izini saklıyoruz.
             return $this->sonucla($istemci, GecisSonucu::ImzaGecersiz, null, $yon, $bolge, $ip,
-                'Kart okunamadı veya imza geçersiz.', 'sha256:' . substr(hash('sha256', $yuk), 0, 24));
+                'Kart okunamadı veya imza geçersiz.', 'sha256:'.substr(hash('sha256', $yuk), 0, 24));
         }
 
         $akreditasyon = Akreditasyon::with(['kullanici', 'kurum'])
@@ -61,12 +61,12 @@ class KapiDogrulama
         }
 
         $sonuc = match (true) {
-            $akreditasyon->durum === AkreditasyonDurumu::Iptal  => GecisSonucu::Iptal,
+            $akreditasyon->durum === AkreditasyonDurumu::Iptal => GecisSonucu::Iptal,
             $akreditasyon->durum === AkreditasyonDurumu::Askida => GecisSonucu::Askida,
-            ! $akreditasyon->gecerliMi()                        => GecisSonucu::Iptal,
+            ! $akreditasyon->gecerliMi() => GecisSonucu::Iptal,
             $etkinBolge && ! $akreditasyon->gecerliMi($etkinBolge) => GecisSonucu::BolgeYetkisiYok,
-            $this->mukerrerMi($akreditasyon, $istemci)          => GecisSonucu::MukerrerOkutma,
-            default                                             => GecisSonucu::Izinli,
+            $this->mukerrerMi($akreditasyon, $istemci) => GecisSonucu::MukerrerOkutma,
+            default => GecisSonucu::Izinli,
         };
 
         return $this->sonucla($istemci, $sonuc, $akreditasyon, $yon, $etkinBolge, $ip,
@@ -105,18 +105,18 @@ class KapiDogrulama
         ?string $referans,
     ): array {
         GecisKaydi::create([
-            'akreditasyon_id'   => $akreditasyon?->id,
+            'akreditasyon_id' => $akreditasyon?->id,
             'kapi_istemcisi_id' => $istemci->id,
-            'kapi_kodu'         => $istemci->kapi_kodu,
-            'yon'               => $yon,
-            'sonuc'             => $sonuc,
-            'bolge'             => $bolge,
-            'sebep'             => $sonuc->basarili() ? null : $mesaj,
+            'kapi_kodu' => $istemci->kapi_kodu,
+            'yon' => $yon,
+            'sonuc' => $sonuc,
+            'bolge' => $bolge,
+            'sebep' => $sonuc->basarili() ? null : $mesaj,
             // Ham QR yükü DEĞİL yalnızca referansı: kişisel veri log'a düşmesin.
-            'okunan_referans'   => $referans,
-            'ip'                => $ip,
-            'okundu_at'         => now(),
-            'created_at'        => now(),
+            'okunan_referans' => $referans,
+            'ip' => $ip,
+            'okundu_at' => now(),
+            'created_at' => now(),
         ]);
 
         $istemci->forceFill(['son_kullanim_at' => now(), 'son_kullanim_ip' => $ip])->saveQuietly();
@@ -127,12 +127,12 @@ class KapiDogrulama
     private function mesaj(GecisSonucu $sonuc, Akreditasyon $akreditasyon): string
     {
         return match ($sonuc) {
-            GecisSonucu::Izinli          => 'Geçiş izinli.',
-            GecisSonucu::Askida          => 'Akreditasyon askıda.',
-            GecisSonucu::Iptal           => 'Akreditasyon geçerli değil.',
+            GecisSonucu::Izinli => 'Geçiş izinli.',
+            GecisSonucu::Askida => 'Akreditasyon askıda.',
+            GecisSonucu::Iptal => 'Akreditasyon geçerli değil.',
             GecisSonucu::BolgeYetkisiYok => 'Bu bölge için yetkisi yok.',
-            GecisSonucu::MukerrerOkutma  => 'Bu kart az önce okutuldu.',
-            default                      => 'Geçiş reddedildi.',
+            GecisSonucu::MukerrerOkutma => 'Bu kart az önce okutuldu.',
+            default => 'Geçiş reddedildi.',
         };
     }
 
@@ -159,7 +159,7 @@ class KapiDogrulama
                 return rescue(function () use ($foto) {
                     $ham = app(EvrakYukleyici::class)->icerik($foto);
 
-                    return 'data:image/jpeg;base64,' . base64_encode($this->kucult($ham));
+                    return 'data:image/jpeg;base64,'.base64_encode($this->kucult($ham));
                 }, null, report: false);
             },
         );

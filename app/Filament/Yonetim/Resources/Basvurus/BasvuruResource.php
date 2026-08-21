@@ -64,7 +64,7 @@ class BasvuruResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'    => ListBasvurus::route('/'),
+            'index' => ListBasvurus::route('/'),
             'inceleme' => Inceleme::route('/{record}/inceleme'),
         ];
     }

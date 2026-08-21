@@ -19,7 +19,7 @@ class Kartim extends Page
 {
     protected string $view = 'filament.uye.kartim';
 
-    protected static string | BackedEnum | null $navigationIcon = 'heroicon-o-identification';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-identification';
 
     protected static ?string $navigationLabel = 'Kartım';
 
@@ -62,7 +62,7 @@ class Kartim extends Page
 
         return Storage::disk($kart->disk)->download(
             $kart->pdf_yolu,
-            'basin-karti-' . $this->akreditasyon->kart_no . '.pdf',
+            'basin-karti-'.$this->akreditasyon->kart_no.'.pdf',
         );
     }
 

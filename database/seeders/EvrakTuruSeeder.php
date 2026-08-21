@@ -14,8 +14,8 @@ class EvrakTuruSeeder extends Seeder
 {
     public function run(): void
     {
-        $kurum  = BasvuruTuru::Kurum->value;
-        $basin  = BasvuruTuru::BasinMensubu->value;
+        $kurum = BasvuruTuru::Kurum->value;
+        $basin = BasvuruTuru::BasinMensubu->value;
         $icerik = BasvuruTuru::IcerikUreticisi->value;
 
         $turler = [

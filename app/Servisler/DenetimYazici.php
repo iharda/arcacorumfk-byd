@@ -27,18 +27,18 @@ class DenetimYazici
         $aktor = Auth::user();
 
         return DenetimKaydi::create([
-            'aktor_id'      => $aktor?->getKey(),
-            'aktor_tip'     => $aktor ? $aktorTip : 'sistem',
-            'aktor_ad'      => $aktor?->name,
-            'olay'          => $olay,
-            'kayit_tipi'    => $kayit ? $kayit::class : null,
-            'kayit_id'      => $kayit?->getKey(),
+            'aktor_id' => $aktor?->getKey(),
+            'aktor_tip' => $aktor ? $aktorTip : 'sistem',
+            'aktor_ad' => $aktor?->name,
+            'olay' => $olay,
+            'kayit_tipi' => $kayit ? $kayit::class : null,
+            'kayit_id' => $kayit?->getKey(),
             'kayit_etiketi' => $kayit ? $this->etiket($kayit) : null,
-            'eski'          => $eski,
-            'yeni'          => $yeni,
-            'not'           => $not,
-            'ip'            => Request::ip(),
-            'tarayici'      => substr((string) Request::userAgent(), 0, 255),
+            'eski' => $eski,
+            'yeni' => $yeni,
+            'not' => $not,
+            'ip' => Request::ip(),
+            'tarayici' => substr((string) Request::userAgent(), 0, 255),
         ]);
     }
 

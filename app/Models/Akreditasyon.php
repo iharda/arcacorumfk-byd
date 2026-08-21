@@ -5,11 +5,39 @@ namespace App\Models;
 use App\Concerns\UlidAnahtari;
 use App\Enums\AkreditasyonDurumu;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string $ulid
+ * @property string $kart_no
+ * @property int $yil
+ * @property string $tur_kodu
+ * @property int $sira
+ * @property int $kullanici_id
+ * @property int $basvuru_id
+ * @property ?int $kurum_id
+ * @property AkreditasyonDurumu $durum
+ * @property ?array $bolge_yetkileri
+ * @property ?Carbon $gecerlilik_baslangic
+ * @property ?Carbon $gecerlilik_bitis
+ * @property ?string $sezon
+ * @property ?Carbon $askiya_alindi_at
+ * @property ?Carbon $iptal_at
+ * @property ?string $iptal_nedeni
+ * @property ?int $durum_degistiren_id
+ * @property ?Carbon $created_at
+ * @property ?User $kullanici
+ * @property ?Basvuru $basvuru
+ * @property ?Kurum $kurum
+ * @property ?Kart $guncelKart
+ * @property Collection<int, Kart> $kartlar
+ */
 class Akreditasyon extends Model
 {
     use UlidAnahtari;
@@ -21,14 +49,14 @@ class Akreditasyon extends Model
     protected function casts(): array
     {
         return [
-            'durum'                => AkreditasyonDurumu::class,
-            'bolge_yetkileri'      => 'array',
+            'durum' => AkreditasyonDurumu::class,
+            'bolge_yetkileri' => 'array',
             'gecerlilik_baslangic' => 'date',
-            'gecerlilik_bitis'     => 'date',
-            'askiya_alindi_at'     => 'datetime',
-            'iptal_at'             => 'datetime',
-            'yil'                  => 'integer',
-            'sira'                 => 'integer',
+            'gecerlilik_bitis' => 'date',
+            'askiya_alindi_at' => 'datetime',
+            'iptal_at' => 'datetime',
+            'yil' => 'integer',
+            'sira' => 'integer',
         ];
     }
 

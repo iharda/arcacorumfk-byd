@@ -39,8 +39,8 @@ class KartUretici
         $surum = ((int) $akreditasyon->kartlar()->max('surum')) + 1;
 
         $temel = sprintf('%s/%s-s%d', $akreditasyon->ulid, $akreditasyon->kart_no, $surum);
-        $pdfYolu = $temel . '.pdf';
-        $gorselYolu = $temel . '.png';
+        $pdfYolu = $temel.'.pdf';
+        $gorselYolu = $temel.'.png';
 
         [$en, $boy] = [config('byd.kart.genislik_mm'), config('byd.kart.yukseklik_mm')];
 
@@ -62,15 +62,15 @@ class KartUretici
             $this->eskiSurumleriTemizle($akreditasyon, $surum);
 
             $kart = $akreditasyon->kartlar()->create([
-                'surum'             => $surum,
-                'disk'              => $disk,
-                'pdf_yolu'          => $pdfYolu,
-                'gorsel_yolu'       => $gorselYolu,
-                'boyut'             => Storage::disk($disk)->size($pdfYolu),
+                'surum' => $surum,
+                'disk' => $disk,
+                'pdf_yolu' => $pdfYolu,
+                'gorsel_yolu' => $gorselYolu,
+                'boyut' => Storage::disk($disk)->size($pdfYolu),
                 'qr_anahtar_surumu' => (int) config('byd.qr.anahtar_surumu'),
-                'arsiv'             => false,
-                'uretildi_at'       => now(),
-                'ureten_id'         => auth()->id(),
+                'arsiv' => false,
+                'uretildi_at' => now(),
+                'ureten_id' => auth()->id(),
             ]);
 
             $this->denetim->yaz('kart.uretildi', $kart, yeni: [
@@ -115,18 +115,18 @@ class KartUretici
             file_get_contents(resource_path('views/kart/basin-karti.blade.php')),
             [
                 'akreditasyon' => $akreditasyon,
-                'en'           => config('byd.kart.genislik_mm'),
-                'boy'          => config('byd.kart.yukseklik_mm'),
-                'isim'         => $akreditasyon->kullanici?->name ?? '—',
-                'kurum'        => $akreditasyon->kurum?->resmi_unvan,
-                'turEtiketi'   => $akreditasyon->basvuru?->tur->etiket() ?? 'Basın kartı',
-                'sezon'        => $akreditasyon->sezon,
-                'bolgeler'     => collect($akreditasyon->bolge_yetkileri ?? [])
+                'en' => config('byd.kart.genislik_mm'),
+                'boy' => config('byd.kart.yukseklik_mm'),
+                'isim' => $akreditasyon->kullanici?->name ?? '—',
+                'kurum' => $akreditasyon->kurum?->resmi_unvan,
+                'turEtiketi' => $akreditasyon->basvuru?->tur->etiket() ?? 'Basın kartı',
+                'sezon' => $akreditasyon->sezon,
+                'bolgeler' => collect($akreditasyon->bolge_yetkileri ?? [])
                     ->map(fn ($b) => $bolgeAdlari[$b] ?? $b)->all(),
-                'armaVeri'     => $this->armaVeri(),
-                'font'         => $this->fontVeri(),
-                'fotoVeri'     => $this->fotoVeri($akreditasyon),
-                'qrSvg'        => $this->qrSvg($akreditasyon),
+                'armaVeri' => $this->armaVeri(),
+                'font' => $this->fontVeri(),
+                'fotoVeri' => $this->fotoVeri($akreditasyon),
+                'qrSvg' => $this->qrSvg($akreditasyon),
             ],
         );
     }
@@ -152,7 +152,7 @@ class KartUretici
     private function qrSvg(Akreditasyon $akreditasyon): string
     {
         $sonuc = (new Builder(
-            writer: new SvgWriter(),
+            writer: new SvgWriter,
             writerOptions: [SvgWriter::WRITER_OPTION_EXCLUDE_XML_DECLARATION => true],
             data: $this->qr->yukUret($akreditasyon),
             // Yüksek düzeltme: kart buruşsa/ekran parlasa da okunsun.
@@ -182,7 +182,7 @@ class KartUretici
 
                 return [$ad => is_file($yol)
                     // Font yoksa kart yine üretilsin; şablon sistem fontuna düşer.
-                    ? 'data:font/woff2;base64,' . base64_encode(file_get_contents($yol))
+                    ? 'data:font/woff2;base64,'.base64_encode(file_get_contents($yol))
                     : 'about:blank'];
             })
             ->all();
@@ -192,7 +192,7 @@ class KartUretici
     {
         $yol = public_path('marka/kulup-logo.webp');
 
-        return 'data:image/webp;base64,' . base64_encode(file_get_contents($yol));
+        return 'data:image/webp;base64,'.base64_encode(file_get_contents($yol));
     }
 
     /** Biyometrik fotoğraf — şifreliyse sunucuda çözülüp gömülür. */
@@ -206,7 +206,7 @@ class KartUretici
         }
 
         return rescue(
-            fn () => 'data:' . $foto->mime . ';base64,' . base64_encode($this->evrak->icerik($foto)),
+            fn () => 'data:'.$foto->mime.';base64,'.base64_encode($this->evrak->icerik($foto)),
             null,
             report: false,
         );

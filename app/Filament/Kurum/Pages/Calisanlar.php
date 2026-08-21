@@ -13,8 +13,8 @@ use App\Servisler\DavetAkisi;
 use App\Servisler\DenetimYazici;
 use BackedEnum;
 use Filament\Actions\Action;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Enums\Width;
@@ -34,7 +34,7 @@ class Calisanlar extends Page
 {
     protected string $view = 'filament.kurum.calisanlar';
 
-    protected static string | BackedEnum | null $navigationIcon = 'heroicon-o-users';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-users';
 
     protected static ?string $navigationLabel = 'Çalışanlar';
 
@@ -243,7 +243,7 @@ class Calisanlar extends Page
         if ($akreditasyon && $akreditasyon->durum !== AkreditasyonDurumu::Iptal) {
             app(AkreditasyonAkisi::class)->iptalEt(
                 $akreditasyon,
-                'Kurumdan ayrılış bildirimi' . ($not ? ' — ' . $not : ''),
+                'Kurumdan ayrılış bildirimi'.($not ? ' — '.$not : ''),
             );
         }
 

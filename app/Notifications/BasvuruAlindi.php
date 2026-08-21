@@ -24,9 +24,9 @@ class BasvuruAlindi extends Notification implements ShouldQueue
     {
         return (new MailMessage)
             ->subject('Başvurunuz alındı — ARCA Çorum FK Basın Yönetim Sistemi')
-            ->greeting('Merhaba ' . $notifiable->name . ',')
-            ->line('**' . $this->basvuru->tur->etiket() . '** başvurunuz tarafımıza ulaştı.')
-            ->line('Başvuru numaranız: **' . $this->basvuru->ulid . '**')
+            ->greeting('Merhaba '.$notifiable->name.',')
+            ->line('**'.$this->basvuru->tur->etiket().'** başvurunuz tarafımıza ulaştı.')
+            ->line('Başvuru numaranız: **'.$this->basvuru->ulid.'**')
             ->line('Yetkili incelemesi tamamlandığında sonuç e-posta ile bildirilecektir.')
             ->action('Başvurumu görüntüle', url('/kurum'))
             ->salutation('ARCA Çorum FK');

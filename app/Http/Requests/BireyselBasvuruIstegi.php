@@ -33,21 +33,21 @@ class BireyselBasvuruIstegi extends FormRequest
     public function rules(): array
     {
         $kurallar = [
-            'adres'   => ['required', 'string', 'max:300'],
-            'il'      => ['required', 'string', 'max:60'],
-            'ilce'    => ['required', 'string', 'max:60'],
+            'adres' => ['required', 'string', 'max:300'],
+            'il' => ['required', 'string', 'max:60'],
+            'ilce' => ['required', 'string', 'max:60'],
             'telefon' => ['required', 'string', 'max:25'],
 
             'basin_karti_var' => ['required', 'boolean'],
 
             'kvkk_aydinlatma' => ['accepted'],
-            'kvkk_riza'       => ['accepted'],
+            'kvkk_riza' => ['accepted'],
         ];
 
         // Davette kimlik bilgisi kurumdan gelir, başvuran değiştiremez.
         if (! $this->davetliMi()) {
             $kurallar['ad_soyad'] = ['required', 'string', 'min:3', 'max:120'];
-            $kurallar['eposta']   = ['required', 'email:rfc', 'max:150', Rule::unique('users', 'email')];
+            $kurallar['eposta'] = ['required', 'email:rfc', 'max:150', Rule::unique('users', 'email')];
         }
 
         if ($this->tur() === BasvuruTuru::BasinMensubu) {
@@ -58,10 +58,10 @@ class BireyselBasvuruIstegi extends FormRequest
                     ->whereNull('deleted_at')];
             }
             $kurallar['sigorta_212_var'] = ['required', 'boolean'];
-            $kurallar['calisma_yili']    = ['required', 'integer', 'min:0', 'max:70'];
+            $kurallar['calisma_yili'] = ['required', 'integer', 'min:0', 'max:70'];
         } else {
             // İçerik üreticisinde en az bir platform bağlantısı istenir.
-            $kurallar['sosyal_medya']   = ['required', 'array'];
+            $kurallar['sosyal_medya'] = ['required', 'array'];
             $kurallar['sosyal_medya.*'] = ['nullable', 'url', 'max:300'];
         }
 
@@ -93,11 +93,11 @@ class BireyselBasvuruIstegi extends FormRequest
     public function messages(): array
     {
         return [
-            'kurum_ulid.required'      => 'Çalıştığınız kurumu seçmelisiniz.',
-            'kurum_ulid.exists'        => 'Seçilen kurum akredite değil. Kurumunuz önce kendi başvurusunu tamamlamalı.',
-            'eposta.unique'            => 'Bu e-posta ile daha önce bir hesap açılmış. Giriş yapabilirsiniz.',
+            'kurum_ulid.required' => 'Çalıştığınız kurumu seçmelisiniz.',
+            'kurum_ulid.exists' => 'Seçilen kurum akredite değil. Kurumunuz önce kendi başvurusunu tamamlamalı.',
+            'eposta.unique' => 'Bu e-posta ile daha önce bir hesap açılmış. Giriş yapabilirsiniz.',
             'kvkk_aydinlatma.accepted' => 'Aydınlatma metnini okuduğunuzu onaylamalısınız.',
-            'kvkk_riza.accepted'       => 'Başvurunun değerlendirilebilmesi için açık rıza gereklidir.',
+            'kvkk_riza.accepted' => 'Başvurunun değerlendirilebilmesi için açık rıza gereklidir.',
         ];
     }
 

@@ -21,7 +21,7 @@ class Ayarlar extends Page
 {
     protected string $view = 'filament.yonetim.ayarlar';
 
-    protected static string | BackedEnum | null $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-cog-6-tooth';
 
     protected static ?string $navigationLabel = 'Ayarlar';
 
@@ -43,7 +43,7 @@ class Ayarlar extends Page
 
         $this->form->fill([
             'kurum_teyidi_istensin' => (bool) Ayar::al('kurum_teyidi_istensin', false),
-            'davet_gecerlilik_gun'  => (int) Ayar::al('davet_gecerlilik_gun', 7),
+            'davet_gecerlilik_gun' => (int) Ayar::al('davet_gecerlilik_gun', 7),
         ]);
     }
 

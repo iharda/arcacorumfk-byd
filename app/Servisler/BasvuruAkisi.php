@@ -6,6 +6,7 @@ use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
 use App\Models\Ayar;
 use App\Models\Basvuru;
+use App\Models\EvrakTuru;
 use App\Models\User;
 use App\Notifications\BasvuruAlindi;
 use App\Notifications\BasvuruOnaylandi;
@@ -40,8 +41,8 @@ class BasvuruAkisi
             && $this->kurumTeyidiGerekliMi($basvuru);
 
         $this->gecir($basvuru, BasvuruDurumu::Gonderildi, 'basvuru.gonderildi', [
-            'gonderildi_at'        => now(),
-            'duzeltme_notlari'     => null,   // düzeltme tamamlandı
+            'gonderildi_at' => now(),
+            'duzeltme_notlari' => null,   // düzeltme tamamlandı
             'kurum_teyidi_gerekli' => $teyitGerekli,
         ]);
 
@@ -94,7 +95,7 @@ class BasvuruAkisi
 
         DB::transaction(function () use ($basvuru, $onay, $not) {
             $basvuru->fill([
-                'kurum_teyidi'    => $onay,
+                'kurum_teyidi' => $onay,
                 'kurum_teyidi_at' => now(),
             ])->save();
 
@@ -111,7 +112,7 @@ class BasvuruAkisi
     {
         $this->gecir($basvuru, BasvuruDurumu::Incelemede, 'basvuru.incelemeye_alindi', [
             'incelemeye_alindi_at' => now(),
-            'inceleyen_id'         => Auth::id(),
+            'inceleyen_id' => Auth::id(),
         ]);
     }
 
@@ -124,7 +125,7 @@ class BasvuruAkisi
 
         $this->gecir($basvuru, BasvuruDurumu::EksikEvrak, 'basvuru.eksik_evrak', [
             'duzeltme_notlari' => $notlar,
-            'karar_gerekcesi'  => $mesaj,
+            'karar_gerekcesi' => $mesaj,
         ]);
 
         $basvuru->kullanici->notify(new EksikEvrakTalebi($basvuru));
@@ -133,7 +134,7 @@ class BasvuruAkisi
     public function onayla(Basvuru $basvuru): void
     {
         $this->gecir($basvuru, BasvuruDurumu::Onaylandi, 'basvuru.onaylandi', [
-            'karar_at'       => now(),
+            'karar_at' => now(),
             'karar_veren_id' => Auth::id(),
         ]);
 
@@ -163,8 +164,8 @@ class BasvuruAkisi
         }
 
         $this->gecir($basvuru, BasvuruDurumu::Reddedildi, 'basvuru.reddedildi', [
-            'karar_at'        => now(),
-            'karar_veren_id'  => Auth::id(),
+            'karar_at' => now(),
+            'karar_veren_id' => Auth::id(),
             'karar_gerekcesi' => $gerekce,
         ]);
 
@@ -192,13 +193,13 @@ class BasvuruAkisi
 
     private function eksikZorunluEvrakVarsaDurdur(Basvuru $basvuru): void
     {
-        $gereken = \App\Models\EvrakTuru::turIcin($basvuru->tur)->where('zorunlu', true);
+        $gereken = EvrakTuru::turIcin($basvuru->tur)->where('zorunlu', true);
         $yuklenen = $basvuru->evraklar()->pluck('evrak_turu_id')->all();
 
         $eksik = $gereken->reject(fn ($t) => in_array($t->id, $yuklenen, true));
 
         if ($eksik->isNotEmpty()) {
-            throw new RuntimeException('Eksik zorunlu evrak: ' . $eksik->pluck('ad')->implode(', '));
+            throw new RuntimeException('Eksik zorunlu evrak: '.$eksik->pluck('ad')->implode(', '));
         }
     }
 }

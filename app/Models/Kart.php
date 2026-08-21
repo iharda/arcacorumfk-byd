@@ -5,8 +5,24 @@ namespace App\Models;
 use App\Concerns\UlidAnahtari;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * @property int $id
+ * @property string $ulid
+ * @property int $akreditasyon_id
+ * @property int $surum
+ * @property string $disk
+ * @property ?string $pdf_yolu
+ * @property ?string $gorsel_yolu
+ * @property ?int $boyut
+ * @property int $qr_anahtar_surumu
+ * @property bool $arsiv
+ * @property ?Carbon $uretildi_at
+ * @property ?int $ureten_id
+ * @property ?Akreditasyon $akreditasyon
+ */
 class Kart extends Model
 {
     use UlidAnahtari;
@@ -18,10 +34,10 @@ class Kart extends Model
     protected function casts(): array
     {
         return [
-            'surum'             => 'integer',
+            'surum' => 'integer',
             'qr_anahtar_surumu' => 'integer',
-            'arsiv'             => 'boolean',
-            'uretildi_at'       => 'datetime',
+            'arsiv' => 'boolean',
+            'uretildi_at' => 'datetime',
         ];
     }
 

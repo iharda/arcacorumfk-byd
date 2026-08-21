@@ -32,7 +32,7 @@ class HesapAktivasyonu extends Notification implements ShouldQueue
 
         return (new MailMessage)
             ->subject('Hesabınızı etkinleştirin — ARCA Çorum FK Basın Yönetim Sistemi')
-            ->greeting('Merhaba ' . $notifiable->name . ',')
+            ->greeting('Merhaba '.$notifiable->name.',')
             ->line('Başvurunuz için bir hesap oluşturuldu. Aşağıdaki bağlantıdan şifrenizi belirleyip evraklarınızı yükleyebilirsiniz.')
             ->action('Şifremi belirle', $baglanti)
             ->line('Bu bağlantı **48 saat** geçerlidir.')

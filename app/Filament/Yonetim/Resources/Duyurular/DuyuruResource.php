@@ -8,6 +8,7 @@ use App\Filament\Yonetim\Resources\Duyurular\Tables\DuyurularTable;
 use App\Models\Duyuru;
 use BackedEnum;
 use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use UnitEnum;
@@ -38,7 +39,7 @@ class DuyuruResource extends Resource
         return auth()->user()?->can('icerik.yonet') ?? false;
     }
 
-    public static function form(\Filament\Schemas\Schema $schema): \Filament\Schemas\Schema
+    public static function form(Schema $schema): Schema
     {
         return $schema->components(DuyuruFormu::alanlar());
     }

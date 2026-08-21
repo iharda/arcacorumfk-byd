@@ -60,7 +60,7 @@ class Inceleme extends Page
 
     public function getSubheading(): string|Htmlable|null
     {
-        return $this->record->tur->etiket() . ' · ' . $this->record->ulid;
+        return $this->record->tur->etiket().' · '.$this->record->ulid;
     }
 
     public function evrakSec(string $ulid): void
@@ -78,10 +78,10 @@ class Inceleme extends Page
     {
         $alanlar = [
             'Resmi ünvan' => 'Resmi ünvan',
-            'Adres'       => 'Adres',
-            'İl / ilçe'   => 'İl / ilçe',
-            'Telefon'     => 'Telefon',
-            'E-posta'     => 'E-posta',
+            'Adres' => 'Adres',
+            'İl / ilçe' => 'İl / ilçe',
+            'Telefon' => 'Telefon',
+            'E-posta' => 'E-posta',
             'Vergi dairesi' => 'Vergi dairesi',
             'Vergi numarası' => 'Vergi numarası',
             'Çalışan sayısı' => 'Çalışan sayısı',
@@ -208,7 +208,7 @@ class Inceleme extends Page
     {
         return [
             'etiket' => $this->record->durum->etiket(),
-            'renk'   => $this->record->durum->renk(),
+            'renk' => $this->record->durum->renk(),
         ];
     }
 

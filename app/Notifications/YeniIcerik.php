@@ -26,17 +26,17 @@ class YeniIcerik extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         [$konu, $giris, $yol] = match ($this->tur) {
-            'duyuru'    => ['Yeni duyuru', 'Kulüpten yeni bir duyuru yayınlandı.', '/panel/duyurular'],
-            'bulten'    => ['Yeni basın bülteni', 'Yeni bir basın bülteni yayınlandı.', '/panel/bultenler'],
+            'duyuru' => ['Yeni duyuru', 'Kulüpten yeni bir duyuru yayınlandı.', '/panel/duyurular'],
+            'bulten' => ['Yeni basın bülteni', 'Yeni bir basın bülteni yayınlandı.', '/panel/bultenler'],
             'antrenman' => ['Antrenman takvimi güncellendi', 'Basına açık antrenman takviminde bir güncelleme var.', '/panel/takvim'],
-            default     => ['Yeni içerik', 'Medya merkezinde yeni bir içerik var.', '/panel'],
+            default => ['Yeni içerik', 'Medya merkezinde yeni bir içerik var.', '/panel'],
         };
 
         $mesaj = (new MailMessage)
-            ->subject($konu . ' — ARCA Çorum FK')
-            ->greeting('Merhaba ' . $notifiable->name . ',')
+            ->subject($konu.' — ARCA Çorum FK')
+            ->greeting('Merhaba '.$notifiable->name.',')
             ->line($giris)
-            ->line('**' . $this->baslik() . '**');
+            ->line('**'.$this->baslik().'**');
 
         if ($ozet = $this->ozet()) {
             $mesaj->line($ozet);
@@ -52,7 +52,7 @@ class YeniIcerik extends Notification implements ShouldQueue
         if ($this->tur === 'antrenman') {
             $zaman = $this->icerik->baslangic_at?->timezone('Europe/Istanbul')->format('d.m.Y H:i');
 
-            return trim(($this->icerik->baslik ?: 'Antrenman') . ' · ' . $zaman, ' ·');
+            return trim(($this->icerik->baslik ?: 'Antrenman').' · '.$zaman, ' ·');
         }
 
         return (string) $this->icerik->baslik;
@@ -61,9 +61,9 @@ class YeniIcerik extends Notification implements ShouldQueue
     private function ozet(): ?string
     {
         return match ($this->tur) {
-            'duyuru'    => $this->icerik->ozet,
-            'antrenman' => $this->icerik->yer ? 'Yer: ' . $this->icerik->yer : null,
-            default     => null,
+            'duyuru' => $this->icerik->ozet,
+            'antrenman' => $this->icerik->yer ? 'Yer: '.$this->icerik->yer : null,
+            default => null,
         };
     }
 }

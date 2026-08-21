@@ -45,12 +45,12 @@ class OzetSayilar extends StatsOverviewWidget
                 ->url(route('filament.yonetim.resources.basvurular.index')),
 
             Stat::make('Aktif akreditasyon', (string) Akreditasyon::where('durum', AkreditasyonDurumu::Aktif->value)->count())
-                ->description(Akreditasyon::where('durum', AkreditasyonDurumu::Askida->value)->count() . ' askıda')
+                ->description(Akreditasyon::where('durum', AkreditasyonDurumu::Askida->value)->count().' askıda')
                 ->descriptionIcon('heroicon-m-identification')
                 ->url(route('filament.yonetim.resources.akreditasyonlar.index')),
 
             Stat::make('Akredite kurum', (string) Kurum::where('akreditasyon_durumu', 'akredite')->count())
-                ->description(Kurum::where('akreditasyon_durumu', 'beklemede')->count() . ' beklemede')
+                ->description(Kurum::where('akreditasyon_durumu', 'beklemede')->count().' beklemede')
                 ->descriptionIcon('heroicon-m-building-office-2')
                 ->url(route('filament.yonetim.resources.kurumlar.index')),
 

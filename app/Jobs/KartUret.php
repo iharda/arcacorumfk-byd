@@ -39,6 +39,6 @@ class KartUret implements ShouldQueue
     /** Aynı akreditasyon için eşzamanlı iki üretim sürüm numarasını bozar. */
     public function uniqueId(): string
     {
-        return 'kart-' . $this->akreditasyon->id;
+        return 'kart-'.$this->akreditasyon->id;
     }
 }

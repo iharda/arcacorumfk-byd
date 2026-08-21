@@ -32,7 +32,7 @@ class CsvDisaAktar
             });
 
             fclose($cikti);
-        }, $dosyaAdi . '-' . now()->format('Ymd-His') . '.csv', [
+        }, $dosyaAdi.'-'.now()->format('Ymd-His').'.csv', [
             'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
     }

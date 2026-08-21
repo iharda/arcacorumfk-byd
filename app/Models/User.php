@@ -10,12 +10,14 @@ use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 use SensitiveParameter;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -31,27 +33,51 @@ use Spatie\Permission\Traits\HasRoles;
  */
 #[Fillable(['name', 'email', 'password', 'telefon', 'adres', 'il', 'ilce', 'kurum_id', 'aktif', 'email_verified_at'])]
 #[Hidden(['password', 'remember_token', 'iki_adimli_gizli', 'iki_adimli_kurtarma_kodlari'])]
+/**
+ * @property int $id
+ * @property ?string $ulid
+ * @property string $name
+ * @property string $email
+ * @property ?string $telefon
+ * @property ?string $adres
+ * @property ?string $il
+ * @property ?string $ilce
+ * @property ?int $kurum_id
+ * @property ?Carbon $ayrildi_at
+ * @property bool $aktif
+ * @property ?Carbon $son_giris_at
+ * @property ?Carbon $email_verified_at
+ * @property ?string $iki_adimli_gizli
+ * @property ?array $iki_adimli_kurtarma_kodlari
+ * @property ?Kurum $kurum
+ * @property ?Akreditasyon $akreditasyon
+ * @property Collection<int, Basvuru> $basvurular
+ */
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery, MustVerifyEmail
 {
     use HasRoles, Notifiable, SoftDeletes, UlidAnahtari;
 
     /** Roller -- Spatie. Tek kaynak burasi, ekranlarda dize yazilmaz. */
-    public const ROL_SUPER      = 'super';
-    public const ROL_YETKILI    = 'yetkili';
-    public const ROL_KURUM      = 'kurum';
-    public const ROL_BASIN      = 'basin_mensubu';
-    public const ROL_ICERIK     = 'icerik_ureticisi';
+    public const ROL_SUPER = 'super';
+
+    public const ROL_YETKILI = 'yetkili';
+
+    public const ROL_KURUM = 'kurum';
+
+    public const ROL_BASIN = 'basin_mensubu';
+
+    public const ROL_ICERIK = 'icerik_ureticisi';
 
     protected function casts(): array
     {
         return [
-            'email_verified_at'            => 'datetime',
-            'password'                     => 'hashed',
-            'ayrildi_at'                   => 'datetime',
-            'son_giris_at'                 => 'datetime',
-            'aktif'                        => 'boolean',
-            'iki_adimli_gizli'             => 'encrypted',
-            'iki_adimli_kurtarma_kodlari'  => 'encrypted:array',
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'ayrildi_at' => 'datetime',
+            'son_giris_at' => 'datetime',
+            'aktif' => 'boolean',
+            'iki_adimli_gizli' => 'encrypted',
+            'iki_adimli_kurtarma_kodlari' => 'encrypted:array',
         ];
     }
 
@@ -86,9 +112,9 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             // onaya kadar panelde yalnızca "başvuru durumu + evrak yükleme"
             // görür (Plan v1.0 md.5.5). Akreditasyona bağlı ekranlar panel
             // içinde tek tek kapatılır.
-            'kurum'   => $this->hasRole(self::ROL_KURUM),
-            'uye'     => $this->hasAnyRole([self::ROL_BASIN, self::ROL_ICERIK]),
-            default   => false,
+            'kurum' => $this->hasRole(self::ROL_KURUM),
+            'uye' => $this->hasAnyRole([self::ROL_BASIN, self::ROL_ICERIK]),
+            default => false,
         };
     }
 
@@ -97,8 +123,8 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     {
         return match (true) {
             $this->hasAnyRole([self::ROL_SUPER, self::ROL_YETKILI]) => '/yonetim',
-            $this->hasRole(self::ROL_KURUM)                         => '/kurum',
-            default                                                 => '/panel',
+            $this->hasRole(self::ROL_KURUM) => '/kurum',
+            default => '/panel',
         };
     }
 
@@ -120,16 +146,22 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         return $this->email;
     }
 
-    /** @return ?array<string> */
+    /**
+     * @return ?array<string>
+     *
+     * Sütun metin, cast 'encrypted:array'. Statik analiz sütun tipini görüyor;
+     * dönüşü sınırda netleştiriyoruz ki tip sözleşmesi gerçekten tutsun.
+     */
     public function getAppAuthenticationRecoveryCodes(): ?array
     {
-        return $this->iki_adimli_kurtarma_kodlari;
+        $kodlar = $this->iki_adimli_kurtarma_kodlari;
+
+        return is_array($kodlar) ? $kodlar : null;
     }
 
     /** @param ?array<string> $codes */
     public function saveAppAuthenticationRecoveryCodes(#[SensitiveParameter] ?array $codes): void
     {
-        $this->iki_adimli_kurtarma_kodlari = $codes;
-        $this->save();
+        $this->forceFill(['iki_adimli_kurtarma_kodlari' => $codes])->save();
     }
 }

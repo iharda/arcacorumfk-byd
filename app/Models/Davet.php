@@ -5,7 +5,23 @@ namespace App\Models;
 use App\Concerns\UlidAnahtari;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string $ulid
+ * @property int $kurum_id
+ * @property ?int $olusturan_id
+ * @property ?int $basvuru_id
+ * @property string $ad_soyad
+ * @property string $eposta
+ * @property string $token_hash
+ * @property Carbon $gecerlilik_bitis
+ * @property ?Carbon $kullanildi_at
+ * @property ?Carbon $iptal_at
+ * @property int $gonderim_sayisi
+ * @property ?Kurum $kurum
+ */
 class Davet extends Model
 {
     use UlidAnahtari;
@@ -20,8 +36,8 @@ class Davet extends Model
     {
         return [
             'gecerlilik_bitis' => 'datetime',
-            'kullanildi_at'    => 'datetime',
-            'iptal_at'         => 'datetime',
+            'kullanildi_at' => 'datetime',
+            'iptal_at' => 'datetime',
         ];
     }
 

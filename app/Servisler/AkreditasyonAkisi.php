@@ -4,10 +4,10 @@ namespace App\Servisler;
 
 use App\Enums\AkreditasyonDurumu;
 use App\Enums\BasvuruTuru;
+use App\Jobs\KartUret;
 use App\Models\Akreditasyon;
 use App\Models\Basvuru;
 use App\Models\User;
-use App\Jobs\KartUret;
 use App\Notifications\AkreditasyonDurumuDegisti;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -42,9 +42,9 @@ class AkreditasyonAkisi
                 $basvuru->tur,
                 fn (array $numara) => Akreditasyon::create($numara + [
                     'kullanici_id' => $basvuru->kullanici_id,
-                    'basvuru_id'   => $basvuru->id,
-                    'kurum_id'     => $basvuru->kurum_id,
-                    'durum'        => AkreditasyonDurumu::Aktif,
+                    'basvuru_id' => $basvuru->id,
+                    'kurum_id' => $basvuru->kurum_id,
+                    'durum' => AkreditasyonDurumu::Aktif,
                     // Sezon/geçerlilik Faz 2 — alanlar boş bırakılıyor (md.4).
                 ]),
             );
@@ -95,8 +95,8 @@ class AkreditasyonAkisi
         }
 
         $this->durumaGec($akreditasyon, AkreditasyonDurumu::Iptal, 'akreditasyon.iptal', $neden, [
-            'iptal_at'      => now(),
-            'iptal_nedeni'  => $neden,
+            'iptal_at' => now(),
+            'iptal_nedeni' => $neden,
         ], $aktorTip);
     }
 
@@ -112,7 +112,7 @@ class AkreditasyonAkisi
             $eski = $akreditasyon->durum;
 
             $akreditasyon->fill($alanlar + [
-                'durum'               => $hedef,
+                'durum' => $hedef,
                 'durum_degistiren_id' => Auth::id(),
             ])->save();
 

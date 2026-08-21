@@ -44,7 +44,7 @@ class IcerikAkisi
             $ilkYayin = ! $icerik->bildirim_gonderildi;
 
             $icerik->forceFill([
-                'yayinda'  => true,
+                'yayinda' => true,
                 'yayin_at' => $icerik->yayin_at ?? now(),
             ])->save();
 

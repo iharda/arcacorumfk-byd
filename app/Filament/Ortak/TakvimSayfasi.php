@@ -11,7 +11,7 @@ abstract class TakvimSayfasi extends MedyaMerkeziSayfasi
 {
     protected string $view = 'filament.ortak.takvim';
 
-    protected static string | BackedEnum | null $navigationIcon = 'heroicon-o-calendar-days';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-calendar-days';
 
     protected static ?string $navigationLabel = 'Antrenman takvimi';
 

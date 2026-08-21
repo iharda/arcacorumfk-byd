@@ -30,9 +30,9 @@ class BasvuruOnaylandi extends Notification implements ShouldQueue
 
         return (new MailMessage)
             ->subject('Başvurunuz onaylandı — ARCA Çorum FK')
-            ->greeting('Merhaba ' . $notifiable->name . ',')
+            ->greeting('Merhaba '.$notifiable->name.',')
             ->line($kurumsal
-                ? '**' . $this->basvuru->kurum?->resmi_unvan . '** akredite edildi.'
+                ? '**'.$this->basvuru->kurum?->resmi_unvan.'** akredite edildi.'
                 : 'Akreditasyon başvurunuz onaylandı.')
             ->line($kurumsal
                 ? 'Kurum panelinizden çalışanlarınız için başvuru başlatabilirsiniz.'

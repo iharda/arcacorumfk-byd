@@ -3,9 +3,24 @@
 namespace App\Models;
 
 use App\Enums\BasvuruTuru;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property string $kod
+ * @property string $ad
+ * @property ?string $aciklama
+ * @property array $basvuru_turleri
+ * @property bool $zorunlu
+ * @property ?array $izinli_formatlar
+ * @property int $maks_boyut_kb
+ * @property bool $hassas
+ * @property ?int $imha_gun
+ * @property int $sira
+ * @property bool $aktif
+ */
 class EvrakTuru extends Model
 {
     protected $table = 'evrak_turleri';
@@ -15,11 +30,11 @@ class EvrakTuru extends Model
     protected function casts(): array
     {
         return [
-            'basvuru_turleri'  => 'array',
+            'basvuru_turleri' => 'array',
             'izinli_formatlar' => 'array',
-            'zorunlu'          => 'boolean',
-            'hassas'           => 'boolean',
-            'aktif'            => 'boolean',
+            'zorunlu' => 'boolean',
+            'hassas' => 'boolean',
+            'aktif' => 'boolean',
         ];
     }
 
@@ -28,7 +43,7 @@ class EvrakTuru extends Model
         return $this->hasMany(Evrak::class, 'evrak_turu_id');
     }
 
-    /** @return \Illuminate\Database\Eloquent\Collection<int, static> */
+    /** @return Collection<int, static> */
     public static function turIcin(BasvuruTuru $tur)
     {
         return static::query()

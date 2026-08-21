@@ -27,8 +27,8 @@ class KurumTeyidiIstendi extends Notification implements ShouldQueue
     {
         return (new MailMessage)
             ->subject('Teyidiniz bekleniyor — ARCA Çorum FK Basın Yönetim Sistemi')
-            ->greeting('Merhaba ' . $notifiable->name . ',')
-            ->line('**' . $this->basvuru->kullanici?->name . '** kurumunuz adına akreditasyon başvurusu yaptı.')
+            ->greeting('Merhaba '.$notifiable->name.',')
+            ->line('**'.$this->basvuru->kullanici?->name.'** kurumunuz adına akreditasyon başvurusu yaptı.')
             ->line('Başvurunun kulüp incelemesine geçebilmesi için bu kişinin çalışanınız olduğunu teyit etmeniz gerekiyor.')
             ->action('Teyit ekranına git', url('/kurum/calisanlar'))
             ->salutation('ARCA Çorum FK');

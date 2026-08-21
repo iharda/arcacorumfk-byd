@@ -9,25 +9,25 @@ namespace App\Enums;
  */
 enum AkreditasyonDurumu: string
 {
-    case Aktif  = 'aktif';
+    case Aktif = 'aktif';
     case Askida = 'askida';
-    case Iptal  = 'iptal';
+    case Iptal = 'iptal';
 
     public function etiket(): string
     {
         return match ($this) {
-            self::Aktif  => 'Aktif',
+            self::Aktif => 'Aktif',
             self::Askida => 'Askıda',
-            self::Iptal  => 'İptal',
+            self::Iptal => 'İptal',
         };
     }
 
     public function renk(): string
     {
         return match ($this) {
-            self::Aktif  => 'success',
+            self::Aktif => 'success',
             self::Askida => 'warning',
-            self::Iptal  => 'danger',
+            self::Iptal => 'danger',
         };
     }
 

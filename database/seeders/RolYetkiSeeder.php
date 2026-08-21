@@ -19,32 +19,32 @@ class RolYetkiSeeder extends Seeder
 {
     /** @var array<string, string> yetki => aciklama */
     public const YETKILER = [
-        'basvuru.gor'          => 'Başvuruları görüntüleme',
-        'basvuru.incele'       => 'Başvuruyu incelemeye alma, eksik evrak talebi',
-        'basvuru.karar'        => 'Onay / red kararı verme',
+        'basvuru.gor' => 'Başvuruları görüntüleme',
+        'basvuru.incele' => 'Başvuruyu incelemeye alma, eksik evrak talebi',
+        'basvuru.karar' => 'Onay / red kararı verme',
 
-        'kurum.gor'            => 'Kurumları görüntüleme',
-        'kurum.yonet'          => 'Kurum bilgisi düzenleme',
-        'kurum.akredite'       => 'Kurumu akredite etme / akreditasyonu kaldırma',
+        'kurum.gor' => 'Kurumları görüntüleme',
+        'kurum.yonet' => 'Kurum bilgisi düzenleme',
+        'kurum.akredite' => 'Kurumu akredite etme / akreditasyonu kaldırma',
 
-        'akreditasyon.gor'     => 'Akreditasyonları görüntüleme',
-        'akreditasyon.aski'    => 'Askıya alma / yeniden aktifleştirme',
-        'akreditasyon.iptal'   => 'Akreditasyon iptali',
+        'akreditasyon.gor' => 'Akreditasyonları görüntüleme',
+        'akreditasyon.aski' => 'Askıya alma / yeniden aktifleştirme',
+        'akreditasyon.iptal' => 'Akreditasyon iptali',
 
-        'kart.uret'            => 'Basın kartı üretme / yeniden üretme',
-        'kart.indir'           => 'Kart PDF indirme',
+        'kart.uret' => 'Basın kartı üretme / yeniden üretme',
+        'kart.indir' => 'Kart PDF indirme',
 
-        'kapi.yonet'           => 'Turnike istemcisi ve API anahtarı yönetimi',
-        'gecis.gor'            => 'Geçiş kayıtlarını görüntüleme',
+        'kapi.yonet' => 'Turnike istemcisi ve API anahtarı yönetimi',
+        'gecis.gor' => 'Geçiş kayıtlarını görüntüleme',
 
-        'icerik.yonet'         => 'Duyuru, antrenman takvimi, bülten yönetimi',
+        'icerik.yonet' => 'Duyuru, antrenman takvimi, bülten yönetimi',
 
-        'rapor.gor'            => 'Raporları görüntüleme',
-        'rapor.disaaktar'      => 'Rapor dışa aktarma (CSV/Excel)',
+        'rapor.gor' => 'Raporları görüntüleme',
+        'rapor.disaaktar' => 'Rapor dışa aktarma (CSV/Excel)',
 
-        'kullanici.yonet'      => 'Kullanıcı ve rol yönetimi',
-        'ayar.yonet'           => 'Sistem ayarları',
-        'denetim.gor'          => 'Denetim kaydını görüntüleme',
+        'kullanici.yonet' => 'Kullanıcı ve rol yönetimi',
+        'ayar.yonet' => 'Sistem ayarları',
+        'denetim.gor' => 'Denetim kaydını görüntüleme',
     ];
 
     public function run(): void

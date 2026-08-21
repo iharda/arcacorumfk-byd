@@ -7,7 +7,28 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string $ulid
+ * @property string $resmi_unvan
+ * @property ?string $adres
+ * @property ?string $il
+ * @property ?string $ilce
+ * @property ?string $telefon
+ * @property ?string $eposta
+ * @property ?string $vergi_dairesi
+ * @property ?string $vergi_no
+ * @property ?int $calisan_sayisi
+ * @property ?array $yayin_platformlari
+ * @property ?array $sosyal_medya
+ * @property string $akreditasyon_durumu
+ * @property ?int $kontenjan
+ * @property ?bool $teyit_istensin
+ * @property ?Carbon $created_at
+ * @property ?Carbon $deleted_at
+ */
 class Kurum extends Model
 {
     use HasFactory, SoftDeletes, UlidAnahtari;
@@ -20,10 +41,10 @@ class Kurum extends Model
     {
         return [
             'yayin_platformlari' => 'array',
-            'sosyal_medya'       => 'array',
-            'kontenjan'          => 'integer',
-            'calisan_sayisi'     => 'integer',
-            'teyit_istensin'     => 'boolean',
+            'sosyal_medya' => 'array',
+            'kontenjan' => 'integer',
+            'calisan_sayisi' => 'integer',
+            'teyit_istensin' => 'boolean',
         ];
     }
 

@@ -48,10 +48,10 @@ class DavetAkisi
             $token = Str::random(48);
 
             $davet = $kurum->davetler()->create([
-                'olusturan_id'     => Auth::id(),
-                'ad_soyad'         => $adSoyad,
-                'eposta'           => $eposta,
-                'token_hash'       => Davet::tokenHash($token),
+                'olusturan_id' => Auth::id(),
+                'ad_soyad' => $adSoyad,
+                'eposta' => $eposta,
+                'token_hash' => Davet::tokenHash($token),
                 'gecerlilik_bitis' => now()->addDays((int) Ayar::al('davet_gecerlilik_gun', 7)),
             ]);
 
@@ -74,9 +74,9 @@ class DavetAkisi
         $token = Str::random(48);
 
         $davet->update([
-            'token_hash'       => Davet::tokenHash($token),
+            'token_hash' => Davet::tokenHash($token),
             'gecerlilik_bitis' => now()->addDays((int) Ayar::al('davet_gecerlilik_gun', 7)),
-            'gonderim_sayisi'  => $davet->gonderim_sayisi + 1,
+            'gonderim_sayisi' => $davet->gonderim_sayisi + 1,
         ]);
 
         $this->denetim->yaz('davet.yeniden_gonderildi', $davet);

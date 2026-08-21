@@ -34,11 +34,11 @@ class CalisanDaveti extends Notification implements ShouldQueue
     {
         return (new MailMessage)
             ->subject('Basın akreditasyon başvurunuz başlatıldı — ARCA Çorum FK')
-            ->greeting('Merhaba ' . $this->davet->ad_soyad . ',')
-            ->line('**' . $this->davet->kurum?->resmi_unvan . '** sizin adınıza ARCA Çorum FK basın akreditasyon başvurusu başlattı.')
+            ->greeting('Merhaba '.$this->davet->ad_soyad.',')
+            ->line('**'.$this->davet->kurum?->resmi_unvan.'** sizin adınıza ARCA Çorum FK basın akreditasyon başvurusu başlattı.')
             ->line('Başvuruyu tamamlamak için bilgilerinizi girip evraklarınızı yüklemeniz gerekiyor.')
-            ->action('Başvurumu tamamla', url('/davet/' . $this->token))
-            ->line('Bu bağlantı **' . $this->davet->gecerlilik_bitis->timezone('Europe/Istanbul')->format('d.m.Y H:i') . '** tarihine kadar geçerlidir.')
+            ->action('Başvurumu tamamla', url('/davet/'.$this->token))
+            ->line('Bu bağlantı **'.$this->davet->gecerlilik_bitis->timezone('Europe/Istanbul')->format('d.m.Y H:i').'** tarihine kadar geçerlidir.')
             ->line('Bu başvurudan haberiniz yoksa bağlantıyı kullanmayın; kuruma bildirin.')
             ->salutation('ARCA Çorum FK');
     }

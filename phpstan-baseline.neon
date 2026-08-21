@@ -1,0 +1,187 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:akrediteMi\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Filament/Kurum/Pages/Calisanlar.php
+
+		-
+			message: '#^Method App\\Filament\\Kurum\\Pages\\Calisanlar\:\:kurum\(\) should return App\\Models\\Kurum\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Filament/Kurum/Pages/Calisanlar.php
+
+		-
+			message: '#^Parameter \#1 \$akreditasyon of method App\\Servisler\\AkreditasyonAkisi\:\:iptalEt\(\) expects App\\Models\\Akreditasyon, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Filament/Kurum/Pages/Calisanlar.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>resmi_unvan" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Filament/Yonetim/Resources/Akreditasyonlar/Tables/AkreditasyonlarTable.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$yayinda\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Jobs/IcerikBildirimiGonder.php
+
+		-
+			message: '#^Call to function is_array\(\) with string\|null will always evaluate to false\.$#'
+			identifier: function.impossibleType
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$resmi_unvan\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Notifications/BasvuruOnaylandi.php
+
+		-
+			message: '#^Empty array passed to foreach\.$#'
+			identifier: foreach.emptyArray
+			count: 1
+			path: app/Notifications/EksikEvrakTalebi.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Notifications/KurumTeyidiIstendi.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$baslangic_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Notifications/YeniIcerik.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$baslik\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Notifications/YeniIcerik.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$ozet\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Notifications/YeniIcerik.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$yer\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Notifications/YeniIcerik.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:syncRoles\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Servisler/AkreditasyonAkisi.php
+
+		-
+			message: '#^Method App\\Servisler\\AkreditasyonAkisi\:\:basvurudanOlustur\(\) should return App\\Models\\Akreditasyon\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Servisler/AkreditasyonAkisi.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:calisanlar\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Servisler/BasvuruAkisi.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:notify\(\)\.$#'
+			identifier: method.notFound
+			count: 4
+			path: app/Servisler/BasvuruAkisi.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:syncRoles\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Servisler/BasvuruAkisi.php
+
+		-
+			message: '#^Method App\\Servisler\\DavetAkisi\:\:olustur\(\) should return App\\Models\\Davet but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Servisler/DavetAkisi.php
+
+		-
+			message: '#^Parameter \#1 \$davet of class App\\Notifications\\CalisanDaveti constructor expects App\\Models\\Davet, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Servisler/DavetAkisi.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$boyut\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Servisler/EvrakYukleyici.php
+
+		-
+			message: '#^Method App\\Servisler\\EvrakYukleyici\:\:yukle\(\) should return App\\Models\\Evrak but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Servisler/EvrakYukleyici.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$bildirim_gonderildi\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Servisler/IcerikAkisi.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$turu\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Servisler/KapiDogrulama.php
+
+		-
+			message: '#^Parameter \#1 \$evrak of method App\\Servisler\\EvrakYukleyici\:\:icerik\(\) expects App\\Models\\Evrak, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Servisler/KapiDogrulama.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$mime\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Servisler/KartUretici.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$turu\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Servisler/KartUretici.php
+
+		-
+			message: '#^Method App\\Servisler\\KartUretici\:\:uret\(\) should return App\\Models\\Kart but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Servisler/KartUretici.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:each\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: mixed, Closure\(App\\Models\\Kart\)\: void given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Servisler/KartUretici.php
+
+		-
+			message: '#^Parameter \#1 \$evrak of method App\\Servisler\\EvrakYukleyici\:\:icerik\(\) expects App\\Models\\Evrak, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Servisler/KartUretici.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Servisler/KartUretici.php

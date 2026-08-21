@@ -23,7 +23,7 @@ class HesapController extends Controller
     public function aktivasyonFormu(Request $istek, User $kullanici): View|RedirectResponse
     {
         if ($kullanici->email_verified_at !== null) {
-            return redirect($kullanici->panelYolu() . '/login')
+            return redirect($kullanici->panelYolu().'/login')
                 ->with('bilgi', 'Hesabınız zaten etkin. Giriş yapabilirsiniz.');
         }
 
@@ -33,7 +33,7 @@ class HesapController extends Controller
     public function aktivasyonKaydet(Request $istek, User $kullanici): RedirectResponse
     {
         if ($kullanici->email_verified_at !== null) {
-            return redirect($kullanici->panelYolu() . '/login');
+            return redirect($kullanici->panelYolu().'/login');
         }
 
         $istek->validate(
@@ -43,7 +43,7 @@ class HesapController extends Controller
         );
 
         $kullanici->forceFill([
-            'password'          => Hash::make($istek->string('sifre')->toString()),
+            'password' => Hash::make($istek->string('sifre')->toString()),
             'email_verified_at' => now(),
         ])->save();
 

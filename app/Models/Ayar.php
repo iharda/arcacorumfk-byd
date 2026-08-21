@@ -5,6 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
+/**
+ * @property int $id
+ * @property string $anahtar
+ * @property mixed $deger
+ * @property string $grup
+ * @property ?string $aciklama
+ */
 class Ayar extends Model
 {
     protected $table = 'ayarlar';

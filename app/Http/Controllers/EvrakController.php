@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Evrak;
 use App\Models\Kart;
+use App\Models\User;
 use App\Servisler\DenetimYazici;
 use App\Servisler\EvrakYukleyici;
+use App\Servisler\IcerikAkisi;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
@@ -35,11 +37,11 @@ class EvrakController extends Controller
         $kart->loadMissing('akreditasyon');
         $this->authorize('view', $kart->akreditasyon);
 
-        abort_unless($kart->gorsel_yolu, 404);
+        abort_unless(filled($kart->gorsel_yolu), 404);
 
-        return response(\Illuminate\Support\Facades\Storage::disk($kart->disk)->get($kart->gorsel_yolu), 200, [
-            'Content-Type'           => 'image/png',
-            'Cache-Control'          => 'private, no-store, max-age=0',
+        return response(Storage::disk($kart->disk)->get($kart->gorsel_yolu), 200, [
+            'Content-Type' => 'image/png',
+            'Cache-Control' => 'private, no-store, max-age=0',
             'X-Content-Type-Options' => 'nosniff',
         ]);
     }
@@ -60,14 +62,14 @@ class EvrakController extends Controller
         abort_unless($disk->exists($yol), 404);
 
         return response($disk->get($yol), 200, [
-            'Content-Type'           => $disk->mimeType($yol) ?: 'application/octet-stream',
-            'Content-Disposition'    => 'inline',
-            'Cache-Control'          => 'private, max-age=600',
+            'Content-Type' => $disk->mimeType($yol) ?: 'application/octet-stream',
+            'Content-Disposition' => 'inline',
+            'Cache-Control' => 'private, max-age=600',
             'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 
-    private function icerigeErisebilirMi(?\App\Models\User $kullanici): bool
+    private function icerigeErisebilirMi(?User $kullanici): bool
     {
         if (! $kullanici) {
             return false;
@@ -77,7 +79,7 @@ class EvrakController extends Controller
             return true;
         }
 
-        return \App\Servisler\IcerikAkisi::akrediteKullanicilar()
+        return IcerikAkisi::akrediteKullanicilar()
             ->whereKey($kullanici->getKey())
             ->exists();
     }
@@ -96,9 +98,9 @@ class EvrakController extends Controller
         }
 
         return response($this->yukleyici->icerik($evrak), 200, [
-            'Content-Type'           => $evrak->mime,
-            'Content-Disposition'    => 'inline; filename="' . addslashes($evrak->orijinal_ad) . '"',
-            'Cache-Control'          => 'private, no-store, max-age=0',
+            'Content-Type' => $evrak->mime,
+            'Content-Disposition' => 'inline; filename="'.addslashes($evrak->orijinal_ad).'"',
+            'Cache-Control' => 'private, no-store, max-age=0',
             'X-Content-Type-Options' => 'nosniff',
         ]);
     }

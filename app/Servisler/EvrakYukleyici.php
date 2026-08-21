@@ -54,22 +54,22 @@ class EvrakYukleyici
         $basvuru->evraklar()->where('evrak_turu_id', $tur->id)->delete();
 
         $evrak = $basvuru->evraklar()->create([
-            'evrak_turu_id'     => $tur->id,
-            'disk'              => $disk,
-            'yol'               => $yol,
-            'orijinal_ad'       => $this->temizAd($dosya->getClientOriginalName()),
-            'mime'              => $mime,
-            'boyut'             => strlen($icerik) ?: filesize($dosya->getRealPath()),
-            'sha256'            => $sha,
+            'evrak_turu_id' => $tur->id,
+            'disk' => $disk,
+            'yol' => $yol,
+            'orijinal_ad' => $this->temizAd($dosya->getClientOriginalName()),
+            'mime' => $mime,
+            'boyut' => strlen($icerik) ?: filesize($dosya->getRealPath()),
+            'sha256' => $sha,
             'icerik_dogrulandi' => true,
-            'sifreli'           => $tur->hassas,
-            'dogrulama_durumu'  => 'bekliyor',
-            'imha_tarihi'       => $tur->imha_gun ? now()->addDays($tur->imha_gun)->toDateString() : null,
+            'sifreli' => $tur->hassas,
+            'dogrulama_durumu' => 'bekliyor',
+            'imha_tarihi' => $tur->imha_gun ? now()->addDays($tur->imha_gun)->toDateString() : null,
         ]);
 
         $this->denetim->yaz('evrak.yuklendi', $evrak, yeni: [
             'evrak_turu' => $tur->kod,
-            'boyut'      => $evrak->boyut,
+            'boyut' => $evrak->boyut,
         ]);
 
         return $evrak;
@@ -109,7 +109,7 @@ class EvrakYukleyici
         $esler = $uzanti === 'jpg' ? ['jpg', 'jpeg'] : [$uzanti];
 
         if (! array_intersect($esler, $izinli)) {
-            throw new RuntimeException('Bu evrak için izin verilen biçimler: ' . implode(', ', $izinli));
+            throw new RuntimeException('Bu evrak için izin verilen biçimler: '.implode(', ', $izinli));
         }
     }
 
@@ -130,10 +130,10 @@ class EvrakYukleyici
     {
         return match ($mime) {
             'application/pdf' => 'pdf',
-            'image/jpeg'      => 'jpg',
-            'image/png'       => 'png',
-            'image/webp'      => 'webp',
-            default           => throw new RuntimeException('Dosya türü kabul edilmiyor.'),
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            default => throw new RuntimeException('Dosya türü kabul edilmiyor.'),
         };
     }
 

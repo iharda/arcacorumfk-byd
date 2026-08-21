@@ -13,6 +13,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use RuntimeException;
 
+/**
+ * @property BasvuruTuru $tur
+ * @property BasvuruDurumu $durum
+ */
 class Basvuru extends Model
 {
     use SoftDeletes, UlidAnahtari;
@@ -24,17 +28,17 @@ class Basvuru extends Model
     protected function casts(): array
     {
         return [
-            'tur'                  => BasvuruTuru::class,
-            'durum'                => BasvuruDurumu::class,
-            'form_verisi'          => 'array',
-            'duzeltme_notlari'     => 'array',
-            'kurum_baslatti'       => 'boolean',
+            'tur' => BasvuruTuru::class,
+            'durum' => BasvuruDurumu::class,
+            'form_verisi' => 'array',
+            'duzeltme_notlari' => 'array',
+            'kurum_baslatti' => 'boolean',
             'kurum_teyidi_gerekli' => 'boolean',
-            'kurum_teyidi'         => 'boolean',
-            'kurum_teyidi_at'      => 'datetime',
-            'gonderildi_at'        => 'datetime',
+            'kurum_teyidi' => 'boolean',
+            'kurum_teyidi_at' => 'datetime',
+            'gonderildi_at' => 'datetime',
             'incelemeye_alindi_at' => 'datetime',
-            'karar_at'             => 'datetime',
+            'karar_at' => 'datetime',
         ];
     }
 

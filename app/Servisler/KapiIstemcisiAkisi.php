@@ -22,13 +22,13 @@ class KapiIstemcisiAkisi
         $anahtar = $this->anahtarUret();
 
         $istemci = KapiIstemcisi::create([
-            'ad'            => $veri['ad'],
-            'kapi_kodu'     => $veri['kapi_kodu'],
-            'ip_listesi'    => $this->ipListesi($veri['ip_listesi'] ?? null),
-            'bolgeler'      => $veri['bolgeler'] ?? null,
-            'aktif'         => $veri['aktif'] ?? true,
-            'anahtar_onek'  => substr($anahtar, 0, 12),
-            'anahtar_hash'  => hash('sha256', $anahtar),
+            'ad' => $veri['ad'],
+            'kapi_kodu' => $veri['kapi_kodu'],
+            'ip_listesi' => $this->ipListesi($veri['ip_listesi'] ?? null),
+            'bolgeler' => $veri['bolgeler'] ?? null,
+            'aktif' => $veri['aktif'] ?? true,
+            'anahtar_onek' => substr($anahtar, 0, 12),
+            'anahtar_hash' => hash('sha256', $anahtar),
         ]);
 
         $this->denetim->yaz('kapi_istemcisi.olusturuldu', $istemci, yeni: [
@@ -58,7 +58,7 @@ class KapiIstemcisiAkisi
     {
         do {
             // Karışan karakter yok (0/O, 1/l): görevli anahtarı elle girecek.
-            $anahtar = 'kapi_' . Str::lower(Str::random(40));
+            $anahtar = 'kapi_'.Str::lower(Str::random(40));
         } while (KapiIstemcisi::where('anahtar_onek', substr($anahtar, 0, 12))->exists());
 
         return $anahtar;

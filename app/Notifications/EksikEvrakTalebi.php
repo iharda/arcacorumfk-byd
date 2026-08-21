@@ -27,11 +27,11 @@ class EksikEvrakTalebi extends Notification implements ShouldQueue
     {
         $mesaj = (new MailMessage)
             ->subject('Başvurunuzda eksik/hatalı bilgi var — ARCA Çorum FK')
-            ->greeting('Merhaba ' . $notifiable->name . ',')
+            ->greeting('Merhaba '.$notifiable->name.',')
             ->line('Başvurunuz incelendi ve aşağıdaki noktaların düzeltilmesi gerekiyor:');
 
         foreach ($this->basvuru->duzeltme_notlari ?? [] as $alan => $aciklama) {
-            $mesaj->line('• **' . $alan . '** — ' . $aciklama);
+            $mesaj->line('• **'.$alan.'** — '.$aciklama);
         }
 
         if (filled($this->basvuru->karar_gerekcesi)) {

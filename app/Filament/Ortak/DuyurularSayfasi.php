@@ -14,7 +14,7 @@ abstract class DuyurularSayfasi extends MedyaMerkeziSayfasi
 
     protected string $view = 'filament.ortak.duyurular';
 
-    protected static string | BackedEnum | null $navigationIcon = 'heroicon-o-megaphone';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-megaphone';
 
     protected static ?string $navigationLabel = 'Duyurular';
 

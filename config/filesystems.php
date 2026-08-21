@@ -60,7 +60,6 @@ return [
             'report' => false,
         ],
 
-
         /*
          * BYD evrak deposu -- Plan v1.0 md.11.
          * 🔒 Web root DISINDA, public URL YOK. Erisim yalnizca kisa omurlu
@@ -107,7 +106,6 @@ return [
         ],
 
     ],
-
 
     /*
     |--------------------------------------------------------------------------

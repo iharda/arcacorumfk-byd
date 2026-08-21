@@ -27,8 +27,8 @@ class AkreditasyonDurumuDegisti extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $mesaj = (new MailMessage)
-            ->greeting('Merhaba ' . $notifiable->name . ',')
-            ->line('Kart numaranız: **' . $this->akreditasyon->kart_no . '**');
+            ->greeting('Merhaba '.$notifiable->name.',')
+            ->line('Kart numaranız: **'.$this->akreditasyon->kart_no.'**');
 
         $mesaj = match ($this->akreditasyon->durum) {
             AkreditasyonDurumu::Iptal => $mesaj
@@ -43,7 +43,7 @@ class AkreditasyonDurumuDegisti extends Notification implements ShouldQueue
         };
 
         if (filled($this->gerekce)) {
-            $mesaj->line('**Gerekçe:** ' . $this->gerekce);
+            $mesaj->line('**Gerekçe:** '.$this->gerekce);
         }
 
         return $mesaj->salutation('ARCA Çorum FK');

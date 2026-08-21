@@ -2,8 +2,8 @@
 
 use App\Http\Controllers\BasvuruController;
 use App\Http\Controllers\EvrakController;
-use App\Http\Controllers\KapiController;
 use App\Http\Controllers\HesapController;
+use App\Http\Controllers\KapiController;
 use Illuminate\Support\Facades\Route;
 
 /*

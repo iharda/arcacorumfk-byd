@@ -102,5 +102,4 @@ class GecisKayitlariTable
             ->emptyStateHeading('Geçiş kaydı yok')
             ->emptyStateDescription('Kapıda kart okutuldukça buraya düşer.');
     }
-
 }

@@ -24,9 +24,9 @@ class BasvuruReddedildi extends Notification implements ShouldQueue
     {
         return (new MailMessage)
             ->subject('Başvurunuz hakkında — ARCA Çorum FK')
-            ->greeting('Merhaba ' . $notifiable->name . ',')
+            ->greeting('Merhaba '.$notifiable->name.',')
             ->line('Başvurunuz değerlendirildi ve olumsuz sonuçlandı.')
-            ->line('**Gerekçe:** ' . ($this->basvuru->karar_gerekcesi ?: 'Belirtilmedi'))
+            ->line('**Gerekçe:** '.($this->basvuru->karar_gerekcesi ?: 'Belirtilmedi'))
             ->line('Durumunuzda bir değişiklik olursa yeniden başvurabilirsiniz.')
             ->salutation('ARCA Çorum FK');
     }

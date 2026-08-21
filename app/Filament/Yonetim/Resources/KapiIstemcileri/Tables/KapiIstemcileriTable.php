@@ -102,8 +102,8 @@ class KapiIstemcileriTable
     private static function anahtariGoster(string $anahtar, string $kapi): void
     {
         Notification::make()
-            ->title($kapi . ' için anahtar üretildi')
-            ->body('Bu anahtar YALNIZCA ŞİMDİ gösterilir, sunucuda saklanmaz. Cihaza girin:  ' . $anahtar)
+            ->title($kapi.' için anahtar üretildi')
+            ->body('Bu anahtar YALNIZCA ŞİMDİ gösterilir, sunucuda saklanmaz. Cihaza girin:  '.$anahtar)
             ->success()
             ->persistent()
             ->send();

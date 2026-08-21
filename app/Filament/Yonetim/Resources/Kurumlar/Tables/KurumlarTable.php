@@ -16,8 +16,8 @@ class KurumlarTable
 {
     private const DURUMLAR = [
         'beklemede' => 'Beklemede',
-        'akredite'  => 'Akredite',
-        'iptal'     => 'İptal',
+        'akredite' => 'Akredite',
+        'iptal' => 'İptal',
     ];
 
     public static function configure(Table $table): Table
@@ -45,8 +45,8 @@ class KurumlarTable
                     ->badge()
                     ->color(fn (string $state) => match ($state) {
                         'akredite' => 'success',
-                        'iptal'    => 'danger',
-                        default    => 'gray',
+                        'iptal' => 'danger',
+                        default => 'gray',
                     })
                     ->formatStateUsing(fn (string $state) => self::DURUMLAR[$state] ?? $state),
 

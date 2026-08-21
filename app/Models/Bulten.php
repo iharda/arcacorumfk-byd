@@ -7,7 +7,20 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string $ulid
+ * @property string $baslik
+ * @property ?string $icerik
+ * @property ?array $ekler
+ * @property bool $yayinda
+ * @property ?Carbon $yayin_at
+ * @property bool $bildirim_gonderildi
+ * @property ?int $olusturan_id
+ * @property ?User $olusturan
+ */
 class Bulten extends Model
 {
     use SoftDeletes, UlidAnahtari;
@@ -19,9 +32,9 @@ class Bulten extends Model
     protected function casts(): array
     {
         return [
-            'ekler'               => 'array',
-            'yayinda'             => 'boolean',
-            'yayin_at'            => 'datetime',
+            'ekler' => 'array',
+            'yayinda' => 'boolean',
+            'yayin_at' => 'datetime',
             'bildirim_gonderildi' => 'boolean',
         ];
     }

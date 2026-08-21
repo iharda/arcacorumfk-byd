@@ -2,14 +2,15 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Yonetim\Widgets\OzetSayilar;
+use App\Support\KulupRengi;
+use App\Support\YerelAvatar;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Pages\Dashboard;
-use App\Support\KulupRengi;
-use App\Support\YerelAvatar;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -63,7 +64,7 @@ class YonetimPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Yonetim/Pages'), for: 'App\Filament\Yonetim\Pages')
             ->pages([Dashboard::class])
             ->discoverWidgets(in: app_path('Filament/Yonetim/Widgets'), for: 'App\Filament\Yonetim\Widgets')
-            ->widgets([\App\Filament\Yonetim\Widgets\OzetSayilar::class])
+            ->widgets([OzetSayilar::class])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

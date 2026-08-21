@@ -8,21 +8,21 @@ namespace App\Enums;
  */
 enum BasvuruDurumu: string
 {
-    case Taslak      = 'taslak';
-    case Gonderildi  = 'gonderildi';
-    case Incelemede  = 'incelemede';
-    case EksikEvrak  = 'eksik_evrak';
-    case Onaylandi   = 'onaylandi';
-    case Reddedildi  = 'reddedildi';
+    case Taslak = 'taslak';
+    case Gonderildi = 'gonderildi';
+    case Incelemede = 'incelemede';
+    case EksikEvrak = 'eksik_evrak';
+    case Onaylandi = 'onaylandi';
+    case Reddedildi = 'reddedildi';
 
     public function etiket(): string
     {
         return match ($this) {
-            self::Taslak     => 'Taslak',
+            self::Taslak => 'Taslak',
             self::Gonderildi => 'Gönderildi',
             self::Incelemede => 'İncelemede',
             self::EksikEvrak => 'Eksik evrak',
-            self::Onaylandi  => 'Onaylandı',
+            self::Onaylandi => 'Onaylandı',
             self::Reddedildi => 'Reddedildi',
         };
     }
@@ -30,11 +30,11 @@ enum BasvuruDurumu: string
     public function renk(): string
     {
         return match ($this) {
-            self::Taslak     => 'gray',
+            self::Taslak => 'gray',
             self::Gonderildi => 'gray',
             self::Incelemede => 'info',
             self::EksikEvrak => 'warning',
-            self::Onaylandi  => 'success',
+            self::Onaylandi => 'success',
             self::Reddedildi => 'danger',
         };
     }
@@ -43,7 +43,7 @@ enum BasvuruDurumu: string
     public function sonrakiler(): array
     {
         return match ($this) {
-            self::Taslak     => [self::Gonderildi],
+            self::Taslak => [self::Gonderildi],
             self::Gonderildi => [self::Incelemede],
             self::Incelemede => [self::EksikEvrak, self::Onaylandi, self::Reddedildi],
             self::EksikEvrak => [self::Gonderildi],

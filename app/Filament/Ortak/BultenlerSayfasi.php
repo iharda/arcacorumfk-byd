@@ -14,7 +14,7 @@ abstract class BultenlerSayfasi extends MedyaMerkeziSayfasi
 
     protected string $view = 'filament.ortak.bultenler';
 
-    protected static string | BackedEnum | null $navigationIcon = 'heroicon-o-newspaper';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-newspaper';
 
     protected static ?string $navigationLabel = 'Basın bültenleri';
 

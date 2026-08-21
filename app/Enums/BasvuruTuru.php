@@ -9,15 +9,15 @@ namespace App\Enums;
  */
 enum BasvuruTuru: string
 {
-    case Kurum           = 'kurum';
-    case BasinMensubu    = 'basin_mensubu';
+    case Kurum = 'kurum';
+    case BasinMensubu = 'basin_mensubu';
     case IcerikUreticisi = 'icerik_ureticisi';
 
     public function etiket(): string
     {
         return match ($this) {
-            self::Kurum           => 'Kurumsal başvuru',
-            self::BasinMensubu    => 'Basın mensubu',
+            self::Kurum => 'Kurumsal başvuru',
+            self::BasinMensubu => 'Basın mensubu',
             self::IcerikUreticisi => 'İçerik üreticisi',
         };
     }
@@ -26,8 +26,8 @@ enum BasvuruTuru: string
     public function kartKodu(): ?string
     {
         return match ($this) {
-            self::Kurum           => null,
-            self::BasinMensubu    => 'K',   // kurum calisani
+            self::Kurum => null,
+            self::BasinMensubu => 'K',   // kurum calisani
             self::IcerikUreticisi => 'I',
         };
     }

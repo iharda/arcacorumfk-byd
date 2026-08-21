@@ -4,8 +4,8 @@ namespace App\Filament\Yonetim\Resources\Akreditasyonlar\Tables;
 
 use App\Enums\AkreditasyonDurumu;
 use App\Jobs\KartUret;
-use App\Models\Ayar;
 use App\Models\Akreditasyon;
+use App\Models\Ayar;
 use App\Servisler\AkreditasyonAkisi;
 use App\Servisler\CsvDisaAktar;
 use App\Servisler\DenetimYazici;
