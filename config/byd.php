@@ -16,6 +16,20 @@ return [
         ]),
     ],
 
+    // Başsız Chrome — kart PDF/görsel üretimi. Yol .env'den; kodda sabit YOK.
+    'chrome' => [
+        'yol'      => env('BYD_CHROME'),
+        'node'     => env('BYD_NODE', '/usr/bin/node'),
+        'npm'      => env('BYD_NPM', '/usr/bin/npm'),
+        'modüller' => base_path('node_modules'),
+    ],
+
+    'kart' => [
+        // Dikey rozet: telefonda okunur, A4'e sığar, yaka kartı ölçüsüne yakın.
+        'genislik_mm' => 90,
+        'yukseklik_mm' => 130,
+    ],
+
     // Yükleme sınırları -- php-fpm havuzundaki upload_max_filesize'ı AŞMAMALI (16M)
     'yukleme' => [
         'maks_kb'    => 8192,

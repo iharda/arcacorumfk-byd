@@ -41,6 +41,15 @@ class AppServiceProvider extends ServiceProvider
         // Davet bağlantısı: token tahmin edilemez ama yine de kaba kuvvete kapalı.
         RateLimiter::for('davet', fn (Request $r) => Limit::perMinutes(10, 20)->by($r->ip()));
 
+        /*
+         * Turnike doğrulaması. Maç günü kısa sürede çok okutma olur; sınır
+         * İSTEMCİ BAŞINA konur, kapılar birbirini kilitlemesin.
+         * ⚠️ Plan v1.0'daki "1.000 istek/sn" hedefi basın için fazlasıyla
+         * yüksek; kapsam netleşince bu sayı birlikte gözden geçirilecek.
+         */
+        RateLimiter::for('kapi', fn (Request $r) => Limit::perMinute(600)
+            ->by(optional($r->attributes->get('kapi_istemcisi'))->id ?: $r->ip()));
+
         // Evrak görüntüleme: inceleme ekranı hızlı gezinir, bol bırakılır.
         RateLimiter::for('evrak-goruntule', fn (Request $r) => Limit::perMinute(120)->by($r->user()?->id ?: $r->ip()));
     }

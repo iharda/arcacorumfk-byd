@@ -3,9 +3,13 @@
 namespace App\Filament\Yonetim\Resources\Akreditasyonlar\Tables;
 
 use App\Enums\AkreditasyonDurumu;
+use App\Jobs\KartUret;
+use App\Models\Ayar;
 use App\Models\Akreditasyon;
 use App\Servisler\AkreditasyonAkisi;
+use App\Servisler\DenetimYazici;
 use Filament\Actions\Action;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
@@ -20,7 +24,7 @@ class AkreditasyonlarTable
     {
         return $table
             // ⚠️ Parametre adı $query olmalı (Filament ada göre enjekte eder).
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['kullanici', 'kurum']))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['kullanici', 'kurum', 'guncelKart']))
             ->defaultSort('kart_no', 'desc')
             ->columns([
                 TextColumn::make('kart_no')
@@ -46,6 +50,21 @@ class AkreditasyonlarTable
                     ->badge()
                     ->color(fn (AkreditasyonDurumu $state) => $state->renk())
                     ->formatStateUsing(fn (AkreditasyonDurumu $state) => $state->etiket()),
+
+                TextColumn::make('bolge_yetkileri')
+                    ->label('Bölgeler')
+                    ->badge()
+                    ->separator()
+                    ->formatStateUsing(fn ($state) => ((array) Ayar::al('bolgeler', []))[$state] ?? $state)
+                    ->placeholder('Tanımsız')
+                    ->toggleable(),
+
+                TextColumn::make('guncelKart.surum')
+                    ->label('Kart')
+                    ->formatStateUsing(fn ($state) => $state ? "s{$state}" : null)
+                    ->placeholder('Üretilmedi')
+                    ->badge()
+                    ->color(fn ($state) => $state ? 'success' : 'warning'),
 
                 TextColumn::make('created_at')
                     ->label('Üretim')
@@ -92,6 +111,48 @@ class AkreditasyonlarTable
                         fn () => app(AkreditasyonAkisi::class)->yenidenAktiflestir($record),
                         'Akreditasyon yeniden etkin.',
                     )),
+
+                Action::make('bolgeYetkisi')
+                    ->label('Bölge yetkisi')
+                    ->icon('heroicon-m-map-pin')
+                    ->visible(fn (Akreditasyon $record) => $record->durum !== AkreditasyonDurumu::Iptal
+                        && auth()->user()->can('akreditasyon.aski'))
+                    ->fillForm(fn (Akreditasyon $record) => ['bolgeler' => $record->bolge_yetkileri ?? []])
+                    ->schema([
+                        CheckboxList::make('bolgeler')
+                            ->label('Girebileceği bölgeler')
+                            ->helperText('Hiçbiri seçilmezse bölge kontrolü yapılmaz; kart geçerliyse her kapıdan geçer.')
+                            ->options(fn () => (array) Ayar::al('bolgeler', []))
+                            ->columns(2),
+                    ])
+                    ->action(function (Akreditasyon $record, array $data) {
+                        $eski = $record->bolge_yetkileri;
+                        $record->update(['bolge_yetkileri' => $data['bolgeler'] ?: null]);
+
+                        app(DenetimYazici::class)->yaz('akreditasyon.bolge_degisti', $record,
+                            eski: ['bolge_yetkileri' => $eski],
+                            yeni: ['bolge_yetkileri' => $data['bolgeler'] ?: null]);
+
+                        // Bölgeler kartın üstünde yazıyor: kart yeniden üretilmeli.
+                        KartUret::dispatch($record, bildirimGonder: false)->afterCommit();
+
+                        Notification::make()
+                            ->title('Bölge yetkisi güncellendi, kart yeniden üretiliyor.')
+                            ->success()->send();
+                    }),
+
+                Action::make('kartYenidenUret')
+                    ->label('Kartı yeniden üret')
+                    ->icon('heroicon-m-arrow-path')
+                    ->requiresConfirmation()
+                    ->modalDescription('Yeni sürüm üretilir, eskisi arşivlenir. QR ve kart numarası DEĞİŞMEZ.')
+                    ->visible(fn (Akreditasyon $record) => $record->durum !== AkreditasyonDurumu::Iptal
+                        && auth()->user()->can('kart.uret'))
+                    ->action(function (Akreditasyon $record) {
+                        KartUret::dispatch($record, bildirimGonder: false);
+
+                        Notification::make()->title('Kart üretimi kuyruğa alındı.')->success()->send();
+                    }),
 
                 Action::make('iptal')
                     ->label('İptal et')

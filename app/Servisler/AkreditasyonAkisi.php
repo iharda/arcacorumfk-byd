@@ -7,6 +7,7 @@ use App\Enums\BasvuruTuru;
 use App\Models\Akreditasyon;
 use App\Models\Basvuru;
 use App\Models\User;
+use App\Jobs\KartUret;
 use App\Notifications\AkreditasyonDurumuDegisti;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -55,6 +56,11 @@ class AkreditasyonAkisi
             $this->denetim->yaz('akreditasyon.olusturuldu', $akreditasyon, yeni: [
                 'kart_no' => $akreditasyon->kart_no,
             ]);
+
+            // Kart üretimi kuyrukta: başsız Chrome birkaç saniye sürüyor,
+            // yetkili onay düğmesine basınca ekran beklemesin.
+            // afterCommit: iş, kayıt gerçekten yazılmadan başlamasın.
+            KartUret::dispatch($akreditasyon)->afterCommit();
 
             return $akreditasyon;
         });

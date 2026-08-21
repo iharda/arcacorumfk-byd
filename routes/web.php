@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\BasvuruController;
 use App\Http\Controllers\EvrakController;
+use App\Http\Controllers\KapiController;
 use App\Http\Controllers\HesapController;
 use Illuminate\Support\Facades\Route;
 
@@ -55,6 +56,16 @@ Route::middleware(['signed', 'throttle:hesap-aktivasyon'])->group(function () {
  * Evrak görüntüleme. Yetki policy'de, şifre çözme sunucuda, erişim denetim
  * kaydında. Rota ULID ile bağlanır — sıralı id adreste görünmez.
  */
-Route::middleware(['auth', 'throttle:evrak-goruntule'])
-    ->get('/evrak/{evrak}', [EvrakController::class, 'goster'])
-    ->name('evrak.goster');
+Route::middleware(['auth', 'throttle:evrak-goruntule'])->group(function () {
+    Route::get('/evrak/{evrak}', [EvrakController::class, 'goster'])->name('evrak.goster');
+    Route::get('/kart/{kart}/gorsel', [EvrakController::class, 'kartGorseli'])->name('kart.gorsel');
+});
+
+/*
+ * Kapı uygulaması (PWA) -- Plan v1.0 md.6.
+ * Sayfanın KENDİSİ herkese açık; içerideki her işlem cihaz anahtarı ister.
+ * Anahtarsız açan biri yalnızca boş bir kurulum ekranı görür.
+ */
+Route::get('/kapi', [KapiController::class, 'uygulama'])->name('kapi.uygulama');
+Route::get('/kapi/manifest.json', [KapiController::class, 'manifest'])->name('kapi.manifest');
+Route::get('/kapi/sw.js', [KapiController::class, 'serviceWorker'])->name('kapi.sw');

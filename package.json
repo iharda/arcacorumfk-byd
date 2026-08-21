@@ -17,6 +17,9 @@
         "@laravel/multiplex": "^0.4.1"
     },
     "dependencies": {
-        "alpinejs": "^3.16.2"
+        "alpinejs": "^3.16.2",
+        "jsqr": "^1.4.0",
+        "puppeteer": "^24.43.1",
+        "puppeteer-core": "^24.43.1"
     }
 }
