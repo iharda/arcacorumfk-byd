@@ -28,23 +28,22 @@
         </a>
 
         @foreach ([
-            ['Basın mensubu', 'Akredite bir medya kuruluşunun çalışanı olarak bireysel başvuru.'],
-            ['İçerik üreticisi', 'Bağımsız gazeteci ve içerik üreticileri için başvuru.'],
-        ] as [$ad, $aciklama])
-            <div class="flex items-start gap-4 rounded-xl border border-dashed border-neutral-300 bg-neutral-100/60 p-5">
-                <span class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-neutral-400">
+            ['Basın mensubu', 'Akredite bir medya kuruluşunun çalışanı olarak bireysel başvuru.', route('basvuru.basin-mensubu'), 'M10 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-7 7.5c0-3.038 3.134-5.5 7-5.5s7 2.462 7 5.5H3Z'],
+            ['İçerik üreticisi', 'Bağımsız gazeteci ve içerik üreticileri için başvuru. Kurum bağı gerekmez.', route('basvuru.icerik-ureticisi'), 'M4 3.5A1.5 1.5 0 0 1 5.5 2h9A1.5 1.5 0 0 1 16 3.5v13a.5.5 0 0 1-.79.407L10 13.2l-5.21 3.707A.5.5 0 0 1 4 16.5v-13Z'],
+        ] as [$ad, $aciklama, $adres, $ikon])
+            <a href="{{ $adres }}"
+               class="group flex items-start gap-4 rounded-xl border border-neutral-200 bg-white p-5 transition hover:border-kulup-600 hover:shadow-sm">
+                <span class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-kulup-50 text-kulup-700">
                     <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                        <path d="M10 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-7 7.5c0-3.038 3.134-5.5 7-5.5s7 2.462 7 5.5H3Z"/>
+                        <path d="{{ $ikon }}"/>
                     </svg>
                 </span>
                 <span class="flex-1">
-                    <span class="block font-semibold text-neutral-500">{{ $ad }}</span>
-                    <span class="mt-1 block text-sm text-neutral-500">{{ $aciklama }}</span>
+                    <span class="block font-semibold">{{ $ad }}</span>
+                    <span class="mt-1 block text-sm text-neutral-600">{{ $aciklama }}</span>
                 </span>
-                <span class="mt-0.5 rounded-full bg-neutral-200 px-2.5 py-1 text-[0.7rem] font-medium text-neutral-600">
-                    Yakında
-                </span>
-            </div>
+                <span class="mt-1 text-neutral-400 transition group-hover:translate-x-0.5 group-hover:text-kulup-600" aria-hidden="true">→</span>
+            </a>
         @endforeach
     </div>
 </div>

@@ -1,0 +1,113 @@
+<?php
+
+namespace App\Http\Requests;
+
+use App\Enums\BasvuruTuru;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+/**
+ * Basın mensubu ve içerik üreticisi başvurusu -- Plan v1.0 md.3.2 / md.3.3.
+ * Tek sınıf, türe göre değişen kurallar: iki formun ortak alanı çok.
+ */
+class BireyselBasvuruIstegi extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function tur(): BasvuruTuru
+    {
+        return $this->routeIs('*icerik-ureticisi*')
+            ? BasvuruTuru::IcerikUreticisi
+            : BasvuruTuru::BasinMensubu;
+    }
+
+    /** Davet bağlantısıyla gelindiyse ad/e-posta/kurum sabittir. */
+    public function davetliMi(): bool
+    {
+        return $this->routeIs('davet.*');
+    }
+
+    public function rules(): array
+    {
+        $kurallar = [
+            'adres'   => ['required', 'string', 'max:300'],
+            'il'      => ['required', 'string', 'max:60'],
+            'ilce'    => ['required', 'string', 'max:60'],
+            'telefon' => ['required', 'string', 'max:25'],
+
+            'basin_karti_var' => ['required', 'boolean'],
+
+            'kvkk_aydinlatma' => ['accepted'],
+            'kvkk_riza'       => ['accepted'],
+        ];
+
+        // Davette kimlik bilgisi kurumdan gelir, başvuran değiştiremez.
+        if (! $this->davetliMi()) {
+            $kurallar['ad_soyad'] = ['required', 'string', 'min:3', 'max:120'];
+            $kurallar['eposta']   = ['required', 'email:rfc', 'max:150', Rule::unique('users', 'email')];
+        }
+
+        if ($this->tur() === BasvuruTuru::BasinMensubu) {
+            if (! $this->davetliMi()) {
+                // Yalnızca AKREDİTE kurum seçilebilir (md.3.2 ön koşulu).
+                $kurallar['kurum_ulid'] = ['required', 'string', Rule::exists('kurumlar', 'ulid')
+                    ->where('akreditasyon_durumu', 'akredite')
+                    ->whereNull('deleted_at')];
+            }
+            $kurallar['sigorta_212_var'] = ['required', 'boolean'];
+            $kurallar['calisma_yili']    = ['required', 'integer', 'min:0', 'max:70'];
+        } else {
+            // İçerik üreticisinde en az bir platform bağlantısı istenir.
+            $kurallar['sosyal_medya']   = ['required', 'array'];
+            $kurallar['sosyal_medya.*'] = ['nullable', 'url', 'max:300'];
+        }
+
+        return $kurallar;
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($v) {
+            if ($this->tur() === BasvuruTuru::IcerikUreticisi
+                && count(array_filter($this->input('sosyal_medya', []))) === 0) {
+                $v->errors()->add('sosyal_medya', 'En az bir platform bağlantısı girmelisiniz.');
+            }
+        });
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'ad_soyad' => 'ad soyad', 'eposta' => 'e-posta', 'telefon' => 'telefon',
+            'adres' => 'adres', 'il' => 'il', 'ilce' => 'ilçe',
+            'kurum_ulid' => 'kurum', 'sigorta_212_var' => '212 sigortası',
+            'basin_karti_var' => 'basın kartı', 'calisma_yili' => 'çalışma yılı',
+            'sosyal_medya' => 'sosyal medya bağlantıları',
+            'kvkk_aydinlatma' => 'aydınlatma metni onayı', 'kvkk_riza' => 'açık rıza onayı',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'kurum_ulid.required'      => 'Çalıştığınız kurumu seçmelisiniz.',
+            'kurum_ulid.exists'        => 'Seçilen kurum akredite değil. Kurumunuz önce kendi başvurusunu tamamlamalı.',
+            'eposta.unique'            => 'Bu e-posta ile daha önce bir hesap açılmış. Giriş yapabilirsiniz.',
+            'kvkk_aydinlatma.accepted' => 'Aydınlatma metnini okuduğunuzu onaylamalısınız.',
+            'kvkk_riza.accepted'       => 'Başvurunun değerlendirilebilmesi için açık rıza gereklidir.',
+        ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        // Radyo düğmeleri "1"/"0" gönderir; boolean kuralı için normalleştir.
+        foreach (['basin_karti_var', 'sigorta_212_var'] as $alan) {
+            if ($this->has($alan)) {
+                $this->merge([$alan => filter_var($this->input($alan), FILTER_VALIDATE_BOOLEAN)]);
+            }
+        }
+    }
+}

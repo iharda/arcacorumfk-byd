@@ -38,6 +38,9 @@ class AppServiceProvider extends ServiceProvider
         // Aktivasyon: imzalı bağlantı, yine de kaba kuvvete kapalı olsun.
         RateLimiter::for('hesap-aktivasyon', fn (Request $r) => Limit::perMinutes(10, 15)->by($r->ip()));
 
+        // Davet bağlantısı: token tahmin edilemez ama yine de kaba kuvvete kapalı.
+        RateLimiter::for('davet', fn (Request $r) => Limit::perMinutes(10, 20)->by($r->ip()));
+
         // Evrak görüntüleme: inceleme ekranı hızlı gezinir, bol bırakılır.
         RateLimiter::for('evrak-goruntule', fn (Request $r) => Limit::perMinute(120)->by($r->user()?->id ?: $r->ip()));
     }

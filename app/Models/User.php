@@ -92,6 +92,16 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         };
     }
 
+    /** Kullanıcının rolüne göre gireceği panelin yolu. */
+    public function panelYolu(): string
+    {
+        return match (true) {
+            $this->hasAnyRole([self::ROL_SUPER, self::ROL_YETKILI]) => '/yonetim',
+            $this->hasRole(self::ROL_KURUM)                         => '/kurum',
+            default                                                 => '/panel',
+        };
+    }
+
     /* ---------- Filament 5 yerlesik iki adimli dogrulama ---------- */
 
     public function getAppAuthenticationSecret(): ?string

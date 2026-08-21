@@ -149,7 +149,7 @@
                     {{ $this->seciliEvrakModeli?->turu?->ad ?? 'Evrak önizleme' }}
                 </x-slot>
                 @if ($this->seciliEvrakModeli)
-                    <x-slot name="headerEnd">
+                    <x-slot name="afterHeader">
                         <x-filament::link
                             :href="route('evrak.goster', $this->seciliEvrakModeli)"
                             target="_blank" rel="noopener noreferrer" size="sm">

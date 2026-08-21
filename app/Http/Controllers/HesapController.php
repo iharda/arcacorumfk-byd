@@ -23,7 +23,8 @@ class HesapController extends Controller
     public function aktivasyonFormu(Request $istek, User $kullanici): View|RedirectResponse
     {
         if ($kullanici->email_verified_at !== null) {
-            return redirect('/kurum/login')->with('bilgi', 'Hesabınız zaten etkin. Giriş yapabilirsiniz.');
+            return redirect($kullanici->panelYolu() . '/login')
+                ->with('bilgi', 'Hesabınız zaten etkin. Giriş yapabilirsiniz.');
         }
 
         return view('hesap.aktivasyon', ['kullanici' => $kullanici, 'imzaliAdres' => $istek->fullUrl()]);
@@ -32,7 +33,7 @@ class HesapController extends Controller
     public function aktivasyonKaydet(Request $istek, User $kullanici): RedirectResponse
     {
         if ($kullanici->email_verified_at !== null) {
-            return redirect('/kurum/login');
+            return redirect($kullanici->panelYolu() . '/login');
         }
 
         $istek->validate(
@@ -51,6 +52,7 @@ class HesapController extends Controller
 
         $this->denetim->yaz('hesap.aktiflestirildi', $kullanici);
 
-        return redirect('/kurum');
+        // Rolüne göre doğru panele: kurum yetkilisi /kurum'a, birey /panel'e.
+        return redirect($kullanici->panelYolu());
     }
 }

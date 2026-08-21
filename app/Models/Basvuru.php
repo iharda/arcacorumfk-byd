@@ -29,6 +29,7 @@ class Basvuru extends Model
             'form_verisi'          => 'array',
             'duzeltme_notlari'     => 'array',
             'kurum_baslatti'       => 'boolean',
+            'kurum_teyidi_gerekli' => 'boolean',
             'kurum_teyidi'         => 'boolean',
             'kurum_teyidi_at'      => 'datetime',
             'gonderildi_at'        => 'datetime',
@@ -72,10 +73,33 @@ class Basvuru extends Model
         return $this->hasOne(Davet::class, 'basvuru_id');
     }
 
-    /** Yetkili kuyrugu. */
-    public function scopeKuyrukta(Builder $q): Builder
+    /**
+     * Yetkili kuyruğu. Kurum teyidi bekleyen başvuru buraya DÜŞMEZ —
+     * önce kurumun "bu kişi çalışanımız" demesi gerekir (Plan v1.0 md.5.2).
+     */
+    public function scopeKuyrukta(Builder $query): Builder
     {
-        return $q->whereIn('durum', array_column(BasvuruDurumu::kuyruk(), 'value'));
+        return $query
+            ->whereIn('durum', array_column(BasvuruDurumu::kuyruk(), 'value'))
+            ->where(fn (Builder $alt) => $alt
+                ->where('kurum_teyidi_gerekli', false)
+                ->orWhereNotNull('kurum_teyidi'));
+    }
+
+    /** Kurumun cevabını bekleyenler (kurum panelinde listelenir). */
+    public function scopeTeyitBekleyen(Builder $query): Builder
+    {
+        return $query
+            ->where('kurum_teyidi_gerekli', true)
+            ->whereNull('kurum_teyidi')
+            ->where('durum', BasvuruDurumu::Gonderildi->value);
+    }
+
+    public function kurumTeyidiBekliyorMu(): bool
+    {
+        return $this->kurum_teyidi_gerekli
+            && $this->kurum_teyidi === null
+            && $this->durum === BasvuruDurumu::Gonderildi;
     }
 
     /**

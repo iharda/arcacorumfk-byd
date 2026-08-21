@@ -1,4 +1,4 @@
-{{-- Kurum paneli — Başvurum.
+{{-- "Başvurum" — kurum ve üye panellerinde AYNI ekran.
      ⚠️ Filament panelinde KENDİ Tailwind sınıflarımız derlenmez; burada
      yalnızca Filament'in kendi bileşenleri (x-filament::…) ve panelin
      paketinde ZATEN bulunan yardımcı sınıflar kullanılır. Şüphede kalınca
@@ -14,6 +14,14 @@
             <x-filament::badge :color="$basvuru->durum->renk()" size="lg">
                 {{ $basvuru->durum->etiket() }}
             </x-filament::badge>
+
+            @if ($basvuru->kurumTeyidiBekliyorMu())
+                <x-filament::badge color="warning">Kurum teyidi bekleniyor</x-filament::badge>
+            @endif
+
+            @if ($basvuru->akreditasyon)
+                <x-filament::badge color="success">Kart no: {{ $basvuru->akreditasyon->kart_no }}</x-filament::badge>
+            @endif
 
             @if ($basvuru->gonderildi_at)
                 <span style="font-size:.8rem; opacity:.65;">

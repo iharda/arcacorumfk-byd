@@ -1,8 +1,12 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use App\Console\Commands\EvrakImha;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+/*
+ * Zamanlanmış işler. Sunucuda `/etc/cron.d/byd-scheduler` dakikada bir
+ * `schedule:run` çağırır (kullanıcı: byd, root DEĞİL).
+ */
+
+// KVKK: saklama süresi dolan kimlik/çalışma belgesi dosyaları silinir.
+Schedule::command(EvrakImha::class)->dailyAt('03:20')->onOneServer();

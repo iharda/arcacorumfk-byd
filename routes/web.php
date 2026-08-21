@@ -19,6 +19,28 @@ Route::middleware('throttle:basvuru-goruntule')->group(function () {
         ->middleware('throttle:basvuru-gonder')->name('basvuru.kurum.kaydet');
 });
 
+Route::middleware('throttle:basvuru-goruntule')->group(function () {
+    Route::get('/basvuru/basin-mensubu', [BasvuruController::class, 'bireyselFormu'])
+        ->name('basvuru.basin-mensubu');
+    Route::get('/basvuru/icerik-ureticisi', [BasvuruController::class, 'bireyselFormu'])
+        ->name('basvuru.icerik-ureticisi');
+});
+Route::middleware('throttle:basvuru-gonder')->group(function () {
+    Route::post('/basvuru/basin-mensubu', [BasvuruController::class, 'bireyselKaydet'])
+        ->name('basvuru.basin-mensubu.kaydet');
+    Route::post('/basvuru/icerik-ureticisi', [BasvuruController::class, 'bireyselKaydet'])
+        ->name('basvuru.icerik-ureticisi.kaydet');
+});
+
+/*
+ * Davetle başvuru ("Yol B"). Token ham hâliyle YALNIZCA adreste; sunucuda
+ * hash'i aranır. Kaba kuvvet için ayrı ve dar hız sınırı.
+ */
+Route::middleware('throttle:davet')->group(function () {
+    Route::get('/davet/{token}', [BasvuruController::class, 'davetFormu'])->name('davet.form');
+    Route::post('/davet/{token}', [BasvuruController::class, 'davetKaydet'])->name('davet.kaydet');
+});
+
 Route::get('/basvuru/gonderildi', [BasvuruController::class, 'gonderildi'])->name('basvuru.gonderildi');
 
 // İmzalı + süreli bağlantı; ulid ile bağlanır, sıralı id adreste görünmez.

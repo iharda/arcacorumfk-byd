@@ -28,6 +28,18 @@ class Evrak extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        /*
+         * Kayıt kalıcı silinince DOSYA da gider. Aksi hâlde kimlik görselleri
+         * diskte yetim kalır — hem KVKK ihlali hem de sessiz disk şişmesi.
+         * (Soft delete'te dosya KORUNUR: karar geçmişi hâlâ ona bakabilir.)
+         */
+        static::forceDeleted(function (self $evrak) {
+            rescue(fn () => Storage::disk($evrak->disk)->delete($evrak->yol), report: false);
+        });
+    }
+
     public function basvuru(): BelongsTo
     {
         return $this->belongsTo(Basvuru::class, 'basvuru_id');
