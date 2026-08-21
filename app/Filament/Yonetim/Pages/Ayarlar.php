@@ -2,10 +2,14 @@
 
 namespace App\Filament\Yonetim\Pages;
 
+use App\Enums\BasvuruTuru;
+use App\Models\Akreditasyon;
 use App\Models\Ayar;
 use App\Servisler\DenetimYazici;
+use App\Servisler\KartNoUretici;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -45,6 +49,15 @@ class Ayarlar extends Page
         $this->form->fill([
             'kurum_teyidi_istensin' => (bool) Ayar::al('kurum_teyidi_istensin', false),
             'davet_gecerlilik_gun' => (int) Ayar::al('davet_gecerlilik_gun', 7),
+            'kart_kodu_basin' => KartNoUretici::kod(BasvuruTuru::BasinMensubu),
+            'kart_kodu_icerik' => KartNoUretici::kod(BasvuruTuru::IcerikUreticisi),
+            'bolgeler' => collect((array) Ayar::al('bolgeler', []))
+                ->map(fn ($ad, $anahtar) => ['anahtar' => $anahtar, 'ad' => $ad])
+                ->values()
+                ->all(),
+            'kvkk_aydinlatma_metni' => Ayar::al('kvkk_aydinlatma_metni'),
+            'kvkk_riza_metni' => Ayar::al('kvkk_riza_metni'),
+            'gizlilik_metni' => Ayar::al('gizlilik_metni'),
         ]);
     }
 
@@ -66,6 +79,50 @@ class Ayarlar extends Page
                             ->required()
                             ->minValue(1)
                             ->maxValue(60),
+                    ]),
+
+                Section::make('Kart ve bölgeler')
+                    ->description('Kart numarasındaki tür harfi ve kartın yetki verdiği alanlar. Değişiklik YENİ kartları etkiler; basılmış kartlar numarasını korur.')
+                    ->schema([
+                        TextInput::make('kart_kodu_basin')
+                            ->label('Basın mensubu kart harfi')
+                            ->helperText(fn () => 'Örnek: 2026-'.(KartNoUretici::kod(BasvuruTuru::BasinMensubu) ?: 'K').'-0042  ·  '
+                                .self::kartSayisi(BasvuruTuru::BasinMensubu).' kart bu harfi kullanıyor')
+                            ->required()
+                            ->rule('regex:/^[A-HJ-NP-Z]$/')
+                            // I ve O dışarıda: kart kapıda GÖZLE okunuyor, 1 ve 0 ile karışıyor.
+                            ->validationMessages(['regex' => 'Tek büyük harf olmalı. I ve O kullanılamaz (1 ve 0 ile karışır).'])
+                            ->maxLength(1),
+
+                        TextInput::make('kart_kodu_icerik')
+                            ->label('İçerik üreticisi kart harfi')
+                            ->helperText(fn () => 'Örnek: 2026-'.(KartNoUretici::kod(BasvuruTuru::IcerikUreticisi) ?: 'B').'-0007  ·  '
+                                .self::kartSayisi(BasvuruTuru::IcerikUreticisi).' kart bu harfi kullanıyor')
+                            ->required()
+                            ->rule('regex:/^[A-HJ-NP-Z]$/')
+                            ->validationMessages(['regex' => 'Tek büyük harf olmalı. I ve O kullanılamaz (1 ve 0 ile karışır).'])
+                            ->maxLength(1)
+                            ->different('kart_kodu_basin'),
+
+                        Repeater::make('bolgeler')
+                            ->label('Bölgeler')
+                            ->helperText('Kartın yetki verdiği alanlar. Kullanımda olan bir bölgeyi silmeyin — o yetkiye sahip kartlar bölgesiz kalır.')
+                            ->addActionLabel('Bölge ekle')
+                            ->schema([
+                                TextInput::make('anahtar')
+                                    ->label('Kod')
+                                    ->helperText('Değiştirilmemeli; kayıtlarda bu değer duruyor.')
+                                    ->required()
+                                    ->rule('regex:/^[a-z0-9_]+$/')
+                                    ->validationMessages(['regex' => 'Yalnızca küçük harf, rakam ve alt çizgi.'])
+                                    ->maxLength(40),
+                                TextInput::make('ad')
+                                    ->label('Görünen ad')
+                                    ->required()
+                                    ->maxLength(60),
+                            ])
+                            ->columns(2)
+                            ->columnSpanFull(),
                     ]),
 
                 Section::make('KVKK metinleri')
@@ -90,6 +147,14 @@ class Ayarlar extends Page
             ]);
     }
 
+    /** Bu harfle üretilmiş kaç kart var? Değiştirmeden önce görülsün. */
+    private static function kartSayisi(BasvuruTuru $tur): int
+    {
+        $kod = KartNoUretici::kod($tur);
+
+        return $kod ? Akreditasyon::where('tur_kodu', $kod)->count() : 0;
+    }
+
     /** @return array<int, string> */
     private function araclar(): array
     {
@@ -102,6 +167,18 @@ class Ayarlar extends Page
             ->label('Kaydet')
             ->action(function () {
                 $veri = $this->form->getState();
+
+                // Kart harfleri ve bölgeler tek ayar altında toplanıyor;
+                // formdaki ayrı alanlardan birleştiriyoruz.
+                $veri['kart_tur_kodlari'] = [
+                    BasvuruTuru::BasinMensubu->value => strtoupper($veri['kart_kodu_basin']),
+                    BasvuruTuru::IcerikUreticisi->value => strtoupper($veri['kart_kodu_icerik']),
+                ];
+                $veri['bolgeler'] = collect($veri['bolgeler'] ?? [])
+                    ->filter(fn ($b) => filled($b['anahtar'] ?? null))
+                    ->mapWithKeys(fn ($b) => [$b['anahtar'] => $b['ad']])
+                    ->all();
+                unset($veri['kart_kodu_basin'], $veri['kart_kodu_icerik']);
 
                 foreach ($veri as $anahtar => $yeni) {
                     $eski = Ayar::al($anahtar);

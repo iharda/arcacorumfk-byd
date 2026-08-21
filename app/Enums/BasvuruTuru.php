@@ -22,13 +22,23 @@ enum BasvuruTuru: string
         };
     }
 
-    /** Kart numarasindaki tur harfi. Kurum basvurusundan kart cikmaz. */
+    /**
+     * Kart numarasindaki tur harfinin VARSAYILANI. Kurum basvurusundan kart
+     * cikmaz, o yuzden null.
+     *
+     * ⚠️ Asil kaynak "kart_tur_kodlari" ayaridir; KartNoUretici::kod() once
+     * ona bakar. Buradakiler yalnizca ayar bosken gecerlidir.
+     *
+     * Neden K ve B: `2026-K-0042` Plan v1.0'daki ornekle birebir. Icerik
+     * ureticisi icin `I` DEGIL `B` (bagimsiz) — kart no kapida GOZLE okunuyor
+     * ve `I` harfi `1` rakamiyla karisiyor.
+     */
     public function kartKodu(): ?string
     {
         return match ($this) {
             self::Kurum => null,
             self::BasinMensubu => 'K',   // kurum calisani
-            self::IcerikUreticisi => 'I',
+            self::IcerikUreticisi => 'B', // bagimsiz
         };
     }
 

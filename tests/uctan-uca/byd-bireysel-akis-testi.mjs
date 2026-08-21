@@ -298,7 +298,11 @@ echo 'ULID:' . $b->ulid;`).match(/ULID:(\w+)/) || [])[1];
 $u = App\\Models\\User::where('email', '${ICERIK}')->first();
 $a = $u?->akreditasyon;
 echo 'KART:' . ($a?->kart_no ?? 'yok') . ' DURUM:' . ($a?->durum?->value ?? 'yok') . ' ROL:' . $u?->getRoleNames()->implode(',');`);
-  kontrol('Onayda akreditasyon ve kart no üretildi', /KART:\d{4}-I-\d{4}/.test(kart),
+  // Tür harfi artık AYARDAN geliyor; teste sabit harf yazmıyoruz.
+  const icerikHarfi = (artisan(`echo 'HARF:' . App\\Servisler\\KartNoUretici::kod(App\\Enums\\BasvuruTuru::IcerikUreticisi);`)
+    .match(/HARF:(\w)/) || [, '?'])[1];
+  kontrol('Onayda akreditasyon ve kart no üretildi',
+    new RegExp(`KART:\\d{4}-${icerikHarfi}-\\d{4}`).test(kart),
     (kart.match(/KART:\S+/) || ['?'])[0]);
   kontrol('Bireye içerik üreticisi rolü verildi', /ROL:icerik_ureticisi/.test(kart),
     (kart.match(/ROL:\S*/) || ['?'])[0]);
@@ -319,7 +323,11 @@ echo 'ULID:' . $b->ulid;`).match(/ULID:(\w+)/) || [])[1];
   await bekle(3000);
 
   const kart2 = artisan(`$u = App\\Models\\User::where('email','${BASIN}')->first(); echo 'KART:' . ($u?->akreditasyon?->kart_no ?? 'yok');`);
-  kontrol('Basın mensubuna kart no verildi', /KART:\d{4}-K-\d{4}/.test(kart2), (kart2.match(/KART:\S+/) || ['?'])[0]);
+  const basinHarfi = (artisan(`echo 'HARF:' . App\\Servisler\\KartNoUretici::kod(App\\Enums\\BasvuruTuru::BasinMensubu);`)
+    .match(/HARF:(\w)/) || [, '?'])[1];
+  kontrol('Basın mensubuna kart no verildi',
+    new RegExp(`KART:\\d{4}-${basinHarfi}-\\d{4}`).test(kart2),
+    (kart2.match(/KART:\S+/) || ['?'])[0]);
 
   await s3.goto(`${KOK}/kurum/calisanlar`, { waitUntil: 'networkidle2' });
   await bekle(1000);

@@ -25,7 +25,9 @@ class KartNoUretici
 
     public function uret(BasvuruTuru $tur, callable $kaydet): Akreditasyon
     {
-        $kod = $tur->kartKodu()
+        // ⚠️ Enum'daki varsayılana DEĞİL, ayara bak: kulüp harfi panelden
+        // değiştirebiliyor.
+        $kod = self::kod($tur)
             ?? throw new RuntimeException('Bu başvuru türünden kart üretilmez: '.$tur->value);
 
         $yil = (int) (Ayar::al('kart_yil') ?: now()->year);
@@ -49,6 +51,22 @@ class KartNoUretici
         }
 
         throw new RuntimeException('Kart numarası üretilemedi.');
+    }
+
+    /**
+     * Türün kart harfi. Önce ayar, sonra enum'daki varsayılan.
+     * Ayar panelden değiştirilebilir; kulüp "biz B diyoruz" derse kod
+     * değişikliği gerekmez.
+     */
+    public static function kod(BasvuruTuru $tur): ?string
+    {
+        if ($tur->kartKodu() === null) {
+            return null;   // kurumsal başvurudan kart çıkmaz
+        }
+
+        $ayar = (array) Ayar::al('kart_tur_kodlari', []);
+
+        return strtoupper(trim((string) ($ayar[$tur->value] ?? ''))) ?: $tur->kartKodu();
     }
 
     private function sonrakiSira(int $yil, string $kod): int

@@ -27,6 +27,11 @@ class AyarSeeder extends Seeder
                 'aciklama' => 'Bu süre içinde aynı kart yeniden okutulursa mükerrer işaretlenir.',
             ],
             [
+                'anahtar' => 'kart_tur_kodlari', 'grup' => 'kart',
+                'deger' => ['basin_mensubu' => 'K', 'icerik_ureticisi' => 'B'],
+                'aciklama' => 'Kart numarasındaki tür harfi (2026-K-0042). I ve O kullanılmaz: 1 ve 0 ile karışır.',
+            ],
+            [
                 'anahtar' => 'bolgeler', 'grup' => 'kapi',
                 'deger' => ['saha_kenari' => 'Saha kenarı', 'basin_locasi' => 'Basın locası', 'karma_alan' => 'Karma alan', 'basin_toplanti_salonu' => 'Basın toplantı salonu'],
                 'aciklama' => 'Tanımlı bölge yetkileri.',

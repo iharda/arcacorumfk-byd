@@ -58,7 +58,8 @@ $a->update(['bolge_yetkileri' => ['basin_locasi'], 'sezon' => '2026 / 2027']);
 echo 'KART:' . $a->kart_no . ' ULID:' . $a->ulid;`);
 
   const kartNo = cek(kur, 'KART'), akrUlid = cek(kur, 'ULID');
-  kontrol('Hazırlık: akreditasyon ve kart no üretildi', /^\d{4}-K-\d{4}$/.test(kartNo || ''), kartNo);
+  // Tür harfi ayardan geliyor; teste sabit harf yazmıyoruz.
+  kontrol('Hazırlık: akreditasyon ve kart no üretildi', /^\d{4}-[A-Z]-\d{4}$/.test(kartNo || ''), kartNo);
 
   /* ═════ 1) Kart PDF + görsel üretimi (kuyruk) ═════ */
   let kartBilgi = '';
