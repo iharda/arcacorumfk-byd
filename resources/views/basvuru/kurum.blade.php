@@ -101,13 +101,22 @@
             <h2 class="text-base font-semibold">Kişisel verilerin korunması</h2>
             <div class="mt-4 space-y-3">
                 @foreach ([
-                    'kvkk_aydinlatma' => 'Aydınlatma metnini okudum.',
-                    'kvkk_riza'       => 'Başvurumun değerlendirilmesi için kişisel verilerimin işlenmesine açık rıza veriyorum.',
-                ] as $ad => $metin)
+                    'kvkk_aydinlatma' => 'aydinlatma',
+                    'kvkk_riza'       => 'riza',
+                ] as $ad => $tur)
                     <label class="flex items-start gap-3 text-sm">
                         <input type="checkbox" name="{{ $ad }}" value="1" @checked(old($ad))
                                class="mt-0.5 h-4 w-4 rounded border-neutral-300 text-kulup-600 focus:ring-kulup-600/30">
-                        <span class="{{ $errors->has($ad) ? 'text-kulup-700' : 'text-neutral-700' }}">{{ $metin }}</span>
+                        <span class="{{ $errors->has($ad) ? 'text-kulup-700' : 'text-neutral-700' }}">
+                            @if ($tur === 'aydinlatma')
+                                <a href="{{ route('hukuki.metin', 'aydinlatma') }}" target="_blank" rel="noopener"
+                                   class="font-medium text-kulup-700 underline">Aydınlatma metnini</a> okudum.
+                            @else
+                                Başvurumun değerlendirilmesi için kişisel verilerimin işlenmesine
+                                <a href="{{ route('hukuki.metin', 'acik-riza') }}" target="_blank" rel="noopener"
+                                   class="font-medium text-kulup-700 underline">açık rıza</a> veriyorum.
+                            @endif
+                        </span>
                     </label>
                     @error($ad)<p class="ms-7 text-xs text-kulup-700">{{ $message }}</p>@enderror
                 @endforeach

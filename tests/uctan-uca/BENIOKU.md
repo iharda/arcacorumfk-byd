@@ -9,7 +9,9 @@ node tests/uctan-uca/byd-bireysel-akis-testi.mjs     # bireysel + davet + ayrıl
 node tests/uctan-uca/byd-kart-kapi-testi.mjs         # kart, QR, doğrulama API'si
 node tests/uctan-uca/byd-guvenlik-testi.mjs          # yetki sınırları
 node tests/uctan-uca/byd-giris-testi.mjs             # giriş + 2FA + panel sınırı
-node tests/uctan-uca/byd-yetim-temizle.mjs --kuru    # yetim dosya taraması
+node tests/uctan-uca/byd-sertlestirme-denetimi.mjs   # canlıya hazırlık denetimi (salt okunur)
+node tests/uctan-uca/byd-yuk-testi.mjs 15 24        # turnike ucu yük ölçümü
+node tests/uctan-uca/byd-yetim-temizle.mjs --kuru   # yetim dosya taraması
 ```
 
 ## ⚠️ Bilinmesi gerekenler
@@ -26,5 +28,8 @@ node tests/uctan-uca/byd-yetim-temizle.mjs --kuru    # yetim dosya taraması
   - `/root/.byd-admin-totp` — yöneticinin TOTP gizli anahtarı
   - `/root/byd-test-dosyalari/` — örnek evrak dosyaları (pdf/jpg)
   Devirde bunlar yeni sunucuda yeniden üretilir.
+- **Yük testi** geçiş kaydı yazar ve `mukerrer_okutma_saniye` ayarını geçici
+  olarak 0 yapar; sonunda ikisini de geri alır. Yarıda kesersen ayarı elle
+  30'a çevir.
 - Chrome yolu `/root/.cache/puppeteer` altından okunur (test koşucusunun
   Chrome'u; uygulamanınki `.env` içindeki `BYD_CHROME`).

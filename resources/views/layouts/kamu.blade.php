@@ -39,8 +39,9 @@
 <footer class="border-t border-neutral-200 bg-white">
     <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-6 text-xs text-neutral-500">
         <span>© {{ date('Y') }} ARCA Çorum FK</span>
-        <a href="#" class="hover:text-koyu">Aydınlatma metni</a>
-        <a href="#" class="hover:text-koyu">Gizlilik</a>
+        <a href="{{ route('hukuki.metin', 'aydinlatma') }}" class="hover:text-koyu">Aydınlatma metni</a>
+        <a href="{{ route('hukuki.metin', 'acik-riza') }}" class="hover:text-koyu">Açık rıza</a>
+        <a href="{{ route('hukuki.metin', 'gizlilik') }}" class="hover:text-koyu">Gizlilik</a>
         <span class="ms-auto">Basın akreditasyon ve giriş yönetimi</span>
     </div>
 </footer>

@@ -2,13 +2,20 @@
 
 namespace App\Providers;
 
+use App\Listeners\OturumOlaylariniKaydet;
 use App\Models\Antrenman;
 use App\Models\Bulten;
 use App\Models\Duyuru;
 use App\Policies\IcerikPolicy;
 use Carbon\Carbon;
+use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\Lockout;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -31,6 +38,17 @@ class AppServiceProvider extends ServiceProvider
 
         $this->hizSinirlari();
         $this->politikalar();
+        $this->oturumOlaylari();
+    }
+
+    /** Giriş / çıkış / başarısız deneme denetim kaydına düşer (md.10). */
+    private function oturumOlaylari(): void
+    {
+        Event::listen(Login::class, [OturumOlaylariniKaydet::class, 'girdi']);
+        Event::listen(Logout::class, [OturumOlaylariniKaydet::class, 'cikti']);
+        Event::listen(Failed::class, [OturumOlaylariniKaydet::class, 'basarisiz']);
+        Event::listen(Lockout::class, [OturumOlaylariniKaydet::class, 'kilitlendi']);
+        Event::listen(PasswordReset::class, [OturumOlaylariniKaydet::class, 'sifreSifirlandi']);
     }
 
     /**
@@ -73,8 +91,29 @@ class AppServiceProvider extends ServiceProvider
          * ⚠️ Plan v1.0'daki "1.000 istek/sn" hedefi basın için fazlasıyla
          * yüksek; kapsam netleşince bu sayı birlikte gözden geçirilecek.
          */
-        RateLimiter::for('kapi', fn (Request $r) => Limit::perMinute(600)
-            ->by(optional($r->attributes->get('kapi_istemcisi'))->id ?: $r->ip()));
+        RateLimiter::for('kapi', function (Request $r) {
+            /*
+             * 💥 SIRALAMAYA GÜVENME. Laravel ara katmanları öncelik listesine
+             * göre sıralar; `throttle` bizim kimlik doğrulamamızdan ÖNCE
+             * çalışıyor ve o an `kapi_istemcisi` henüz atanmamış oluyor.
+             * Eskiden IP'ye düşüyordu: BÜTÜN KAPILAR TEK SAYACI PAYLAŞIYORDU —
+             * maç gününde yoğun bir kapı diğerlerini kilitlerdi.
+             *
+             * Çözüm: kovayı anahtarın ÖNEKİNDEN türet. Önek gizli değil
+             * (veritabanında kaydı bulmak için zaten böyle duruyor) ama cihazı
+             * tekil olarak tanımlıyor ve ara katman sırasından bağımsız.
+             */
+            $istemci = $r->attributes->get('kapi_istemcisi');
+            $onek = substr((string) $r->header('X-Kapi-Anahtar'), 0, 12);
+
+            $kova = match (true) {
+                (bool) $istemci?->id => 'istemci:'.$istemci->id,
+                $onek !== '' => 'onek:'.$onek,
+                default => 'ip:'.$r->ip(),
+            };
+
+            return Limit::perMinute(600)->by($kova);
+        });
 
         // Evrak görüntüleme: inceleme ekranı hızlı gezinir, bol bırakılır.
         RateLimiter::for('evrak-goruntule', fn (Request $r) => Limit::perMinute(120)->by($r->user()?->id ?: $r->ip()));

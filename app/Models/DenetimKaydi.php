@@ -22,6 +22,7 @@ use RuntimeException;
  * @property ?string $ip
  * @property ?string $tarayici
  * @property ?Carbon $created_at
+ * @property ?User $aktor aktor_id boş olabilir (sistem/anonim olay)
  */
 /**
  * Denetim kaydi -- SADECE EKLENIR (Plan v1.0 md.10).

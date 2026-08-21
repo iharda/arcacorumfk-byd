@@ -6,6 +6,7 @@ use App\Models\Ayar;
 use App\Servisler\DenetimYazici;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
@@ -66,7 +67,33 @@ class Ayarlar extends Page
                             ->minValue(1)
                             ->maxValue(60),
                     ]),
+
+                Section::make('KVKK metinleri')
+                    ->description('İçerik kulüpten gelir. Boş bırakılan metin, kamuya açık sayfada "henüz yayımlanmadı" olarak görünür — boş sayfa gösterilmez.')
+                    ->schema([
+                        RichEditor::make('kvkk_aydinlatma_metni')
+                            ->label('Aydınlatma metni')
+                            ->helperText('Başvuru formundaki "Aydınlatma metnini okudum" onayı bu sayfaya bağlanır.')
+                            ->toolbarButtons($this->araclar())
+                            ->columnSpanFull(),
+
+                        RichEditor::make('kvkk_riza_metni')
+                            ->label('Açık rıza metni')
+                            ->toolbarButtons($this->araclar())
+                            ->columnSpanFull(),
+
+                        RichEditor::make('gizlilik_metni')
+                            ->label('Gizlilik politikası')
+                            ->toolbarButtons($this->araclar())
+                            ->columnSpanFull(),
+                    ]),
             ]);
+    }
+
+    /** @return array<int, string> */
+    private function araclar(): array
+    {
+        return ['bold', 'italic', 'link', 'bulletList', 'orderedList', 'h2', 'h3', 'blockquote', 'undo', 'redo'];
     }
 
     public function kaydetAction(): Action
@@ -84,8 +111,20 @@ class Ayarlar extends Page
 
                     Ayar::yaz($anahtar, $yeni);
 
+                    // Hukuki metinlerde "son güncelleme" tarihi de tutulur;
+                    // kamuya açık sayfada gösteriliyor.
+                    if (str_ends_with($anahtar, '_metni')) {
+                        Ayar::yaz($anahtar.'_guncelleme', now()->toDateString());
+                    }
+
+                    // Metinler uzun; denetim kaydına tam gövdeyi değil
+                    // değiştiği bilgisini yazıyoruz.
+                    $kisalt = fn ($d) => is_string($d) && mb_strlen($d) > 200
+                        ? mb_substr($d, 0, 200).'…'
+                        : $d;
+
                     app(DenetimYazici::class)->yaz('ayar.degistirildi',
-                        eski: [$anahtar => $eski], yeni: [$anahtar => $yeni]);
+                        eski: [$anahtar => $kisalt($eski)], yeni: [$anahtar => $kisalt($yeni)]);
                 }
 
                 Notification::make()->title('Ayarlar kaydedildi.')->success()->send();

@@ -3,6 +3,7 @@
 use App\Http\Controllers\BasvuruController;
 use App\Http\Controllers\EvrakController;
 use App\Http\Controllers\HesapController;
+use App\Http\Controllers\HukukiMetinController;
 use App\Http\Controllers\KapiController;
 use Illuminate\Support\Facades\Route;
 
@@ -41,6 +42,14 @@ Route::middleware('throttle:davet')->group(function () {
     Route::get('/davet/{token}', [BasvuruController::class, 'davetFormu'])->name('davet.form');
     Route::post('/davet/{token}', [BasvuruController::class, 'davetKaydet'])->name('davet.kaydet');
 });
+
+/*
+ * KVKK metinleri -- Plan v1.0 md.11. İçerik panelden girilir; metin yoksa
+ * sayfa boş değil "henüz yayımlanmadı" der.
+ */
+Route::get('/metin/{tur}', [HukukiMetinController::class, 'goster'])
+    ->whereIn('tur', ['aydinlatma', 'acik-riza', 'gizlilik'])
+    ->name('hukuki.metin');
 
 Route::get('/basvuru/gonderildi', [BasvuruController::class, 'gonderildi'])->name('basvuru.gonderildi');
 
