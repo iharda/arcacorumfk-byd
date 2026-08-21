@@ -53,6 +53,12 @@ if (cek(cfg, 'MAIL') === 'log') {
   kontrol('E-posta sürücüsü ayarlı', true, cek(cfg, 'MAIL'));
 }
 
+// Ayrılmış uzantılara gönderim geri dönüş üretir ve itibarı yıpratır.
+const posta = artisan(`
+Illuminate\\Support\\Facades\\Mail::raw('denetim', fn ($m) => $m->to('denetim@ornek.test')->subject('denetim'));
+echo 'ENGEL:' . (str_contains(file_get_contents(storage_path('logs/laravel.log')), 'Gönderilemez adrese posta engellendi') ? 'var' : 'yok');`);
+kontrol('Gönderilemez adres koruması etkin (.test/.invalid)', cek(posta, 'ENGEL') === 'var', cek(posta, 'ENGEL'));
+
 console.log('\n── HTTP başlıkları ──');
 const basliklar = istek('/yonetim/login').toLowerCase();
 for (const [ad, desen] of [

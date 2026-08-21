@@ -35,17 +35,20 @@ const bekle = ms => new Promise(r => setTimeout(r, ms));
 const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
   { cwd: '/home/byd.ordolive.com/laravel', encoding: 'utf8', timeout: 90000 });
 
-/** Logdan bir bağlantıyı bekle (MAIL_MAILER=log). */
-async function baglantiBekle(desen, isaret, saniye = 40) {
-  for (let i = 0; i < saniye; i++) {
-    // 🪤 statSync BAYT verir, String.slice KARAKTER sayar. Logda Türkçe harf
-    //    çoğaldıkça bu ikisi kayar ve yeni satırlar atlanır. Buffer'da dilim.
-    const bolum = readFileSync(LOG).subarray(isaret).toString('utf8');
-    const m = bolum.match(desen);
-    if (m) return m[m.length - 1].replace(/&amp;/g, '&');
-    await bekle(1000);
-  }
-  return null;
+/**
+ * Aktivasyon bağlantısını ÜRET.
+ *
+ * 🪤 Eskiden posta günlüğünden okunuyordu; SMTP açılınca günlüğe hiçbir şey
+ *    yazılmadı ve testler koptu. Bağlantı imzalı-süreli bir adres, üretmek
+ *    için postaya ihtiyaç yok — testi posta sürücüsünden bağımsız tutuyoruz.
+ *    (Postanın GERÇEKTEN gittiği ayrıca kuyruk kaydından doğrulanıyor.)
+ */
+function aktivasyonBaglantisi(eposta) {
+  const cikti = artisan(`
+$u = App\\Models\\User::where('email', '${eposta}')->firstOrFail();
+echo 'BAG:' . Illuminate\\Support\\Facades\\URL::temporarySignedRoute(
+    'hesap.aktivasyon', now()->addHours(48), ['kullanici' => $u->ulid]);`);
+  return (cikti.match(/BAG:(\S+)/) || [])[1];
 }
 
 async function girisYap(sayfa, yol, eposta, sifre) {
@@ -128,12 +131,11 @@ echo 'HAZIR';`);
     document.querySelector('input[name="kvkk_aydinlatma"]').click();
     document.querySelector('input[name="kvkk_riza"]').click();
   });
-  const isaret1 = statSync(LOG).size;
   await Promise.all([s1.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}), s1.click('button[type="submit"]')]);
   kontrol('İçerik üreticisi başvurusu alındı', s1.url().includes('gonderildi'), s1.url().replace(KOK, ''));
 
-  const bag1 = await baglantiBekle(/https:\/\/byd\.ordolive\.com\/hesap\/aktivasyon\/[^\s"'<>\]]+/g, isaret1);
-  kontrol('Aktivasyon bağlantısı geldi', !!bag1);
+  const bag1 = aktivasyonBaglantisi(ICERIK);
+  kontrol('Aktivasyon bağlantısı üretildi', !!bag1);
   await aktiflestir(s1, bag1);
   kontrol('Birey ÜYE paneline yönlendi', s1.url().includes('/panel'), s1.url().replace(KOK, ''));
 
@@ -167,12 +169,10 @@ echo 'HAZIR';`);
   }, UNVAN);
   kontrol('Akredite kurum listede görünüyor', kurumSecildi);
 
-  const isaret2 = statSync(LOG).size;
   await Promise.all([s2.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}), s2.click('button[type="submit"]')]);
   kontrol('Basın mensubu başvurusu alındı', s2.url().includes('gonderildi'), s2.url().replace(KOK, ''));
 
-  const bag2 = await baglantiBekle(/https:\/\/byd\.ordolive\.com\/hesap\/aktivasyon\/[^\s"'<>\]]+/g, isaret2);
-  await aktiflestir(s2, bag2);
+  await aktiflestir(s2, aktivasyonBaglantisi(BASIN));
   const g2 = await evrakYukleVeGonder(s2, '/panel', [`${D}/foto.jpg`, `${D}/kimlik.jpg`, `${D}/calisma-belgesi.jpg`]);
   kontrol('Basın mensubu gönderildi, KURUM TEYİDİ bekliyor',
     g2.includes('Kurum teyidi bekleniyor'), g2.includes('Kurum teyidi bekleniyor') ? '' : g2.slice(0, 80));
@@ -206,8 +206,7 @@ echo 'KUYRUKTA:' . (App\\Models\\Basvuru::kuyrukta()->whereKey($b->id)->exists()
   kontrol('Teyit sonrası başvuru kuyruğa girdi', /KUYRUKTA:evet/.test(kuyruktaMi2),
     (kuyruktaMi2.match(/KUYRUKTA:\w+/) || ['?'])[0]);
 
-  /* Davet gönder (Yol B) */
-  const isaret3 = statSync(LOG).size;
+  /* Davet gönder (Yol B) — kurum panelinden, gerçek arayüzle */
   await s3.reload({ waitUntil: 'networkidle2' });
   await s3.evaluate(() => [...document.querySelectorAll('button')].find(b => b.innerText.trim() === 'Çalışan davet et')?.click());
   await bekle(1600);
@@ -220,8 +219,14 @@ echo 'KUYRUKTA:' . (App\\Models\\Basvuru::kuyrukta()->whereKey($b->id)->exists()
     .find(b => b.innerText.trim() === 'Daveti gönder')?.click());
   await bekle(3000);
 
-  const davetBag = await baglantiBekle(/https:\/\/byd\.ordolive\.com\/davet\/[A-Za-z0-9]+/g, isaret3);
-  kontrol('Davet bağlantısı üretildi ve gönderildi', !!davetBag, davetBag ? 'bağlantı var' : 'yok');
+  // 🪤 Ham token yalnızca üretildiği an var. Panel onu kalıcı bildirimde
+  //    gösteriyor (e-posta gitmezse elden iletilebilsin diye); testte de
+  //    oradan okuyoruz — posta sürücüsünden bağımsız.
+  const davetBag = await s3.evaluate(() => {
+    const m = document.body.innerText.match(/https:\/\/[^\s]+\/davet\/[A-Za-z0-9]+/);
+    return m ? m[0] : null;
+  });
+  kontrol('Davet oluştu ve bağlantı panelde gösterildi', !!davetBag, davetBag ? 'bağlantı var' : 'yok');
 
   /* ═════ 4) Yol B: davetli formu doldurur ═════ */
   if (davetBag) {
@@ -240,7 +245,6 @@ echo 'KUYRUKTA:' . (App\\Models\\Basvuru::kuyrukta()->whereKey($b->id)->exists()
     await s4.type('[name="il"]', 'Çorum');
     await s4.type('[name="ilce"]', 'Merkez');
     await s4.type('[name="calisma_yili"]', '3');
-    const isaret4 = statSync(LOG).size;
     await s4.evaluate(() => {
       document.querySelector('input[name="sigorta_212_var"][value="1"]').click();
       document.querySelector('input[name="basin_karti_var"][value="0"]').click();
@@ -250,8 +254,7 @@ echo 'KUYRUKTA:' . (App\\Models\\Basvuru::kuyrukta()->whereKey($b->id)->exists()
     await Promise.all([s4.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}), s4.click('button[type="submit"]')]);
     kontrol('Davetli başvurusu alındı', s4.url().includes('gonderildi'), s4.url().replace(KOK, ''));
 
-    const bag4 = await baglantiBekle(/https:\/\/byd\.ordolive\.com\/hesap\/aktivasyon\/[^\s"'<>\]]+/g, isaret4);
-    await aktiflestir(s4, bag4);
+    await aktiflestir(s4, aktivasyonBaglantisi(DAVETLI));
     const g4 = await evrakYukleVeGonder(s4, '/panel', [`${D}/foto.jpg`, `${D}/kimlik.jpg`, `${D}/calisma-belgesi.jpg`]);
     // Yol B'de kurum zaten başlattı → İKİNCİ teyit istenmez.
     kontrol('Davetli başvurusunda kurum teyidi İSTENMİYOR',

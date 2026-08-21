@@ -23,7 +23,14 @@ class DavetAkisi
 {
     public function __construct(private DenetimYazici $denetim) {}
 
-    public function olustur(Kurum $kurum, string $adSoyad, string $eposta): Davet
+    /**
+     * @return array{davet: Davet, token: string}
+     *
+     * Ham token DÖNDÜRÜLÜR: e-posta ulaşmadığında kurum yetkilisi bağlantıyı
+     * elden iletebilsin. Bağlantı yalnızca üretildiği anda gösterilir, sunucuda
+     * saklanmaz — kapı anahtarındaki mantığın aynısı.
+     */
+    public function olustur(Kurum $kurum, string $adSoyad, string $eposta): array
     {
         if (! $kurum->akrediteMi()) {
             throw new RuntimeException('Kurum akredite olmadan çalışan daveti gönderilemez.');
@@ -47,6 +54,7 @@ class DavetAkisi
 
             $token = Str::random(48);
 
+            /** @var Davet $davet */
             $davet = $kurum->davetler()->create([
                 'olusturan_id' => Auth::id(),
                 'ad_soyad' => $adSoyad,
@@ -61,11 +69,12 @@ class DavetAkisi
 
             Notification::route('mail', $eposta)->notify(new CalisanDaveti($davet, $token));
 
-            return $davet;
+            return ['davet' => $davet, 'token' => $token];
         });
     }
 
-    public function yenidenGonder(Davet $davet): void
+    /** @return string yeni ham token */
+    public function yenidenGonder(Davet $davet): string
     {
         if (! $davet->kullanilabilirMi()) {
             throw new RuntimeException('Bu davet artık geçerli değil; yenisini oluşturun.');
@@ -82,6 +91,8 @@ class DavetAkisi
         $this->denetim->yaz('davet.yeniden_gonderildi', $davet);
 
         Notification::route('mail', $davet->eposta)->notify(new CalisanDaveti($davet, $token));
+
+        return $token;
     }
 
     public function iptalEt(Davet $davet): void

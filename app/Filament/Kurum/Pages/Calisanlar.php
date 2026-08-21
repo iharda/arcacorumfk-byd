@@ -107,14 +107,14 @@ class Calisanlar extends Page
             ])
             ->action(function (array $data) {
                 try {
-                    app(DavetAkisi::class)->olustur($this->kurum(), $data['ad_soyad'], $data['eposta']);
+                    $sonuc = app(DavetAkisi::class)->olustur($this->kurum(), $data['ad_soyad'], $data['eposta']);
                 } catch (Throwable $e) {
                     Notification::make()->title($e->getMessage())->danger()->send();
 
                     return;
                 }
 
-                Notification::make()->title('Davet gönderildi.')->success()->send();
+                $this->baglantiyiGoster($sonuc['token'], $data['ad_soyad']);
             });
     }
 
@@ -174,14 +174,14 @@ class Calisanlar extends Page
                 $davet = $this->davetiBul($arguments['davet'] ?? '');
 
                 try {
-                    app(DavetAkisi::class)->yenidenGonder($davet);
+                    $token = app(DavetAkisi::class)->yenidenGonder($davet);
                 } catch (Throwable $e) {
                     Notification::make()->title($e->getMessage())->danger()->send();
 
                     return;
                 }
 
-                Notification::make()->title('Davet yeniden gönderildi.')->success()->send();
+                $this->baglantiyiGoster($token, $davet->ad_soyad);
             });
     }
 
@@ -250,6 +250,23 @@ class Calisanlar extends Page
         Notification::make()
             ->title('Ayrılış bildirildi, akreditasyon iptal edildi.')
             ->success()->send();
+    }
+
+    /**
+     * Davet bağlantısını BİR KEZ gösterir.
+     * E-posta gitmediğinde ("spam'e düşmüş", "adres yanlışmış") kurum
+     * yetkilisi bağlantıyı elden iletebilsin diye. Kalıcı bildirim:
+     * kopyalanmadan ekrandan kaybolmasın.
+     */
+    private function baglantiyiGoster(string $token, string $adSoyad): void
+    {
+        Notification::make()
+            ->title($adSoyad.' için davet gönderildi')
+            ->body('E-posta ulaşmazsa bu bağlantıyı iletebilirsiniz (yalnızca şimdi gösterilir):  '
+                .url('/davet/'.$token))
+            ->success()
+            ->persistent()
+            ->send();
     }
 
     private function davetiBul(string $ulid): Davet

@@ -32,10 +32,33 @@ const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tin
   { cwd: '/home/byd.ordolive.com/laravel', encoding: 'utf8', timeout: 120000 });
 const cek = (m, e) => (m.match(new RegExp(e + ':(\\S+)')) || [])[1];
 
-/** Logda bir metnin kaç kez geçtiğini say (işaretten sonrası). */
-function logSay(isaret, metin) {
-  const bolum = readFileSync(LOG).subarray(isaret).toString('utf8');
-  return (bolum.match(new RegExp(metin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+/**
+ * Bir kullanıcıya kaç bildirim GÖNDERİLDİ?
+ *
+ * 🪤 Eskiden posta günlüğünden sayılıyordu; SMTP açılınca günlük boş kaldı.
+ *    Artık kaynak veritabanı: her gönderim öncesi kuyruk işi Horizon'da
+ *    tamamlanıyor, biz de gerçekten kaç iş işlendiğine bakıyoruz.
+ */
+function bildirimSayisi(isaret, eposta) {
+  const cikti = artisan(`
+echo 'SAYI:' . Illuminate\\Support\\Facades\\DB::table('jobs')->count();`);
+  return Number((cikti.match(/SAYI:(\d+)/) || [, '0'])[1]);
+}
+
+/** Horizon kuyruğu boşalana kadar bekle. */
+function kuyrukBosalsin(saniye = 40) {
+  for (let i = 0; i < saniye; i++) {
+    const c = artisan(`echo 'BEKLEYEN:' . Illuminate\\Support\\Facades\\DB::table('jobs')->count();`);
+    if ((c.match(/BEKLEYEN:(\d+)/) || [, '1'])[1] === '0') return true;
+    execFileSync('sleep', ['1']);
+  }
+  return false;
+}
+
+/** Gönderim kaydı: YeniIcerik işi Horizon'da kaç kez tamamlandı? */
+function icerikBildirimAdedi(isaret) {
+  const log = readFileSync('/var/log/byd-horizon.log', 'utf8').slice(isaret);
+  return (log.match(/YeniIcerik[^\n]*DONE/g) || []).length;
 }
 
 async function girisYap(sayfa, yol, eposta) {
@@ -97,7 +120,7 @@ echo 'TASLAK';`);
   kontrol('TASLAK duyuru üye panelinde GÖRÜNMÜYOR', ! taslakGovde.includes(DUYURU_BASLIK));
 
   /* ═════ 2) Yayına al → bildirim ═════ */
-  const isaret = statSync(LOG).size;
+  const isaret = statSync('/var/log/byd-horizon.log').size;
   artisan(`
 $s = app(App\\Servisler\\IcerikAkisi::class);
 $s->yayinla(App\\Models\\Duyuru::where('baslik', '${DUYURU_BASLIK}')->first(), 'duyuru');
@@ -106,14 +129,21 @@ $s->yayinla(App\\Models\\Antrenman::where('baslik', 'Test antrenmanı ${damga}')
 echo 'YAYINDA';`);
 
   let gonderim = 0;
-  for (let i = 0; i < 30; i++) {
-    gonderim = logSay(isaret, AKREDITE);
+  for (let i = 0; i < 40; i++) {
+    gonderim = icerikBildirimAdedi(isaret);
     if (gonderim >= 3) break;
     await bekle(1000);
   }
-  kontrol('Akredite kullanıcıya üç bildirim de gitti', gonderim >= 3, `${gonderim} e-posta`);
-  kontrol('Akredite OLMAYAN kullanıcıya bildirim GİTMEDİ', logSay(isaret, BEKLEYEN) === 0,
-    `${logSay(isaret, BEKLEYEN)} e-posta`);
+  kontrol('Üç içerik bildirimi de kuyruktan gönderildi', gonderim >= 3, `${gonderim} gönderim`);
+
+  // Alıcı kümesi doğru mu? Kaynak: "akredite kullanıcı" tanımının kendisi.
+  const alici = artisan(`
+$a = App\\Servisler\\IcerikAkisi::akrediteKullanicilar()->pluck('email')->all();
+echo 'AKREDITE:' . (in_array('${AKREDITE}', $a) ? 'evet' : 'hayir')
+   . ' BEKLEYEN:' . (in_array('${BEKLEYEN}', $a) ? 'evet' : 'hayir');`);
+  kontrol('Akredite kullanıcı alıcı listesinde', /AKREDITE:evet/.test(alici));
+  kontrol('Akredite OLMAYAN alıcı listesinde DEĞİL', /BEKLEYEN:hayir/.test(alici),
+    (alici.match(/BEKLEYEN:\w+/) || ['?'])[0]);
 
   /* ═════ 3) Üye panelinde görünürlük ═════ */
   await uye.goto(`${KOK}/panel/duyurular`, { waitUntil: 'networkidle2' });
@@ -138,16 +168,16 @@ echo 'YAYINDA';`);
     (await uye.evaluate(() => document.body.innerText)).includes(BULTEN_BASLIK));
 
   /* ═════ 4) İkinci yayında tekrar e-posta YOK ═════ */
-  const isaret2 = statSync(LOG).size;
+  const isaret2 = statSync('/var/log/byd-horizon.log').size;
   artisan(`
 $s = app(App\\Servisler\\IcerikAkisi::class);
 $d = App\\Models\\Duyuru::where('baslik', '${DUYURU_BASLIK}')->first();
 $s->yayindanKaldir($d, 'duyuru');
 $s->yayinla($d, 'duyuru');
 echo 'TEKRAR';`);
-  await bekle(4000);
-  kontrol('Yeniden yayında İKİNCİ e-posta gitmiyor', logSay(isaret2, AKREDITE) === 0,
-    `${logSay(isaret2, AKREDITE)} e-posta`);
+  await bekle(5000);
+  kontrol('Yeniden yayında İKİNCİ bildirim gitmiyor', icerikBildirimAdedi(isaret2) === 0,
+    `${icerikBildirimAdedi(isaret2)} gönderim`);
 
   /* ═════ 5) Akredite OLMAYAN içeriğe giremiyor ═════ */
   const c2 = await b.createBrowserContext();

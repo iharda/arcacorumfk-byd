@@ -109,18 +109,6 @@ parameters:
 			path: app/Servisler/BasvuruAkisi.php
 
 		-
-			message: '#^Method App\\Servisler\\DavetAkisi\:\:olustur\(\) should return App\\Models\\Davet but returns Illuminate\\Database\\Eloquent\\Model\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Servisler/DavetAkisi.php
-
-		-
-			message: '#^Parameter \#1 \$davet of class App\\Notifications\\CalisanDaveti constructor expects App\\Models\\Davet, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Servisler/DavetAkisi.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$boyut\.$#'
 			identifier: property.notFound
 			count: 1

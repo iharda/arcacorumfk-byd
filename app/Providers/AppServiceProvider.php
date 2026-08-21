@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Listeners\GonderilemezAdresleriEngelle;
 use App\Listeners\OturumOlaylariniKaydet;
 use App\Models\Antrenman;
 use App\Models\Bulten;
@@ -15,6 +16,7 @@ use Illuminate\Auth\Events\Logout;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
@@ -49,6 +51,10 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Failed::class, [OturumOlaylariniKaydet::class, 'basarisiz']);
         Event::listen(Lockout::class, [OturumOlaylariniKaydet::class, 'kilitlendi']);
         Event::listen(PasswordReset::class, [OturumOlaylariniKaydet::class, 'sifreSifirlandi']);
+
+        // Ayrılmış (.test/.invalid/.example) uzantılara gönderim yapma:
+        // yalnızca geri dönüş üretir ve gönderen itibarını yıpratır.
+        Event::listen(MessageSending::class, [GonderilemezAdresleriEngelle::class, 'handle']);
     }
 
     /**

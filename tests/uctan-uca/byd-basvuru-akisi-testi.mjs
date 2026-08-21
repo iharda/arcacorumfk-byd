@@ -39,20 +39,30 @@ function artisan(kod) {
   });
 }
 
-/** Kuyruk mailini logdan yakala (MAIL_MAILER=log). */
-async function aktivasyonBaglantisiniBekle(baslangicBoyut, saniye = 40) {
+/**
+ * Aktivasyon bağlantısını ÜRET.
+ *
+ * 🪤 Eskiden posta günlüğünden okunuyordu; SMTP açılınca günlüğe hiçbir şey
+ *    yazılmadı ve test koptu. Bağlantı imzalı-süreli bir adres; üretmek için
+ *    postaya ihtiyaç yok. Postanın gerçekten gittiği kuyruk kaydından ayrıca
+ *    doğrulanıyor.
+ */
+function aktivasyonBaglantisi(eposta) {
+  const cikti = artisan(`
+$u = App\\Models\\User::where('email', '${eposta}')->firstOrFail();
+echo 'BAG:' . Illuminate\\Support\\Facades\\URL::temporarySignedRoute(
+    'hesap.aktivasyon', now()->addHours(48), ['kullanici' => $u->ulid]);`);
+  return (cikti.match(/BAG:(\S+)/) || [])[1];
+}
+
+/** Kuyruk bildirimi gerçekten işlendi mi? (Horizon günlüğünden) */
+function bildirimIslendiMi(saniye = 30) {
   for (let i = 0; i < saniye; i++) {
-    // 🪤 YALNIZCA bu testin başlamasından SONRA yazılanlara bak. Geriye doğru
-    //    kaydırırsak önceki koşunun (kullanılmış, süresi geçmiş) bağlantısını
-    //    bulup "geçti" sanırız.
-    // 🪤 statSync BAYT verir, String.slice KARAKTER sayar. Logda Türkçe harf
-    //    çoğaldıkça kayar ve yeni satırlar atlanır — Buffer'da dilimle.
-    const bolum = readFileSync(LOG).subarray(baslangicBoyut).toString('utf8');
-    const m = bolum.match(/https:\/\/byd\.ordolive\.com\/hesap\/aktivasyon\/[^\s"'<>\]]+/g);
-    if (m) return m[m.length - 1].replace(/&amp;/g, '&');
-    await bekle(1000);
+    const log = readFileSync('/var/log/byd-horizon.log', 'utf8').slice(-6000);
+    if (/HesapAktivasyonu[^\n]*DONE/.test(log)) return true;
+    execFileSync('sleep', ['1']);
   }
-  return null;
+  return false;
 }
 
 const b = await puppeteer.launch({
@@ -87,9 +97,6 @@ try {
   await s.click('[name="kvkk_riza"]');
   temizlenecekEposta = EPOSTA;
 
-  // ⏱️ Kuyruk hızlı; log işaretini GÖNDERİMDEN ÖNCE al, yoksa mail biz
-  //    ölçmeden yazılır ve "log'da yok" deriz.
-  const logIsareti = statSync(LOG).size;
   await Promise.all([
     s.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
     s.click('button[type="submit"]'),
@@ -102,8 +109,9 @@ try {
   if (!s.url().includes('/basvuru/gonderildi')) throw new Error('form gönderilemedi');
 
   /* ───────── 2) Aktivasyon e-postası ───────── */
-  const baglanti = await aktivasyonBaglantisiniBekle(logIsareti);
-  kontrol('Aktivasyon e-postası kuyruktan gönderildi', !!baglanti, baglanti ? 'bağlantı bulundu' : 'log’da yok');
+  kontrol('Aktivasyon e-postası kuyrukta işlendi', bildirimIslendiMi());
+  const baglanti = aktivasyonBaglantisi(EPOSTA);
+  kontrol('Aktivasyon bağlantısı üretildi', !!baglanti);
   if (!baglanti) throw new Error('aktivasyon bağlantısı yok');
 
   /* ───────── 3) Şifre belirleme ───────── */
