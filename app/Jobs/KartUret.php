@@ -7,6 +7,7 @@ use App\Notifications\BasinKartiHazir;
 use App\Servisler\KartUretici;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 
 /**
  * Kart üretimi -- Plan v1.0 md.6: onay anında sunucu tarafında render.
@@ -36,9 +37,27 @@ class KartUret implements ShouldQueue
         }
     }
 
-    /** Aynı akreditasyon için eşzamanlı iki üretim sürüm numarasını bozar. */
-    public function uniqueId(): string
+    /**
+     * Aynı akreditasyon için iki üretim ÜST ÜSTE binmesin.
+     *
+     * 💥 Burada eskiden yalnızca `uniqueId()` vardı — ama iş `ShouldBeUnique`
+     * uygulamadığı için o metot HİÇBİR ŞEY YAPMIYORDU; koruma gibi görünen ölü
+     * koddu. Sonuç: onayda üretilen kart ile bölge yetkisi verilince üretilen
+     * kart aynı anda çalışıyor, (akreditasyon, sürüm) benzersizlik kısıtına
+     * takılıyor, iş BAŞARISIZ olup yeniden deneniyordu. Her denemede boşuna
+     * bir başsız Chrome çalışıyordu.
+     *
+     * `ShouldBeUnique` de doğru araç değil: ikinci üretim DÜŞMEMELİ, çünkü
+     * bölgeler değişince kart gerçekten yenilenmeli. Doğrusu sıraya sokmak.
+     *
+     * @return array<int, object>
+     */
+    public function middleware(): array
     {
-        return 'kart-'.$this->akreditasyon->id;
+        return [
+            (new WithoutOverlapping('kart-'.$this->akreditasyon->id))
+                ->releaseAfter(5)     // çakışırsa 5 sn sonra yeniden dene
+                ->expireAfter(180),   // iş çökerse kilit takılı kalmasın
+        ];
     }
 }
