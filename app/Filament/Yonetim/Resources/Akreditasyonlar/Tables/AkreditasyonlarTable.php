@@ -7,6 +7,7 @@ use App\Jobs\KartUret;
 use App\Models\Ayar;
 use App\Models\Akreditasyon;
 use App\Servisler\AkreditasyonAkisi;
+use App\Servisler\CsvDisaAktar;
 use App\Servisler\DenetimYazici;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
@@ -83,6 +84,27 @@ class AkreditasyonlarTable
                     ->multiple()
                     ->options(fn () => collect(AkreditasyonDurumu::cases())
                         ->mapWithKeys(fn ($d) => [$d->value => $d->etiket()])->all()),
+            ])
+            ->headerActions([
+                Action::make('disaAktar')
+                    ->label('CSV indir')
+                    ->icon('heroicon-m-arrow-down-tray')
+                    ->visible(fn () => auth()->user()->can('rapor.disaaktar'))
+                    ->action(fn ($livewire) => app(CsvDisaAktar::class)->akit(
+                        $livewire->getFilteredTableQuery()->with(['kullanici', 'kurum']),
+                        'akreditasyonlar',
+                        ['Kart no', 'Ad soyad', 'E-posta', 'Telefon', 'Kurum', 'Durum', 'Bölgeler', 'Üretim'],
+                        fn ($a) => [
+                            $a->kart_no,
+                            $a->kullanici?->name,
+                            $a->kullanici?->email,
+                            $a->kullanici?->telefon,
+                            $a->kurum?->resmi_unvan ?? 'Bağımsız',
+                            $a->durum->etiket(),
+                            implode(', ', $a->bolge_yetkileri ?? []),
+                            $a->created_at?->timezone('Europe/Istanbul')->format('d.m.Y'),
+                        ],
+                    )),
             ])
             ->recordActions([
                 Action::make('askiyaAl')

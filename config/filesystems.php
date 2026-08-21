@@ -82,6 +82,18 @@ return [
             'throw' => true,
         ],
 
+        /*
+         * Medya merkezi içerikleri (duyuru görseli, bülten ekleri).
+         * Evrak kadar hassas değil ama yine de HERKESE AÇIK DEĞİL: içerik
+         * yalnızca akredite kullanıcılara gösterilir, erişim rotadan geçer.
+         */
+        'icerik' => [
+            'driver' => 'local',
+            'root' => storage_path('app/icerik'),
+            'serve' => false,
+            'throw' => true,
+        ],
+
         'evrak_r2' => [
             'driver' => 's3',
             'key' => env('R2_ACCESS_KEY_ID'),

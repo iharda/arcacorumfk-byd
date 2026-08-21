@@ -2,8 +2,14 @@
 
 namespace App\Providers;
 
+use App\Models\Antrenman;
+use App\Models\Bulten;
+use App\Models\Duyuru;
+use App\Policies\IcerikPolicy;
+use Carbon\Carbon;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -16,7 +22,27 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        /*
+         * Tarih adları Türkçe olsun (Carbon::translatedFormat).
+         * APP_LOCALE=tr tek başına yetmiyor; Carbon kendi dilini ayrıca ister —
+         * yoksa takvimde ay adları "Aug" diye çıkar.
+         */
+        Carbon::setLocale(config('app.locale'));
+
         $this->hizSinirlari();
+        $this->politikalar();
+    }
+
+    /**
+     * Laravel policy'leri isim eşleşmesiyle bulur (Basvuru → BasvuruPolicy).
+     * Duyuru/Antrenman/Bülten AYNI policy'yi paylaşıyor; o yüzden elle bağlanır.
+     * Bağlanmazsa yetki kontrolü sessizce DEVRE DIŞI kalır.
+     */
+    private function politikalar(): void
+    {
+        foreach ([Duyuru::class, Antrenman::class, Bulten::class] as $model) {
+            Gate::policy($model, IcerikPolicy::class);
+        }
     }
 
     /**

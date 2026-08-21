@@ -5,6 +5,7 @@ namespace App\Filament\Yonetim\Resources\Basvurus\Tables;
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
 use App\Filament\Yonetim\Resources\Basvurus\BasvuruResource;
+use App\Servisler\CsvDisaAktar;
 use Filament\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -77,6 +78,28 @@ class BasvurusTable
                     ->multiple()
                     ->options(fn () => collect(BasvuruTuru::cases())
                         ->mapWithKeys(fn ($t) => [$t->value => $t->etiket()])->all()),
+            ])
+            ->headerActions([
+                Action::make('disaAktar')
+                    ->label('CSV indir')
+                    ->icon('heroicon-m-arrow-down-tray')
+                    ->visible(fn () => auth()->user()->can('rapor.disaaktar'))
+                    ->action(fn ($livewire) => app(CsvDisaAktar::class)->akit(
+                        $livewire->getFilteredTableQuery()->with(['kullanici', 'kurum', 'kararVeren']),
+                        'basvurular',
+                        ['Başvuru no', 'Tür', 'Başvuran', 'E-posta', 'Kurum', 'Durum', 'Gönderim', 'Karar', 'Karar veren'],
+                        fn ($b) => [
+                            $b->ulid,
+                            $b->tur->etiket(),
+                            $b->kullanici?->name,
+                            $b->kullanici?->email,
+                            $b->kurum?->resmi_unvan,
+                            $b->durum->etiket(),
+                            $b->gonderildi_at?->timezone('Europe/Istanbul')->format('d.m.Y H:i'),
+                            $b->karar_at?->timezone('Europe/Istanbul')->format('d.m.Y H:i'),
+                            $b->kararVeren?->name,
+                        ],
+                    )),
             ])
             ->recordActions([
                 Action::make('inceleme')

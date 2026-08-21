@@ -56,11 +56,14 @@ class YonetimPanelProvider extends PanelProvider
             // Avatar YERELDE uretilir; ui-avatars.com'a kullanıcı adı GİTMEZ.
             ->defaultAvatarProvider(YerelAvatar::class)
             ->databaseNotifications()
-            ->sidebarCollapsibleOnDesktop()
+            // ⚠️ sidebarCollapsibleOnDesktop() KALDIRILDI: menü ikon-only açılıyor,
+            //    etiketler görünmüyordu. Yetkili sisteme haftada birkaç kez
+            //    giriyor; ikonları ezberlemesini bekleyemeyiz.
             ->discoverResources(in: app_path('Filament/Yonetim/Resources'), for: 'App\Filament\Yonetim\Resources')
             ->discoverPages(in: app_path('Filament/Yonetim/Pages'), for: 'App\Filament\Yonetim\Pages')
             ->pages([Dashboard::class])
             ->discoverWidgets(in: app_path('Filament/Yonetim/Widgets'), for: 'App\Filament\Yonetim\Widgets')
+            ->widgets([\App\Filament\Yonetim\Widgets\OzetSayilar::class])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

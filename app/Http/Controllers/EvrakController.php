@@ -6,7 +6,9 @@ use App\Models\Evrak;
 use App\Models\Kart;
 use App\Servisler\DenetimYazici;
 use App\Servisler\EvrakYukleyici;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Evrak görüntüleme -- Plan v1.0 md.11.
@@ -40,6 +42,44 @@ class EvrakController extends Controller
             'Cache-Control'          => 'private, no-store, max-age=0',
             'X-Content-Type-Options' => 'nosniff',
         ]);
+    }
+
+    /**
+     * Medya merkezi dosyası (duyuru görseli, bülten eki).
+     * Evrak kadar hassas değil ama HERKESE AÇIK DA DEĞİL: yalnızca oturum
+     * açmış akredite kullanıcılar ve içerik yetkilileri görür.
+     */
+    public function icerikDosyasi(Request $istek, string $yol): Response
+    {
+        abort_unless($this->icerigeErisebilirMi($istek->user()), 403);
+
+        // 🔒 Yol dışarıdan geliyor: dizin dışına çıkma denemesini kes.
+        abort_if(str_contains($yol, '..') || ! preg_match('#^(duyuru|bulten)/[\w.\-]+$#', $yol), 404);
+
+        $disk = Storage::disk('icerik');
+        abort_unless($disk->exists($yol), 404);
+
+        return response($disk->get($yol), 200, [
+            'Content-Type'           => $disk->mimeType($yol) ?: 'application/octet-stream',
+            'Content-Disposition'    => 'inline',
+            'Cache-Control'          => 'private, max-age=600',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    private function icerigeErisebilirMi(?\App\Models\User $kullanici): bool
+    {
+        if (! $kullanici) {
+            return false;
+        }
+
+        if ($kullanici->can('icerik.yonet')) {
+            return true;
+        }
+
+        return \App\Servisler\IcerikAkisi::akrediteKullanicilar()
+            ->whereKey($kullanici->getKey())
+            ->exists();
     }
 
     public function goster(Evrak $evrak): Response

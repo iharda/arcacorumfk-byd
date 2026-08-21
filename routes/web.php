@@ -59,6 +59,8 @@ Route::middleware(['signed', 'throttle:hesap-aktivasyon'])->group(function () {
 Route::middleware(['auth', 'throttle:evrak-goruntule'])->group(function () {
     Route::get('/evrak/{evrak}', [EvrakController::class, 'goster'])->name('evrak.goster');
     Route::get('/kart/{kart}/gorsel', [EvrakController::class, 'kartGorseli'])->name('kart.gorsel');
+    Route::get('/icerik/{yol}', [EvrakController::class, 'icerikDosyasi'])
+        ->where('yol', '(duyuru|bulten)/[\w.\-]+')->name('icerik.dosya');
 });
 
 /*

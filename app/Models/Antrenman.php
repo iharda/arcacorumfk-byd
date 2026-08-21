@@ -23,6 +23,7 @@ class Antrenman extends Model
             'bitis_at'            => 'datetime',
             'basina_acik'         => 'boolean',
             'yayinda'             => 'boolean',
+            'yayin_at'            => 'datetime',
             'bildirim_gonderildi' => 'boolean',
         ];
     }
@@ -32,9 +33,9 @@ class Antrenman extends Model
         return $this->belongsTo(User::class, 'olusturan_id');
     }
 
-    public function scopeYayinda(Builder $q): Builder
+    public function scopeYayinda(Builder $query): Builder
     {
-        return $q->where('yayinda', true);
+        return $query->where("yayinda", true);
     }
 
     public function scopeYaklasan(Builder $q): Builder

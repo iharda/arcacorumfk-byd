@@ -20,7 +20,7 @@ if(kutular.length>=6){await kutular[0].click();await s.keyboard.type(totp(readFi
   await s.evaluate(()=>[...document.querySelectorAll('button')].find(b=>/Girişi doğrula/i.test(b.innerText))?.click());await bekle(3000);}
 
 let hata=0;
-for(const [yol,ad] of [['/yonetim','panel'],['/yonetim/basvurular','basvurular'],['/yonetim/kurumlar','kurumlar'],['/yonetim/akreditasyonlar','akreditasyonlar'],['/yonetim/kapilar','kapilar'],['/yonetim/gecis-kayitlari','gecis-kayitlari'],['/yonetim/ayarlar','ayarlar']]){
+for(const [yol,ad] of [['/yonetim','panel'],['/yonetim/basvurular','basvurular'],['/yonetim/kurumlar','kurumlar'],['/yonetim/akreditasyonlar','akreditasyonlar'],['/yonetim/duyurular','duyurular'],['/yonetim/antrenmanlar','antrenmanlar'],['/yonetim/bultenler','bultenler'],['/yonetim/kapilar','kapilar'],['/yonetim/gecis-kayitlari','gecis-kayitlari'],['/yonetim/ayarlar','ayarlar']]){
   const y=await s.goto(KOK+yol,{waitUntil:'networkidle2'});
   await bekle(700);
   const govde=await s.evaluate(()=>document.body.innerText);

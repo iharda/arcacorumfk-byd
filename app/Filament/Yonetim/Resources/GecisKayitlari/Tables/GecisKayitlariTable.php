@@ -4,13 +4,13 @@ namespace App\Filament\Yonetim\Resources\GecisKayitlari\Tables;
 
 use App\Enums\GecisSonucu;
 use App\Models\GecisKaydi;
+use App\Servisler\CsvDisaAktar;
 use Filament\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Response;
 
 class GecisKayitlariTable
 {
@@ -82,39 +82,25 @@ class GecisKayitlariTable
                     ->label('CSV indir')
                     ->icon('heroicon-m-arrow-down-tray')
                     ->visible(fn () => auth()->user()->can('rapor.disaaktar'))
-                    ->action(fn ($livewire) => self::csv($livewire->getFilteredTableQuery())),
+                    ->action(fn ($livewire) => app(CsvDisaAktar::class)->akit(
+                        $livewire->getFilteredTableQuery()->with(['akreditasyon.kullanici']),
+                        'gecis-kayitlari',
+                        ['Zaman', 'Kart no', 'Kişi', 'Kapı', 'Yön', 'Sonuç', 'Bölge', 'Not'],
+                        fn ($k) => [
+                            $k->okundu_at?->timezone('Europe/Istanbul')->format('d.m.Y H:i:s'),
+                            $k->akreditasyon?->kart_no,
+                            $k->akreditasyon?->kullanici?->name,
+                            $k->kapi_kodu,
+                            $k->yon === 'cikis' ? 'Çıkış' : 'Giriş',
+                            $k->sonuc->etiket(),
+                            $k->bolge,
+                            $k->sebep,
+                        ],
+                    )),
             ])
             ->toolbarActions([])
             ->emptyStateHeading('Geçiş kaydı yok')
             ->emptyStateDescription('Kapıda kart okutuldukça buraya düşer.');
     }
 
-    /** Süzgeçlenmiş kayıtları akış hâlinde indirir — büyük tabloda bellek şişmesin. */
-    private static function csv(Builder $sorgu)
-    {
-        $ad = 'gecis-kayitlari-' . now()->format('Ymd-His') . '.csv';
-
-        return Response::streamDownload(function () use ($sorgu) {
-            $cikti = fopen('php://output', 'w');
-            fwrite($cikti, "\xEF\xBB\xBF");   // Excel'in Türkçe karakterleri doğru açması için BOM
-            fputcsv($cikti, ['Zaman', 'Kart no', 'Kişi', 'Kapı', 'Yön', 'Sonuç', 'Bölge', 'Not']);
-
-            $sorgu->with(['akreditasyon.kullanici'])->chunk(500, function ($satirlar) use ($cikti) {
-                foreach ($satirlar as $k) {
-                    fputcsv($cikti, [
-                        $k->okundu_at?->timezone('Europe/Istanbul')->format('d.m.Y H:i:s'),
-                        $k->akreditasyon?->kart_no,
-                        $k->akreditasyon?->kullanici?->name,
-                        $k->kapi_kodu,
-                        $k->yon === 'cikis' ? 'Çıkış' : 'Giriş',
-                        $k->sonuc->etiket(),
-                        $k->bolge,
-                        $k->sebep,
-                    ]);
-                }
-            });
-
-            fclose($cikti);
-        }, $ad, ['Content-Type' => 'text/csv; charset=UTF-8']);
-    }
 }
