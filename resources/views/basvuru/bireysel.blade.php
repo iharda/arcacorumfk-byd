@@ -36,7 +36,9 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ $eylem }}" class="mt-8 space-y-10">
+    {{-- kurum: seçili kurum ULID'i ya da "yok" (kurumu listede olmayan aday). --}}
+    <form method="POST" action="{{ $eylem }}" class="mt-8 space-y-10"
+          x-data="{ kurum: @js(old('kurum_ulid', ($basin && ! $davet && $kurumlar->isEmpty()) ? 'yok' : '')) }">
         @csrf
 
         <section>
@@ -63,7 +65,7 @@
                             <label for="kurum_ulid" class="zorunlu block text-sm font-medium text-neutral-800">
                                 Çalıştığınız kurum
                             </label>
-                            <select id="kurum_ulid" name="kurum_ulid" required
+                            <select id="kurum_ulid" name="kurum_ulid" required x-model="kurum"
                                     @class([
                                         'mt-1.5 block w-full rounded-lg border px-3 py-2 text-sm shadow-xs transition focus:border-kulup-600 focus:ring-2 focus:ring-kulup-600/20 focus:outline-none',
                                         'border-neutral-300 bg-white' => ! $kurumHata,
@@ -75,14 +77,36 @@
                                         {{ $k->resmi_unvan }}
                                     </option>
                                 @endforeach
+                                {{-- Listede yalnızca AKREDİTE kurumlar var; kalan herkes buraya düşer. --}}
+                                <option value="yok" @selected(old('kurum_ulid') === 'yok' || $kurumlar->isEmpty())>
+                                    Kurumum listede yok
+                                </option>
                             </select>
                             @if ($kurumHata)
                                 <p class="mt-1 text-xs text-kulup-700">{{ $kurumHata }}</p>
-                            @elseif ($kurumlar->isEmpty())
-                                <p class="mt-1 text-xs text-neutral-500">
-                                    Henüz akredite kurum yok. Kurumunuz önce kendi başvurusunu tamamlamalı.
-                                </p>
                             @endif
+
+                            {{--
+                              Çıkmaz sokak bırakma: kurumu listede olmayan aday eskiden
+                              boş bir açılır listeye bakıp kalıyordu. Yapması gereken şey
+                              ve düğmesi burada; yalnızca "listede yok" seçilince görünür.
+                            --}}
+                            <div x-cloak x-show="kurum === 'yok'"
+                                 class="mt-3 rounded-lg border border-neutral-300 bg-neutral-50 px-4 py-3 text-sm">
+                                <p class="text-neutral-700">
+                                    Basın mensubu akreditasyonu, çalıştığınız kurumun akredite olmasına bağlı.
+                                    Kurumunuz başvurdu ve sonuç bekliyorsa akreditasyon tamamlanınca bu listede
+                                    görünecek. Henüz başvurmadıysa önce kurum başvurusu yapılmalı.
+                                    Kurumunuz akredite olduktan sonra sizi doğrudan davet edebilir; o zaman bu
+                                    formu baştan doldurmanız gerekmez.
+                                </p>
+                                {{-- 🪤 YENİ SEKME: aynı sekmede açılırsa yarım kalan form ve
+                                     kişinin yazdığı her şey kaybolur. --}}
+                                <a href="{{ route('basvuru.kurum') }}" target="_blank" rel="noopener"
+                                   class="mt-3 inline-block rounded-lg bg-kulup-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-kulup-700">
+                                    Kurum başvurusu yap
+                                </a>
+                            </div>
                         </div>
                     @endunless
 
@@ -145,8 +169,8 @@
         </section>
 
         <div class="flex items-center gap-4">
-            <button type="submit"
-                    class="rounded-lg bg-kulup-600 px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-kulup-700 focus:ring-2 focus:ring-kulup-600/30 focus:outline-none">
+            <button type="submit" x-bind:disabled="kurum === 'yok'"
+                    class="rounded-lg bg-kulup-600 px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-kulup-700 focus:ring-2 focus:ring-kulup-600/30 focus:outline-none disabled:cursor-not-allowed disabled:bg-neutral-300 disabled:text-neutral-500 disabled:hover:bg-neutral-300">
                 Başvuruyu gönder
             </button>
             <span class="text-sm text-neutral-500">Fotoğraf ve kimlik yükleme sonraki adımda.</span>

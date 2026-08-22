@@ -35,3 +35,10 @@
     color: var(--color-kulup-600);
     margin-inline-start: 0.15rem;
 }
+
+/*
+ * Alpine hazır olana kadar gizli kalması gereken bloklar.
+ * 🪤 `!important` şart: `display:flex`/`grid` gibi bir sınıf yoksa bile
+ * Tailwind'in kendi kuralları sırayı değiştirebiliyor.
+ */
+[x-cloak] { display: none !important; }

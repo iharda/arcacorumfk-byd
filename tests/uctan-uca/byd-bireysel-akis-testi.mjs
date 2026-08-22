@@ -114,6 +114,54 @@ App\\Models\\Ayar::yaz('kurum_teyidi_istensin', true);
 echo 'HAZIR';`);
   kontrol('Hazırlık: akredite kurum + teyit ayarı açık', true);
 
+  /* ═════ 0) "Kurumum listede yok" — çıkmaz sokak olmamalı ═════
+   * Listede yalnızca AKREDİTE kurumlar var. Kurumu listede olmayan aday
+   * eskiden boş açılır listeye bakıp kalıyordu; artık ne yapacağı söyleniyor
+   * ve gönderim engelleniyor (JS kapalıysa sunucu zaten reddediyor). */
+  {
+    const c0 = await b.createBrowserContext();
+    const f = await c0.newPage();
+    await f.goto(`${KOK}/basvuru/basin-mensubu`, { waitUntil: 'networkidle2' });
+
+    const secenekler = await f.$$eval('#kurum_ulid option', o => o.map(x => x.value));
+    kontrol('Kurum listesinde "listede yok" seçeneği var', secenekler.includes('yok'));
+
+    const kutuGorunur = () => f.evaluate(() => {
+      const d = [...document.querySelectorAll('div')]
+        .find(x => x.querySelector('a') && /Kurum başvurusu yap/.test(x.innerText || ''));
+      return d ? getComputedStyle(d).display !== 'none' && d.offsetHeight > 0 : false;
+    });
+    kontrol('Yönlendirme kutusu başlangıçta gizli', (await kutuGorunur()) === false);
+
+    await f.select('#kurum_ulid', 'yok');
+    await bekle(400);
+    kontrol('"Listede yok" seçilince kurum başvurusuna yönlendiriliyor', await kutuGorunur());
+    kontrol('Kurum seçilmeden gönderilemiyor', await f.$eval('button[type=submit]', d => d.disabled));
+
+    // 🪤 Aynı sekmede açılırsa yarım kalan form kaybolur.
+    const bag = await f.$$eval('a', a => a.filter(x => /Kurum başvurusu yap/.test(x.textContent))
+      .map(x => ({ yol: new URL(x.href).pathname, hedef: x.target, rel: x.rel }))[0] ?? null);
+    kontrol('Kurum başvurusu YENİ SEKMEDE açılıyor',
+      bag?.yol === '/basvuru/kurum' && bag.hedef === '_blank' && /noopener/.test(bag.rel),
+      JSON.stringify(bag));
+    kontrol('Davet yoluyla devam edilebileceği yazıyor',
+      /davet edebilir/.test(await f.evaluate(() => document.body.innerText)));
+    // 🪤 Alpine ifadesi çift tırnak yüzünden metin olarak SIZMAMALI.
+    const govde = await f.evaluate(() => document.body.innerText);
+    kontrol('Sayfada çıplak JS metni yok', ! /x-show|x-data|kurum ===/.test(govde));
+
+    // JS kapalı istemci "yok" gönderirse sunucu ne diyor?
+    const yanit = await f.evaluate(async (kok) => {
+      const jeton = document.querySelector('input[name=_token]').value;
+      const g = new FormData();
+      g.append('_token', jeton); g.append('kurum_ulid', 'yok');
+      const c = await fetch(`${kok}/basvuru/basin-mensubu`, { method: 'POST', body: g, redirect: 'follow' });
+      return (await c.text()).includes('akredite değil');
+    }, KOK);
+    kontrol('Sunucu "yok" değerini reddediyor', yanit);
+    await c0.close();
+  }
+
   /* ═════ 1) İÇERİK ÜRETİCİSİ ═════ */
   const c1 = await b.createBrowserContext();
   const s1 = await c1.newPage();
