@@ -14,6 +14,19 @@ class AkreditasyonPolicy
 
     public function view(User $user, Akreditasyon $akreditasyon): bool
     {
+        /*
+         * 💥 KENDİ akreditasyonunu görmek için yetki GEREKMEZ.
+         * `akreditasyon.gor` BAŞKALARININ kaydını görme yetkisidir ve basın
+         * mensubu / içerik üreticisi rollerinde yok. Bu kontrol en başta
+         * durduğu için üye kendi kartının görselini açamıyor, "Kartım"
+         * ekranında kart boş bir kutu olarak kalıyordu (`/kart/{ulid}/gorsel`
+         * → 403). PDF indirme kendi sorgusuyla çalıştığı için sorun yalnızca
+         * görselde görünüyordu.
+         */
+        if ($akreditasyon->kullanici_id === $user->id) {
+            return true;
+        }
+
         if (! $user->can('akreditasyon.gor')) {
             return false;
         }

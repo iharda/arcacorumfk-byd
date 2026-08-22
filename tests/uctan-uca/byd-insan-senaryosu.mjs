@@ -533,7 +533,44 @@ echo 'PDF:' . ($k && Illuminate\\Support\\Facades\\Storage::disk($k->disk)->exis
   const kartSayfa = await govde(s3);
   kontrol('Üye kendi kartını panelde görüyor',
     /\d{4}-\w-\d{4}/.test(kartSayfa), (kartSayfa.match(/\d{4}-\w-\d{4}/) || ['-'])[0]);
+  /*
+   * 💥 Kart numarasının YAZMASI yetmez. Görsel ayrı bir uçtan geliyordu ve
+   *    üyeye 403 dönüyordu: sayfada kart numarası vardı ama kartın kendisi
+   *    boş bir kutuydu. Artık görselin GERÇEKTEN indiğini ölç.
+   */
+  const kartGorsel = await s3.evaluate(async () => {
+    const g = [...document.images].find(i => /\/kart\/.+\/gorsel/.test(i.src));
+    if (!g) return { yok: true };
+    const r = await fetch(g.src);
+    return { durum: r.status, tur: r.headers.get('content-type'),
+             bayt: (await r.arrayBuffer()).byteLength,
+             cizildi: g.complete && g.naturalWidth > 0 };
+  });
+  kontrol('Kart görseli gerçekten yükleniyor (403 değil)',
+    kartGorsel.durum === 200 && kartGorsel.cizildi && kartGorsel.bayt > 20000,
+    kartGorsel.yok ? 'görsel etiketi yok' : `${kartGorsel.durum} · ${kartGorsel.tur} · ${Math.round(kartGorsel.bayt / 1024)} KB`);
   await foto(s3, 'uye-kartim');
+
+  /*
+   * 🔐 "Kendi kaydını görmek için yetki gerekmez" kuralı — üç modelde birden.
+   * Basın mensubu / içerik üreticisi rollerinde `basvuru.gor` ve
+   * `akreditasyon.gor` YOK; policy'ler yetkiyi en başta sorunca kişi KENDİ
+   * kaydına da giremiyordu. Ters yön de burada sınanır: başka kurumun
+   * yetkilisi bu kayıtların hiçbirini göremez.
+   */
+  const yetkiMatrisi = artisan(`
+$sahip = App\\Models\\User::where('email','${P1.eposta}')->first();
+$yabanci = App\\Models\\User::where('email','${K2.yetkiliEposta}')->first();
+$bv = App\\Models\\Basvuru::where('kullanici_id', $sahip->id)->first();
+$ev = App\\Models\\Evrak::where('basvuru_id', $bv->id)->first();
+$ak = App\\Models\\Akreditasyon::where('kullanici_id', $sahip->id)->first();
+$g = fn ($k, $m) => Illuminate\\Support\\Facades\\Gate::forUser($k)->allows('view', $m) ? 'E' : 'H';
+echo 'SAHIP:' . $g($sahip,$bv) . $g($sahip,$ev) . $g($sahip,$ak)
+   . ' YABANCI:' . $g($yabanci,$bv) . $g($yabanci,$ev) . $g($yabanci,$ak);`);
+  kontrol('Üye kendi başvuru/evrak/kartını görebiliyor',
+    cek(yetkiMatrisi, 'SAHIP') === 'EEE', 'başvuru·evrak·akreditasyon = ' + cek(yetkiMatrisi, 'SAHIP'));
+  kontrol('Başka kurumun yetkilisi bunların hiçbirini göremiyor',
+    cek(yetkiMatrisi, 'YABANCI') === 'HHH', cek(yetkiMatrisi, 'YABANCI'));
 
   const kapiKur = artisan(`
 $s = app(App\\Servisler\\KapiIstemcisiAkisi::class);
@@ -557,8 +594,14 @@ echo 'YUK:' . app(App\\Servisler\\QrImzalayici::class)->yukUret($a);`);
   r = kapiApi('/api/kapi/dogrula', anahtarKapi, { yuk });
   kontrol('Arka arkaya okutma "mükerrer" diyor', r.veri.sonuc === 'mukerrer_okutma', r.veri.sonuc);
 
-  r = kapiApi('/api/kapi/dogrula', anahtarKapi, { yuk: yuk.slice(0, -1) + 'X' });
-  kontrol('Kurcalanmış QR reddediliyor', r.veri.sonuc === 'imza_gecersiz', r.veri.sonuc);
+  // 🪤 Son karakteri sabit bir harfle değiştirmek KIRILGAN: harf zaten oysa yük
+  //    hiç bozulmaz ve geçerli kart olarak okunur (bir koşuda "mukerrer_okutma"
+  //    döndü). Farklı olduğu garanti bir karakterle değiştir.
+  const bozukYuk = yuk.slice(0, -1) + (yuk.endsWith('X') ? 'Y' : 'X');
+  r = kapiApi('/api/kapi/dogrula', anahtarKapi, { yuk: bozukYuk });
+  kontrol('Kurcalanmış QR reddediliyor', r.veri.sonuc === 'imza_gecersiz',
+    `${r.veri.sonuc} · yük değişti: ${bozukYuk !== yuk}`);
+  kontrol('Kurcalanmış QR\'da kişi bilgisi SIZMIYOR', r.veri.kisi == null, String(r.veri.kisi));
 
   artisan(`
 $a = App\\Models\\Akreditasyon::where('ulid','${akrUlid}')->first();

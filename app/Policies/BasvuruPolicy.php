@@ -24,6 +24,18 @@ class BasvuruPolicy
 
     public function view(User $user, Basvuru $basvuru): bool
     {
+        /*
+         * 💥 KENDİ başvurusunu görmek için yetki GEREKMEZ.
+         * `basvuru.gor` BAŞKASININ başvurusunu görme yetkisidir; basın mensubu
+         * ve içerik üreticisi rollerinde yok. Yetki kontrolü en başta durunca
+         * başvuran kendi kaydına da giremiyordu — aynı hata akreditasyonda
+         * "Kartım" ekranını boş kutuya çevirmişti (kart görseli 403).
+         * Kapsam kontrolü aşağıda zaten sahipliği doğruluyor.
+         */
+        if ($basvuru->kullanici_id === $user->id) {
+            return true;
+        }
+
         if (! $user->can('basvuru.gor')) {
             return false;
         }
