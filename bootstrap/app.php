@@ -1,9 +1,11 @@
 <?php
 
+use App\Support\YanlisPanelYonlendirmesi;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -31,5 +33,14 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
+        );
+
+        /*
+         * Yanlış panele düşen oturumlu kullanıcı, menüsüz ve çıkışsız bir
+         * "403 Yasak" sayfasında kalmasın; kendi paneline gitsin.
+         * Ayrıntı ve sınırları YanlisPanelYonlendirmesi'nde yazılı.
+         */
+        $exceptions->render(
+            fn (HttpExceptionInterface $e, Request $request) => YanlisPanelYonlendirmesi::yanit($e, $request),
         );
     })->create();

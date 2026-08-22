@@ -31,7 +31,17 @@ class IcerikAkisi
             ->whereNull('ayrildi_at')
             ->where(fn (Builder $alt) => $alt
                 ->whereHas('akreditasyon', fn (Builder $a) => $a->where('durum', AkreditasyonDurumu::Aktif->value))
-                ->orWhereHas('kurum', fn (Builder $k) => $k->where('akreditasyon_durumu', 'akredite')));
+                /*
+                 * 💥 Kurum dalına ROL şartı ŞART. Yalnızca `kurum` ilişkisine
+                 * bakmak, akredite bir kurumun BAŞVURUSU HENÜZ ONAYLANMAMIŞ
+                 * basın mensubunu da akredite sayıyordu: kişi kendi kartını
+                 * almadan duyuru/bülten görüyor ve bildirim e-postası alıyordu.
+                 * Yetki kurumun değil, kişinin kendi kaydınındır; kurum dalı
+                 * sadece kurumun panelini kullanan yetkili içindir.
+                 */
+                ->orWhere(fn (Builder $k) => $k
+                    ->role(User::ROL_KURUM)
+                    ->whereHas('kurum', fn (Builder $q) => $q->where('akreditasyon_durumu', 'akredite'))));
     }
 
     /**

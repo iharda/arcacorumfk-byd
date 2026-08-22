@@ -84,11 +84,16 @@ kontrol('Avatar yerel data: URI', await s.evaluate(() =>
   [...document.images].every(i => !i.src || i.src.startsWith('data:') || i.src.startsWith(location.origin))));
 await s.screenshot({ path: '/root/byd-02-giris-sonrasi.png', fullPage: true });
 
-// 4) Yetkisiz panele sizma denemesi (super rolu kurum panelinde OLMAMALI)
+// 4) Yetkisiz panele sizma denemesi (super rolu kurum panelinde OLMAMALI).
+//    2026-08-22'den beri cikissiz 403 yerine KENDI paneline yonlendiriliyor;
+//    onemli olan kurum paneline GIREMEMESI. Ayrintili senaryolar:
+//    node /root/byd-panel-yonlendirme-testi.mjs
 const k = await s.goto(`${KOK}/kurum`, { waitUntil: 'networkidle2' });
+const kYol = s.url().replace(KOK, '');
 kontrol('Yetkisiz panel kapalı (super → /kurum)',
-  k.status() === 403 || s.url().includes('/kurum/login'),
-  `HTTP ${k.status()} · ${s.url().replace(KOK, '')}`);
+  !/^\/kurum(\/|$)/.test(kYol) || kYol.startsWith('/kurum/login'),
+  `HTTP ${k.status()} · ${kYol}`);
+kontrol('Yetkisiz panelden kendi paneline dönüyor', kYol.startsWith('/yonetim'), kYol);
 
 await b.close();
 

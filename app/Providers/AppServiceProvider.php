@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Http\Responses\PanelGirisYaniti;
 use App\Listeners\GonderilemezAdresleriEngelle;
 use App\Listeners\OturumOlaylariniKaydet;
 use App\Models\Antrenman;
@@ -9,6 +10,7 @@ use App\Models\Bulten;
 use App\Models\Duyuru;
 use App\Policies\IcerikPolicy;
 use Carbon\Carbon;
+use Filament\Auth\Http\Responses\Contracts\LoginResponse;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Auth\Events\Login;
@@ -26,7 +28,12 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        /*
+         * Girişten sonraki yönlendirme: kullanıcı KENDİ paneline gitsin.
+         * Gerekçesi PanelGirisYaniti'nin başında yazılı (paneller arası
+         * `url.intended` sızması → 403).
+         */
+        $this->app->bind(LoginResponse::class, PanelGirisYaniti::class);
     }
 
     public function boot(): void

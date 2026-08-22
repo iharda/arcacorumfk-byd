@@ -77,14 +77,24 @@ try {
   r = await durumu(a, `/evrak/${bEvrak}`);
   kontrol('Kurum A BAŞKA kurumun evrakını göremiyor', r.kod === 403, String(r.kod));
 
+  /*
+   * 🚧 Yasak panel: 2026-08-22'den beri kullanıcı çıkışsız 403 sayfasında
+   * bırakılmıyor, KENDİ paneline yönlendiriliyor. Güvenlik ölçütü değişmedi:
+   * yasak panelin İÇİNE girememeli. Ölçüt de buna göre yazılır — yalnızca
+   * "403 mü" diye bakmak, yönlendirmeyi hatalı gösterirdi.
+   */
+  // r.url zaten KÖK'süz yol ("/kurum" gibi) — mutlak adres değil.
+  const disarida = (r, onek) => !new RegExp(`^${onek}(/|$)`).test(r.url)
+    || r.url.startsWith(`${onek}/login`);
+
   r = await durumu(a, '/yonetim');
-  kontrol('Kurum A yönetim paneline giremiyor', r.kod === 403 || r.url.includes('login'), `${r.kod} ${r.url}`);
+  kontrol('Kurum A yönetim paneline giremiyor', disarida(r, '/yonetim'), `${r.kod} ${r.url}`);
 
   r = await durumu(a, `/yonetim/basvurular/${bBasvuru}/inceleme`);
-  kontrol('Kurum A inceleme ekranına giremiyor', r.kod === 403 || r.url.includes('login'), `${r.kod} ${r.url}`);
+  kontrol('Kurum A inceleme ekranına giremiyor', disarida(r, '/yonetim'), `${r.kod} ${r.url}`);
 
   r = await durumu(a, '/panel');
-  kontrol('Kurum A üye paneline giremiyor', r.kod === 403 || r.url.includes('login'), `${r.kod} ${r.url}`);
+  kontrol('Kurum A üye paneline giremiyor', disarida(r, '/panel'), `${r.kod} ${r.url}`);
 
   /* 3) KVKK onayı olmadan başvuru kabul edilmemeli */
   const form = await (await b.createBrowserContext()).newPage();
