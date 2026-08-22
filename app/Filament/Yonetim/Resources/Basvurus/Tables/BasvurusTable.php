@@ -34,11 +34,25 @@ class BasvurusTable
                     ->color('gray')
                     ->formatStateUsing(fn (BasvuruTuru $state) => $state->etiket()),
 
-                // Kurumsal başvuruda kurum ünvanı, bireyselde kişi adı gösterilir.
+                /*
+                 * Kurumsal başvuruda kurum ünvanı, bireyselde KİŞİ ADI gösterilir.
+                 * 💥 Türe bakmak ŞART: basın mensubu başvurusunda da `kurum_id`
+                 * doludur (çalıştığı yer). Yalnızca `kurum?->resmi_unvan ?: $state`
+                 * yazınca kuyruktaki her satır kurumun adını gösteriyordu; aynı
+                 * gazeteden üç kişi başvurunca yetkili kimin kim olduğunu
+                 * ayırt edemiyordu. Kişinin kurumu alt satırda duruyor.
+                 */
                 TextColumn::make('kullanici.name')
                     ->label('Başvuran')
-                    ->formatStateUsing(fn ($state, $record) => $record->kurum?->resmi_unvan ?: $state)
-                    ->description(fn ($record) => $record->kullanici?->email)
+                    ->formatStateUsing(fn ($state, $record) => $record->tur === BasvuruTuru::Kurum
+                        ? ($record->kurum?->resmi_unvan ?: $state)
+                        : $state)
+                    ->description(fn ($record) => $record->tur === BasvuruTuru::Kurum
+                        ? $record->kullanici?->email
+                        : implode(' · ', array_filter([
+                            $record->kurum?->resmi_unvan,
+                            $record->kullanici?->email,
+                        ])))
                     ->wrap()
                     ->searchable(query: fn (Builder $query, string $search) => $query
                         ->where(fn (Builder $alt) => $alt

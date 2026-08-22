@@ -147,28 +147,30 @@ echo 'TOKEN:' . $token;`);
   // Listede olmasa da elle gönderilirse sunucu reddetmeli.
   const kurumUlid = (artisan(`echo 'ULID:' . App\\Models\\Kurum::where('resmi_unvan','Guvenlik A ${damga}')->value('ulid');`)
     .match(/ULID:(\w+)/) || [])[1];
-  await formB.evaluate((ulid) => {
-    const sec = document.querySelector('select[name="kurum_ulid"]');
-    const o = document.createElement('option');
-    o.value = ulid; o.selected = true; sec.appendChild(o);
-    document.querySelectorAll('[required]').forEach(e => e.removeAttribute('required'));
-  }, kurumUlid);
-  const yaz = async (ad, d) => formB.type(`[name="${ad}"]`, d);
-  await yaz('ad_soyad', 'Sızma Deneme'); await yaz('eposta', `sizma+${damga}@ornek.test`);
-  await yaz('telefon', '0530 000 00 00'); await yaz('adres', 'Adres');
-  await yaz('il', 'Çorum'); await yaz('ilce', 'Merkez'); await yaz('calisma_yili', '2');
-  await formB.evaluate(() => {
-    document.querySelector('input[name="sigorta_212_var"][value="1"]').click();
-    document.querySelector('input[name="basin_karti_var"][value="0"]').click();
-    document.querySelector('input[name="kvkk_aydinlatma"]').click();
-    document.querySelector('input[name="kvkk_riza"]').click();
-  });
-  await Promise.all([formB.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}), formB.click('button[type="submit"]')]);
-  await bekle(500);
-  const formBMetni = await formB.evaluate(() => document.body.innerText);
+  /*
+   * 🪤 DOM'a option enjekte edip formu göndermek ARTIK SINAMAZ: select
+   * `x-model` ile Alpine'e bağlı; olay göndermeden yapılan DOM oyununu Alpine
+   * geri alıyor ve alan BOŞ gidiyor. O zaman sunucunun gördüğü şey "kurum
+   * seçilmemiş" oluyor — yani asıl kural (akredite olmayan kurum reddi) hiç
+   * denenmiyor. Saldırgan zaten tarayıcıyı kullanmaz: isteği DOĞRUDAN gönder.
+   */
+  const sizma = await formB.evaluate(async (kok, ulid, eposta) => {
+    const g = new FormData(document.querySelector('form'));
+    g.set('_token', document.querySelector('input[name=_token]').value);
+    g.set('kurum_ulid', ulid);
+    g.set('ad_soyad', 'Sızma Deneme'); g.set('eposta', eposta);
+    g.set('telefon', '0530 000 00 00'); g.set('adres', 'Adres');
+    g.set('il', 'Çorum'); g.set('ilce', 'Merkez'); g.set('calisma_yili', '2');
+    g.set('sigorta_212_var', '1'); g.set('basin_karti_var', '0');
+    g.set('kvkk_aydinlatma', '1'); g.set('kvkk_riza', '1');
+    const c = await fetch(`${kok}/basvuru/basin-mensubu`, { method: 'POST', body: g, redirect: 'follow' });
+    return { url: c.url, metin: await c.text() };
+  }, KOK, kurumUlid, `sizma+${damga}@ornek.test`);
   kontrol('Elle gönderilen akredite olmayan kurum sunucuda reddediliyor',
-    !formB.url().includes('gonderildi') && /akredite değil/i.test(formBMetni),
-    formB.url().replace(KOK, ''));
+    !sizma.url.includes('gonderildi') && /akredite değil/i.test(sizma.metin),
+    sizma.url.replace(KOK, ''));
+  kontrol('Sızma denemesinden hesap AÇILMADI',
+    /HESAP:yok/.test(artisan(`echo 'HESAP:' . (App\\Models\\User::where('email','sizma+${damga}@ornek.test')->exists() ? 'var' : 'yok');`)));
 
   /* 7) Akredite olmayan kurum davet gönderemez */
   const davetSonuc = artisan(`
