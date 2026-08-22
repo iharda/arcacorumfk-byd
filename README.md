@@ -1,58 +1,122 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# BYD — Basın Yönetim Sistemi
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+ARCA Çorum FK'nın basın akreditasyonu ve stadyum girişi sistemi. Basın
+mensuplarının başvurusundan basın kartına, oradan turnikede QR okutulmasına
+kadar olan süreci tek yerden yönetir.
 
-## About Laravel
+> Adı **Basın Yönetim Sistemi**, kısaltması **BYD**. "Medya Merkezi" değil.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Ne yapar
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+1. **Başvuru** — kurumlar (gazete, ajans, TV) ve bağımsız gazeteciler/içerik
+   üreticileri web formundan başvurur, evraklarını yükler.
+2. **İnceleme** — kulüp yetkilisi evrakları yan yana önizleyerek inceler, eksik
+   evrakı alan bazında geri ister, onaylar veya reddeder. **Nihai onay her zaman
+   kulüptedir**; kurum yalnızca çalışanını teyit eder.
+3. **Akreditasyon** — onaylanana kart numarası (`2026-K-0042`) ve imzalı QR
+   taşıyan **basın kartı** üretilir. Çalışan kurumdan ayrılırsa akreditasyonu
+   otomatik iptal olur.
+4. **Kapı** — turnikedeki görevli `/kapi` ekranından QR okutur; sistem fotoğraflı
+   yanıt döner ve her okutma kayda geçer.
+5. **İçerik** — duyuru, antrenman takvimi ve bülten yayımlanır; bildirimler
+   yalnızca ilk yayında ve kuyrukta parçalı gönderilir.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Panolar
 
-## Learning Laravel
+| Yol | Kim kullanır |
+|---|---|
+| `/yonetim` | Kulüp yetkilisi — başvurular, akreditasyonlar, kapılar, denetim kaydı (2FA zorunlu) |
+| `/kurum` | Basın kuruluşu — kendi çalışanları ve başvuruları |
+| `/panel` | Basın mensubu — kendi kartı, evrakları, içerikler |
+| `/kapi` | Turnike görevlisi — QR okutma (PWA, çevrimdışı uyarısı var) |
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Yığın
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+PHP 8.3 · Laravel 13 · Filament 5 · Livewire 4 · PostgreSQL 16 · Redis ·
+Horizon (kuyruk) · Tailwind + Vite · Browsershot (kart görselleri) ·
+spatie/laravel-permission (rol/yetki) · endroid/qr-code
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Kurulum
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+git clone git@github.com:iharda/arcacorumfk-byd.git
+cd arcacorumfk-byd
+composer setup          # .env oluşturur, key üretir, migrate eder, npm build alır
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Ardından `.env` içinde kendi **PostgreSQL** ve **Redis** bilgilerinizi girin.
 
-## Contributing
+`.env` deposunda **yoktur ve olmayacaktır** — uygulama anahtarı, veritabanı ve
+SMTP parolaları oradadır. Canlı `.env`'i kopyalamayın; kendi ortamınızı kurun.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Geliştirirken:
 
-## Code of Conduct
+```bash
+composer dev            # sunucu + kuyruk + vite birlikte
+php artisan byd:pilot-verisi        # örnek kurum/başvuru/kart üretir (--sil ile temizler)
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Günlük akış
 
-## Security Vulnerabilities
+Kod GitHub'da (`master` dalı), canlı sürüm `byd.ordolive.com`'da çalışır. İkisi
+otomatik bağlı değildir.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+git pull                # başlarken
+git push                # bitirince
+```
 
-## License
+Sunucuya yansıtmak için **sunucuda**:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+bash dagit.sh
+```
+
+Bu betik GitHub'dan kodu çeker, gerekiyorsa `composer install` / `npm ci` /
+`npm run build` çalıştırır, önbelleği tazeler, migration'ları uygular ve
+Horizon'u yeniden başlatır. Sunucuda kaydedilmemiş değişiklik varsa **durur** —
+çekmeden dağıtmak için `PULLSUZ=1 bash dagit.sh`.
+
+## Kalite
+
+```bash
+composer denetle        # pint (biçim) + phpstan (analiz) — ikisi de temiz olmalı
+composer test           # phpunit
+```
+
+Çalışan siteye karşı koşan uçtan uca testler `tests/uctan-uca/` altında;
+kullanımı ve uyarıları için [tests/uctan-uca/BENIOKU.md](tests/uctan-uca/BENIOKU.md).
+**Bu testler üretime yazar**, önce o dosyayı okuyun.
+
+## Belgeler
+
+| Dosya | İçerik |
+|---|---|
+| [docs/yetkili-kullanim-notlari.md](docs/yetkili-kullanim-notlari.md) | Kulüp yetkilisi için kullanım rehberi |
+| [docs/pilot-senaryosu.md](docs/pilot-senaryosu.md) | Müşteriyle yapılacak deneme akışı |
+| [docs/canliya-alma.md](docs/canliya-alma.md) | Canlıya çıkış kontrol listesi |
+| [docs/kvkk-taslak.md](docs/kvkk-taslak.md) | Aydınlatma/saklama metni taslağı (hukuk onayı bekliyor) |
+
+## Tuzaklar
+
+Vakit kaybettiren, tekrar eden hatalar:
+
+- **`artisan optimize` config'i önbelleğe alır.** `config/` altını değiştirip
+  `dagit.sh` çalıştırmazsanız değişiklik canlıya yansımaz.
+- **Blade değiştirdiyseniz `npm run build` şart.** Tailwind sınıf adlarını Blade
+  dosyalarından tarar; derlemezseniz yeni sınıf sessizce çalışmaz.
+- **artisan'ı root ile çalıştırmayın.** Root'un bıraktığı dosyalar 500 üretir.
+  Sunucuda her komut `sudo -u byd ...` ile.
+- **Kendi kaydını görmek için yetki aranmaz.** Policy'lerde önce sahiplik
+  kontrolü yapın; `...gor` yetkileri *başkasının* kaydı içindir.
+- **Kuyrukta `uniqueId()` tek başına etkisizdir** — `ShouldBeUnique` gerekir.
+  Çakışmayı önlemek için `WithoutOverlapping`.
+- **Evrak ve kart diskleri web kökünün dışındadır**, public URL'leri yoktur.
+  Erişim her zaman policy'den geçer.
+- Kişisel veri saklanıyor: kimlik belgeleri gece çalışan `byd:evrak-imha` ile
+  süresi dolduğunda silinir. Yeni bir alan eklerken saklama süresini de düşünün.
+
+## Lisans
+
+Tescilli yazılım. ARCA Çorum FK için Minima Kreatif tarafından geliştirilmektedir.
+Açık kaynak değildir, izinsiz kopyalanamaz ve dağıtılamaz.
