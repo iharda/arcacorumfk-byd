@@ -200,6 +200,10 @@ try {
     /* ── Temizlik ─────────────────────────────────────────────────── */
     Event::forget('eloquent.saving: '.Akreditasyon::class);
 
+    // Kuyruktaki iptal bildirimi kaydı okuyacak; silmeden önce işlensin diye
+    // bekle. Yoksa her koşuda failed_jobs'a ModelNotFound çöpü düşer.
+    sleep(5);
+
     // Ayar ESKİ değeriyle geri: testin ayarı kalıcı değiştirmesi yasak.
     if ($eskiBekleme === null) {
         Ayar::where('anahtar', 'yeniden_basvuru_bekleme_gun')->delete();

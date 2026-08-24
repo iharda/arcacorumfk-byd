@@ -168,6 +168,9 @@ echo 'IPTAL:' . ($u->akreditasyonlar()->where('durum', '!=', 'iptal')->count() =
   kontrol('Basın mensubu rolü duruyor', o.roller.includes('basin_mensubu'), JSON.stringify(o.roller));
 } finally {
   await b.close();
+  // Kuyruktaki iptal bildirimi kaydı okuyacak; silmeden önce işlensin diye
+  // bekle. Yoksa her koşuda failed_jobs'a ModelNotFound çöpü düşer.
+  await bekle(5000);
   artisan(`
 $u = App\\Models\\User::withTrashed()->where('email', '${ADAY}')->first();
 if ($u) {
