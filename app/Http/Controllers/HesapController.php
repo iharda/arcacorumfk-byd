@@ -24,7 +24,8 @@ class HesapController extends Controller
     public function aktivasyonFormu(Request $istek, User $kullanici): View|RedirectResponse
     {
         if ($kullanici->email_verified_at !== null) {
-            return redirect($kullanici->panelYolu().'/login')
+            // Tek giriş kapısı (Revizyon md.4): panel başına giriş sayfası yok.
+            return redirect()->route('giris')
                 ->with('bilgi', 'Hesabınız zaten etkin. Giriş yapabilirsiniz.');
         }
 
@@ -34,7 +35,7 @@ class HesapController extends Controller
     public function aktivasyonKaydet(Request $istek, User $kullanici): RedirectResponse
     {
         if ($kullanici->email_verified_at !== null) {
-            return redirect($kullanici->panelYolu().'/login');
+            return redirect()->route('giris');
         }
 
         $istek->validate(
@@ -52,10 +53,20 @@ class HesapController extends Controller
             $this->denetim->yaz('hesap.aktiflestirildi', $kullanici);
         });
 
+        /*
+         * 🔒 Yetkiliyi BURADAN oturuma almayız: yönetim panelinde iki adımlı
+         * doğrulama zorunlu, doğrudan giriş onu atlatırdı.
+         */
+        if ($kullanici->hasAnyRole([User::ROL_SUPER, User::ROL_YETKILI])) {
+            return redirect()->route('filament.yonetim.auth.login')
+                ->with('bilgi', 'Şifreniz kaydedildi. Yeni şifrenizle giriş yapın.');
+        }
+
         Auth::login($kullanici);
         $istek->session()->regenerate();
 
-        // Rolüne göre doğru panele: kurum yetkilisi /kurum'a, birey /panel'e.
-        return redirect($kullanici->panelYolu());
+        // Hedefi tek yerden çözüyoruz: giriş kapısı kullanıcıyı kendi paneline
+        // ya da birden çok paneli varsa seçim ekranına yollar.
+        return redirect()->route('giris');
     }
 }

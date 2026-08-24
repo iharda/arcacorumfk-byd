@@ -16,9 +16,11 @@ use Illuminate\Auth\Events\Lockout;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Mail\Events\MessageSending;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
@@ -48,6 +50,28 @@ class AppServiceProvider extends ServiceProvider
         $this->hizSinirlari();
         $this->politikalar();
         $this->oturumOlaylari();
+        $this->sifreSifirlamaPostasi();
+    }
+
+    /**
+     * Şifre sıfırlama e-postası -- Türkçe ve markalı.
+     *
+     * Laravel'in varsayılan metni İngilizce ve sistemin diğer postalarına
+     * benzemiyor. Bağlantı `password.reset` ADLI rotadan üretilir.
+     */
+    private function sifreSifirlamaPostasi(): void
+    {
+        ResetPassword::toMailUsing(fn (object $notifiable, string $token) => (new MailMessage)
+            ->subject('Şifre belirleme bağlantısı — ARCA Çorum FK Basın Yönetim Sistemi')
+            ->greeting('Merhaba '.($notifiable->name ?? '').',')
+            ->line('Şifrenizi belirlemek için aşağıdaki bağlantıyı kullanın.')
+            ->action('Şifremi belirle', route('password.reset', [
+                'token' => $token,
+                'email' => $notifiable->getEmailForPasswordReset(),
+            ]))
+            ->line('Bağlantı **'.config('auth.passwords.users.expire', 60).' dakika** geçerlidir.')
+            ->line('Bu isteği siz yapmadıysanız bu e-postayı yok sayabilirsiniz; şifreniz değişmez.')
+            ->salutation('ARCA Çorum FK'));
     }
 
     /** Giriş / çıkış / başarısız deneme denetim kaydına düşer (md.10). */
@@ -86,6 +110,13 @@ class AppServiceProvider extends ServiceProvider
      */
     private function hizSinirlari(): void
     {
+        /*
+         * Tek giriş kapısı. Asıl kilit e-posta+IP başına GirisController'da
+         * (5 deneme / 10 dk); buradaki sınır aynı IP'den farklı adreslere
+         * yapılan taramayı keser.
+         */
+        RateLimiter::for('giris', fn (Request $r) => Limit::perMinute(20)->by($r->ip()));
+
         // Form sayfasını görüntüleme
         RateLimiter::for('basvuru-goruntule', fn (Request $r) => Limit::perMinute(60)->by($r->ip()));
 

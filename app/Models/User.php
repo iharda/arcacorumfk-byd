@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Concerns\UlidAnahtari;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
+use Filament\Facades\Filament;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -147,6 +148,43 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             $this->hasRole(self::ROL_KURUM) => '/kurum',
             default => '/panel',
         };
+    }
+
+    /**
+     * GERÇEKTEN girebildiği paneller: yol => ad.
+     *
+     * 🔑 Tek giriş kapısı (`/giris`) buna bakar. `panelYolu()` yalnızca role
+     * bakar; bu metot `canAccessPanel()`ten geçirir. Böylece akreditasyonu
+     * olmayan ya da ayrılmış kullanıcı, girişten sonra 403 yiyeceği bir panele
+     * yollanmaz — hiç panel çıkmazsa giriş baştan reddedilir.
+     *
+     * Bir kişi hem kurum yetkilisi hem basın mensubu olabilir (gazete sahibi
+     * aynı zamanda muhabir): o zaman iki seçenek döner ve panel seçim ekranı
+     * gösterilir.
+     *
+     * @return array<string, string>
+     */
+    public function erisebildigiPaneller(): array
+    {
+        $adlar = [
+            'yonetim' => 'Yönetim Paneli',
+            'kurum' => 'Kurum Paneli',
+            'uye' => 'Basın Paneli',
+        ];
+
+        $paneller = [];
+
+        foreach (Filament::getPanels() as $panel) {
+            $ad = $adlar[$panel->getId()] ?? null;
+
+            if ($ad === null || ! $this->canAccessPanel($panel)) {
+                continue;
+            }
+
+            $paneller['/'.$panel->getPath()] = $ad;
+        }
+
+        return $paneller;
     }
 
     /* ---------- Filament 5 yerlesik iki adimli dogrulama ---------- */

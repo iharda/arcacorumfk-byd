@@ -7,6 +7,7 @@
 /storage/*.key
 /storage/app/evrak
 /storage/app/kart
+/storage/framework/phpstan
 /storage/pail
 /vendor
 .env

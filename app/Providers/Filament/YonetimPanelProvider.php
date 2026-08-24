@@ -13,6 +13,7 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -48,8 +49,19 @@ class YonetimPanelProvider extends PanelProvider
             ->colors([
                 'primary' => KulupRengi::birincil(),   // kulüp kırmızısı #C11119
             ])
+            // Yetkilinin kapısı AYRI kalır: 2FA burada zorunlu, tek giriş
+            // sayfası (`/giris`) yetkiliyi içeri almaz (Revizyon md.4.2).
             ->login()
-            ->passwordReset()
+            /*
+             * 🪤 `->passwordReset()` KALDIRILDI: şifre sıfırlama tek rotada
+             * (`/sifremi-unuttum`). Üç ayrı sıfırlama kapısı, üç ayrı e-posta
+             * biçimi demekti. Giriş sayfasındaki bağlantı aşağıdaki render
+             * kancasıyla eklenir, yoksa yetkili çıkmaza düşerdi.
+             */
+            ->renderHook(
+                PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
+                fn () => view('filament.yonetim.sifre-baglantisi'),
+            )
             ->profile(isSimple: false)
             /*
              * ⚠️ İkinci argümandaki varsayılan (true) BİLEREK: `config:cache`

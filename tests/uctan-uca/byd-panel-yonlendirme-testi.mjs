@@ -44,9 +44,11 @@ async function yeniSekme() {
 }
 
 async function gir(s, panelYolu, eposta) {
-  await s.goto(`${KOK}${panelYolu}/login`, { waitUntil: 'networkidle2' });
-  await s.type('#form\\.email', eposta);
-  await s.type('#form\\.password', SIFRE);
+  // Tek giriş kapısı (Revizyon md.4): `panelYolu` yalnızca senaryoyu okunur
+  // kılmak için duruyor; giriş her hâlde /giris'ten yapılır.
+  await s.goto(`${KOK}/giris`, { waitUntil: 'networkidle2' });
+  await s.type('[name="email"]', eposta);
+  await s.type('[name="password"]', SIFRE);
   await Promise.all([
     s.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
     s.click('button[type=submit]'),
@@ -98,10 +100,14 @@ async function gir(s, panelYolu, eposta) {
 {
   const { ctx, s } = await yeniSekme();
   await gir(s, '/panel', ADAY_UYE);
-  kontrol('Akreditasyonsuz hesap üye paneline GİREMİYOR', yol(s).includes('/login'), yol(s));
+  // Tek giriş kapısı hesabı içeri hiç almaz ve SEBEBİNİ yazar; eskiden
+  // Filament'in giriş ekranında "kimlik bilgileri hatalı" diyordu.
+  const g = await metin(s);
+  kontrol('Akreditasyonsuz hesap üye paneline GİREMİYOR',
+    yol(s) === '/giris' && /etkin değil/.test(g), yol(s));
   const y = await s.goto(`${KOK}/panel/duyurular`, { waitUntil: 'networkidle2' });
   kontrol('İçerik sayfası da açılmıyor, giriş ekranına düşüyor',
-    yol(s).includes('/login'), `${y.status()} ${yol(s)}`);
+    yol(s) === '/giris', `${y.status()} ${yol(s)}`);
   await ctx.close();
 }
 

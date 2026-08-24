@@ -6,7 +6,13 @@ ARCA Çorum FK · Kulüp yetkilisi için günlük kullanım rehberi.
 
 ## 1. Giriş
 
-Adres: **`/yonetim`**
+Adres: **`/yonetim`** — kulüp yetkilisinin kapısı budur ve **yalnızca budur**.
+Kurum yetkilileri, basın mensupları ve içerik üreticileri ayrı bir adresten
+(`/giris`) girer; oradan yetkili hesabıyla giriş yapılamaz.
+
+Şifrenizi unutursanız giriş ekranındaki **"Şifremi unuttum"** bağlantısını
+kullanın. Şifre sıfırlandıktan sonra da iki adımlı doğrulama istenmeye devam
+eder — sıfırlama onu atlatmaz.
 
 Girişte parolanın yanında **telefonunuzdaki doğrulama uygulamasından altı haneli
 kod** istenir. Bu zorunludur; kapatılamaz. İlk girişinizde kurulum ekranı çıkar:

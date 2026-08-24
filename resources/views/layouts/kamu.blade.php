@@ -21,12 +21,11 @@
                 <span class="block text-xs text-neutral-500">Basın Yönetim Sistemi</span>
             </span>
         </a>
+        {{-- Tek giriş kapısı (Revizyon md.4): "hangi girişten gireceğim"
+             sorusu ortadan kalktı. --}}
         <nav class="ms-auto flex items-center gap-1 text-sm">
-            <a href="/kurum/login" class="rounded-md px-3 py-2 text-neutral-600 transition hover:bg-neutral-100 hover:text-koyu">
-                Kurum girişi
-            </a>
-            <a href="/panel/login" class="rounded-md px-3 py-2 text-neutral-600 transition hover:bg-neutral-100 hover:text-koyu">
-                Basın girişi
+            <a href="{{ route('giris') }}" class="rounded-md px-3 py-2 text-neutral-600 transition hover:bg-neutral-100 hover:text-koyu">
+                Giriş
             </a>
         </nav>
     </div>

@@ -85,9 +85,10 @@ async function kuyrukSakinlesin(sakinSaniye = 3, enFazla = 40) {
 }
 
 async function girisYap(sayfa, yol, eposta) {
-  await sayfa.goto(`${KOK}${yol}/login`, { waitUntil: 'networkidle2' });
-  await sayfa.type('#form\\.email', eposta);
-  await sayfa.type('#form\\.password', SIFRE);
+  // Tek giriş kapısı (Revizyon md.4).
+  await sayfa.goto(`${KOK}/giris`, { waitUntil: 'networkidle2' });
+  await sayfa.type('[name="email"]', eposta);
+  await sayfa.type('[name="password"]', SIFRE);
   await Promise.all([
     sayfa.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
     sayfa.click('button[type="submit"]'),
@@ -216,8 +217,9 @@ echo 'TEKRAR';`);
   const bekleyen = await c2.newPage();
   await girisYap(bekleyen, '/panel', BEKLEYEN);
   await bekleyen.goto(`${KOK}/panel/duyurular`, { waitUntil: 'domcontentloaded' });
+  // Tek giriş kapısı (Revizyon md.4): hesap içeri hiç alınmaz, /giris'te kalır.
   kontrol('Akredite olmayan içerik sayfasına giremiyor',
-    bekleyen.url().includes('/login'), bekleyen.url().replace(KOK, ''));
+    bekleyen.url().endsWith('/giris'), bekleyen.url().replace(KOK, ''));
   const menu = await bekleyen.goto(`${KOK}/panel`, { waitUntil: 'networkidle2' })
     .then(() => bekleyen.evaluate(() => document.body.innerText));
   kontrol('Akredite olmayanın menüsünde içerik YOK',

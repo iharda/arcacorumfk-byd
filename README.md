@@ -30,6 +30,12 @@ kadar olan süreci tek yerden yönetir.
 | `/panel` | Basın mensubu — kendi kartı, evrakları, içerikler |
 | `/kapi` | Turnike görevlisi — QR okutma (PWA, çevrimdışı uyarısı var) |
 
+Giriş **tek kapıdan**: `/giris`. Kurum yetkilisi, basın mensubu ve içerik
+üreticisi buradan girer; sistem rolüne göre panele yollar, iki panele birden
+girebilen kişiye seçim ekranı gösterir. Kulüp yetkilisinin kapısı ayrı kalır
+(`/yonetim/login`, iki adımlı doğrulama zorunlu). Şifre sıfırlama üçü için de
+tek adreste: `/sifremi-unuttum`.
+
 ## Yığın
 
 PHP 8.3 · Laravel 13 · Filament 5 · Livewire 4 · PostgreSQL 16 · Redis ·

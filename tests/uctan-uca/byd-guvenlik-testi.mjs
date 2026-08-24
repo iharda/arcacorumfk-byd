@@ -63,9 +63,10 @@ try {
   /* 2) KURUM A olarak giriş */
   const ctxA = await b.createBrowserContext();
   const a = await ctxA.newPage();
-  await a.goto(`${KOK}/kurum/login`, { waitUntil: 'networkidle2' });
-  await a.type('#form\\.email', A);
-  await a.type('#form\\.password', SIFRE);
+  // Tek giriş kapısı (Revizyon md.4).
+  await a.goto(`${KOK}/giris`, { waitUntil: 'networkidle2' });
+  await a.type('[name="email"]', A);
+  await a.type('[name="password"]', SIFRE);
   await Promise.all([a.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}), a.click('button[type="submit"]')]);
   await bekle(800);
   kontrol('Kurum A giriş yaptı', a.url().includes('/kurum') && !a.url().includes('login'), a.url().replace(KOK, ''));

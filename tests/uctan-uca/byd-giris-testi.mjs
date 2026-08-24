@@ -24,10 +24,17 @@ await s.setViewport({ width: 1440, height: 900 });
 const sonuc = [];
 const kontrol = (ad, gecti, ek = '') => sonuc.push({ ad, gecti, ek });
 
-// 1) Uc panelin giris ekrani da aciliyor mu?
-for (const [yol, ad] of [['/yonetim/login', 'Yetkili'], ['/kurum/login', 'Kurum'], ['/panel/login', 'Üye']]) {
+// 1) İki kapı açılıyor mu? Yetkilinin 2FA'lı kapısı ve TEK giriş sayfası.
+for (const [yol, ad] of [['/yonetim/login', 'Yetkili'], ['/giris', 'Tek giriş']]) {
   const y = await s.goto(KOK + yol, { waitUntil: 'networkidle2', timeout: 60000 });
-  kontrol(`${ad} paneli giriş ekranı`, y.status() === 200, `HTTP ${y.status()}`);
+  kontrol(`${ad} ekranı`, y.status() === 200, `HTTP ${y.status()}`);
+}
+
+// Panellerin kendi giriş sayfaları KALDIRILDI (Revizyon md.4): eski adresler
+// tek kapıya yönlenmeli, yer imleri kırılmasın.
+for (const eskiAdres of ['/kurum/login', '/panel/login']) {
+  await s.goto(KOK + eskiAdres, { waitUntil: 'networkidle2' });
+  kontrol(`${eskiAdres} tek kapıya yönleniyor`, s.url() === `${KOK}/giris`, s.url().replace(KOK, ''));
 }
 
 // 2) Turkce ve marka

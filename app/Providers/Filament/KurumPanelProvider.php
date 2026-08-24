@@ -43,8 +43,12 @@ class KurumPanelProvider extends PanelProvider
             ->colors([
                 'primary' => KulupRengi::birincil(),   // kulüp kırmızısı #C11119
             ])
-            ->login()
-            ->passwordReset()
+            /*
+             * 🔑 Bu panelin KENDİ giriş sayfası YOK (Revizyon md.4.3): kurum,
+             * basın mensubu ve içerik üreticisi tek kapıdan girer (`/giris`).
+             * Şifre sıfırlama da tek rotada: `/sifremi-unuttum`.
+             * Oturumsuz istek `redirectGuestsTo` ile oraya düşer.
+             */
             ->emailVerification()
             ->profile(isSimple: false)
             // Avatar YERELDE uretilir; ui-avatars.com'a kullanıcı adı GİTMEZ.

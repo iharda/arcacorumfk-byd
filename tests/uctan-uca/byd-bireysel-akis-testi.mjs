@@ -55,9 +55,10 @@ echo 'ULID:' . ($b?->ulid ?? 'yok');`).match(/ULID:(\w+)/) || [])[1];
 }
 
 async function girisYap(sayfa, yol, eposta, sifre) {
-  await sayfa.goto(`${KOK}${yol}/login`, { waitUntil: 'networkidle2' });
-  await sayfa.type('#form\\.email', eposta);
-  await sayfa.type('#form\\.password', sifre);
+  // Tek giriş kapısı (Revizyon md.4): panel başına giriş sayfası YOK.
+  await sayfa.goto(`${KOK}/giris`, { waitUntil: 'networkidle2' });
+  await sayfa.type('[name="email"]', eposta);
+  await sayfa.type('[name="password"]', sifre);
   await Promise.all([
     sayfa.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
     sayfa.click('button[type="submit"]'),

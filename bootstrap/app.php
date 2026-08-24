@@ -17,15 +17,17 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         /*
          * 🪤 `auth` ara katmanı, oturumsuz isteği varsayılan olarak route('login')
-         * adresine yollar. Bu uygulamada "login" adlı rota YOK (her panelin kendi
-         * girişi var) → RouteNotFoundException → kullanıcı 403 yerine 500 görür.
+         * adresine yollar. Bu uygulamada "login" adlı rota YOK → 500.
          *
-         * Evrak ucu bir API gibi davranır: yönlendirme yerine 401. Diğer yerlerde
-         * ana sayfaya düşürülür; hangi panele ait olduğu SIZDIRILMAZ.
+         * Evrak ucu bir API gibi davranır: yönlendirme yerine 401. Yönetim
+         * paneli kendi 2FA'lı kapısına, kalan herkes TEK giriş sayfasına düşer
+         * (Revizyon md.4.3).
          */
-        $middleware->redirectGuestsTo(
-            fn (Request $request) => $request->is('evrak/*') ? null : route('anasayfa'),
-        );
+        $middleware->redirectGuestsTo(fn (Request $request) => match (true) {
+            $request->is('evrak/*') => null,
+            $request->is('yonetim', 'yonetim/*') => route('filament.yonetim.auth.login'),
+            default => route('giris'),
+        });
 
         // Cloudflare önde: gerçek ziyaretçi IP'si nginx'in yazdığı başlıktan gelir.
         $middleware->trustProxies(at: '*');

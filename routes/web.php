@@ -3,9 +3,11 @@
 use App\Http\Controllers\BasvuruController;
 use App\Http\Controllers\BasvuruDuzeltmeController;
 use App\Http\Controllers\EvrakController;
+use App\Http\Controllers\GirisController;
 use App\Http\Controllers\HesapController;
 use App\Http\Controllers\HukukiMetinController;
 use App\Http\Controllers\KapiController;
+use App\Http\Controllers\SifreController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -14,6 +16,33 @@ use Illuminate\Support\Facades\Route;
  */
 
 Route::get('/', [BasvuruController::class, 'secim'])->name('anasayfa');
+
+/*
+ * TEK GİRİŞ KAPISI -- Revizyon md.4. Kurum · basın mensubu · içerik üreticisi
+ * buradan girer; kulüp yetkilisinin kapısı ayrı kalır (`/yonetim/login`, 2FA
+ * zorunlu). Panellerin kendi giriş sayfaları KALDIRILDI; eski adresler buraya
+ * yönlenir ki yer imleri ve eski e-postalar kırılmasın.
+ */
+Route::middleware('throttle:giris')->group(function () {
+    Route::get('/giris', [GirisController::class, 'form'])->name('giris');
+    Route::post('/giris', [GirisController::class, 'giris'])->name('giris.yap');
+
+    // Tek şifre sıfırlama akışı (üç panel için). 🪤 Sıfırlama sayfasının adı
+    // `password.reset` OLMAK ZORUNDA: Laravel'in bildirimi bağlantıyı bu adla
+    // üretir.
+    Route::get('/sifremi-unuttum', [SifreController::class, 'istekFormu'])->name('sifre.istek');
+    Route::post('/sifremi-unuttum', [SifreController::class, 'istekGonder'])->name('sifre.istek.gonder');
+    Route::get('/sifre-sifirla/{token}', [SifreController::class, 'sifirlamaFormu'])->name('password.reset');
+    Route::post('/sifre-sifirla', [SifreController::class, 'sifirla'])->name('sifre.sifirla');
+});
+
+Route::redirect('/kurum/login', '/giris');
+Route::redirect('/panel/login', '/giris');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/panel-sec', [GirisController::class, 'panelSec'])->name('panel.sec');
+    Route::post('/cikis', [GirisController::class, 'cikis'])->name('cikis');
+});
 
 Route::middleware('throttle:basvuru-goruntule')->group(function () {
     Route::get('/basvuru/kurum', [BasvuruController::class, 'kurumFormu'])->name('basvuru.kurum');
