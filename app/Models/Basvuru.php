@@ -17,6 +17,11 @@ use RuntimeException;
 /**
  * @property BasvuruTuru $tur
  * @property BasvuruDurumu $durum
+ * @property ?int $kullanici_id hesap ONAY aninda acilir; o ana kadar null
+ * @property ?User $kullanici
+ * @property ?string $basvuran_ad
+ * @property ?string $basvuran_eposta
+ * @property ?string $basvuran_telefon
  */
 class Basvuru extends Model
 {
@@ -117,12 +122,12 @@ class Basvuru extends Model
     /** Kuyrukta ve ekranlarda gosterilecek ad; hesap acilmamis olabilir. */
     public function basvuranAdi(): string
     {
-        return $this->kullanici?->name ?? $this->basvuran_ad ?? '—';
+        return $this->kullanici->name ?? $this->basvuran_ad ?? '—';
     }
 
     public function basvuranEpostasi(): ?string
     {
-        return $this->kullanici?->email ?? $this->basvuran_eposta;
+        return $this->kullanici->email ?? $this->basvuran_eposta;
     }
 
     /**
