@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Notification;
 use RuntimeException;
 
 /**
@@ -77,6 +78,51 @@ class Basvuru extends Model
     public function davet(): HasOne
     {
         return $this->hasOne(Davet::class, 'basvuru_id');
+    }
+
+    /** @return HasMany<BasvuruBileti, $this> */
+    public function biletler(): HasMany
+    {
+        return $this->hasMany(BasvuruBileti::class, 'basvuru_id');
+    }
+
+    /** Kullanilabilir durumdaki eksik evrak bileti; yoksa null. */
+    public function acikBilet(): ?BasvuruBileti
+    {
+        return $this->biletler()
+            ->whereNull('kullanildi_at')
+            ->whereNull('iptal_at')
+            ->where('gecerlilik_bitis', '>', now())
+            ->latest('id')
+            ->first();
+    }
+
+    /**
+     * Bildirim hedefi -- TEK kapi. Hesap ONAY aninda acildigi icin (Revizyon
+     * md.1) basvurunun buyuk bolumunde kullanici YOKTUR; bildirim ham e-posta
+     * adresine gider. Cagiran kod "hesap var mi" diye sormaz.
+     */
+    public function bildirimHedefi(): object
+    {
+        if ($this->kullanici !== null) {
+            return $this->kullanici;
+        }
+
+        $eposta = $this->basvuran_eposta
+            ?? throw new RuntimeException('Başvurunun bildirim adresi yok.');
+
+        return Notification::route('mail', $eposta);
+    }
+
+    /** Kuyrukta ve ekranlarda gosterilecek ad; hesap acilmamis olabilir. */
+    public function basvuranAdi(): string
+    {
+        return $this->kullanici?->name ?? $this->basvuran_ad ?? '—';
+    }
+
+    public function basvuranEpostasi(): ?string
+    {
+        return $this->kullanici?->email ?? $this->basvuran_eposta;
     }
 
     /**

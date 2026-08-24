@@ -82,6 +82,11 @@ class BasvuruController extends Controller
                     'durum' => BasvuruDurumu::Taslak,
                     'kullanici_id' => $kullanici->id,
                     'kurum_id' => $kurum->id,
+                    // Hesap ONAY aninda acilacak (Revizyon md.2.1); iletisim
+                    // bilgisi o gune kadar basvurunun ustunde durur.
+                    'basvuran_ad' => $veri['yetkili_ad'],
+                    'basvuran_eposta' => $veri['yetkili_eposta'],
+                    'basvuran_telefon' => $this->telefonBicimle($veri['yetkili_telefon']),
                     'form_verisi' => [
                         'yetkili_ad' => $veri['yetkili_ad'],
                         'yetkili_telefon' => $veri['yetkili_telefon'],
@@ -206,6 +211,9 @@ class BasvuruController extends Controller
                 'kullanici_id' => $kullanici->id,
                 'kurum_id' => $kurum?->id,
                 'kurum_baslatti' => $kurumBaslatti,
+                'basvuran_ad' => $veri['ad_soyad'],
+                'basvuran_eposta' => $veri['eposta'],
+                'basvuran_telefon' => $this->telefonBicimle($veri['telefon']),
                 'form_verisi' => array_filter([
                     'basin_karti_var' => $veri['basin_karti_var'],
                     'sigorta_212_var' => $veri['sigorta_212_var'] ?? null,

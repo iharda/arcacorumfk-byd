@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\UlidAnahtari;
+use App\Enums\CalisanAraligi;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -21,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property ?string $vergi_dairesi
  * @property ?string $vergi_no
  * @property ?int $calisan_sayisi
+ * @property ?CalisanAraligi $calisan_araligi
  * @property ?array $yayin_platformlari
  * @property ?array $sosyal_medya
  * @property string $akreditasyon_durumu
@@ -44,6 +46,7 @@ class Kurum extends Model
             'sosyal_medya' => 'array',
             'kontenjan' => 'integer',
             'calisan_sayisi' => 'integer',
+            'calisan_araligi' => CalisanAraligi::class,
             'teyit_istensin' => 'boolean',
         ];
     }
