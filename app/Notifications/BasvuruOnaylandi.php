@@ -8,16 +8,25 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\URL;
 
 /**
  * Plan v1.0 md.9 — onay bildirimi.
+ *
+ * 🔑 Hesap ONAY anında açıldığı için (Revizyon md.3.2) bu e-posta aynı zamanda
+ * hesabın kapısıdır: kullanıcı şifresini henüz belirlememişse imzalı, süreli
+ * bir "şifremi belirle" bağlantısı taşır. Sistem düz metin şifre GÖNDERMEZ.
+ *
  * ⏳ Bireysel başvurularda basın kartı PDF'i EK olarak gidecek (04. aşama).
  */
 class BasvuruOnaylandi extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(public Basvuru $basvuru) {}
+    public function __construct(
+        public Basvuru $basvuru,
+        public bool $sifreBelirlenecek = false,
+    ) {}
 
     public function via(object $notifiable): array
     {
@@ -28,16 +37,30 @@ class BasvuruOnaylandi extends Notification implements ShouldQueue
     {
         $kurumsal = $this->basvuru->tur === BasvuruTuru::Kurum;
 
-        return (new MailMessage)
+        $mesaj = (new MailMessage)
             ->subject('Başvurunuz onaylandı — ARCA Çorum FK')
-            ->greeting('Merhaba '.$notifiable->name.',')
+            ->greeting('Merhaba '.$this->basvuru->basvuranAdi().',')
             ->line($kurumsal
                 ? '**'.$this->basvuru->kurum?->resmi_unvan.'** akredite edildi.'
                 : 'Akreditasyon başvurunuz onaylandı.')
             ->line($kurumsal
                 ? 'Kurum panelinizden çalışanlarınız için başvuru başlatabilirsiniz.'
-                : 'Basın kartınız panelinizden görüntülenebilir.')
-            ->action($kurumsal ? 'Kurum paneline git' : 'Panele git', url($kurumsal ? '/kurum' : '/panel'))
+                : 'Basın kartınız panelinizden görüntülenebilir.');
+
+        if (! $this->sifreBelirlenecek) {
+            return $mesaj
+                ->action($kurumsal ? 'Kurum paneline git' : 'Panele git', url($kurumsal ? '/kurum' : '/panel'))
+                ->salutation('ARCA Çorum FK');
+        }
+
+        return $mesaj
+            ->line('Hesabınız onayla birlikte açıldı. Şifrenizi aşağıdaki bağlantıdan belirleyip panelinize girebilirsiniz.')
+            ->action('Şifremi belirle', URL::temporarySignedRoute(
+                'hesap.aktivasyon',
+                now()->addHours(48),
+                ['kullanici' => $notifiable->ulid],
+            ))
+            ->line('Bu bağlantı **48 saat** geçerlidir. Süresi dolarsa giriş sayfasındaki "şifremi unuttum" adımından yeni bağlantı isteyebilirsiniz.')
             ->salutation('ARCA Çorum FK');
     }
 }

@@ -29,6 +29,7 @@ class BasvuruAkisi
     public function __construct(
         private DenetimYazici $denetim,
         private AkreditasyonAkisi $akreditasyon,
+        private HesapAcici $hesapAcici,
     ) {}
 
     public function gonder(Basvuru $basvuru): void
@@ -46,7 +47,7 @@ class BasvuruAkisi
             'kurum_teyidi_gerekli' => $teyitGerekli,
         ]);
 
-        $basvuru->kullanici->notify(new BasvuruAlindi($basvuru));
+        $basvuru->bildirimHedefi()->notify(new BasvuruAlindi($basvuru));
 
         if ($teyitGerekli) {
             $this->kurumYetkililerineHaberVer($basvuru);
@@ -134,7 +135,7 @@ class BasvuruAkisi
             'karar_gerekcesi' => $mesaj,
         ]);
 
-        $basvuru->kullanici->notify(new EksikEvrakTalebi($basvuru));
+        $basvuru->bildirimHedefi()->notify(new EksikEvrakTalebi($basvuru));
     }
 
     /**
@@ -147,26 +148,32 @@ class BasvuruAkisi
      */
     public function onayla(Basvuru $basvuru): void
     {
-        DB::transaction(function () use ($basvuru) {
+        [$kullanici, $sifreBelirlenecek] = DB::transaction(function () use ($basvuru) {
             $this->gecir($basvuru, BasvuruDurumu::Onaylandi, 'basvuru.onaylandi', [
                 'karar_at' => now(),
                 'karar_veren_id' => Auth::id(),
             ]);
 
+            // ── HESAP BURADA AÇILIR (Revizyon md.3.2) ──
+            // Rol ataması da HesapAcici'de: onaylanmayan kişinin hesabı da rolü
+            // de hiç doğmaz.
+            [$kullanici, $sifreBelirlenecek] = $this->hesapAcici->onaydanOlustur($basvuru);
+
             // Kurumsal başvuruda onay = kurumun AKREDİTE olması ve yetkilinin
             // kurum paneline açılması (Plan v1.0 md.5.1).
             if ($basvuru->tur === BasvuruTuru::Kurum && $basvuru->kurum) {
                 $basvuru->kurum->update(['akreditasyon_durumu' => 'akredite']);
-                // 🪤 syncRoles DEĞİL: kişinin kendi basın kartı da olabilir,
-                // o rolü silmemeli.
-                $basvuru->kullanici->assignRole(User::ROL_KURUM);
             } else {
                 // Bireysel onay: akreditasyon kaydı ve kart numarası burada doğar.
                 $this->akreditasyon->basvurudanOlustur($basvuru);
             }
+
+            return [$kullanici, $sifreBelirlenecek];
         });
 
-        $basvuru->kullanici->notify(new BasvuruOnaylandi($basvuru));
+        // Bildirim hesabın KENDİSİNE gider: imzalı şifre bağlantısı kullanıcının
+        // ulid'ini ister, anonim adres yetmez.
+        $kullanici->notify(new BasvuruOnaylandi($basvuru, $sifreBelirlenecek));
     }
 
     public function reddet(Basvuru $basvuru, string $gerekce): void
@@ -189,7 +196,7 @@ class BasvuruAkisi
             ]);
         });
 
-        $basvuru->kullanici->notify(new BasvuruReddedildi($basvuru));
+        $basvuru->bildirimHedefi()->notify(new BasvuruReddedildi($basvuru));
     }
 
     /** Ortak geçiş: doğrula → yaz → denetle, hepsi tek işlemde. */
