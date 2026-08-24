@@ -21,10 +21,10 @@
 
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
+use App\Jobs\KartUret;
 use App\Models\Akreditasyon;
 use App\Models\Basvuru;
 use App\Models\Kurum;
-use App\Jobs\KartUret;
 use App\Models\User;
 use App\Notifications\BasvuruOnaylandi;
 use App\Notifications\BasvuruReddedildi;
