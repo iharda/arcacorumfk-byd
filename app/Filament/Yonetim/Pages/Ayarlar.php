@@ -49,6 +49,7 @@ class Ayarlar extends Page
         $this->form->fill([
             'kurum_teyidi_istensin' => (bool) Ayar::al('kurum_teyidi_istensin', false),
             'davet_gecerlilik_gun' => (int) Ayar::al('davet_gecerlilik_gun', 7),
+            'duzeltme_bileti_gun' => (int) Ayar::al('duzeltme_bileti_gun', 14),
             'yeniden_basvuru_bekleme_gun' => (int) Ayar::al('yeniden_basvuru_bekleme_gun', 0),
             'kart_kodu_basin' => KartNoUretici::kod(BasvuruTuru::BasinMensubu),
             'kart_kodu_icerik' => KartNoUretici::kod(BasvuruTuru::IcerikUreticisi),
@@ -75,6 +76,15 @@ class Ayarlar extends Page
 
                         TextInput::make('davet_gecerlilik_gun')
                             ->label('Davet bağlantısı geçerlilik süresi')
+                            ->suffix('gün')
+                            ->numeric()
+                            ->required()
+                            ->minValue(1)
+                            ->maxValue(60),
+
+                        TextInput::make('duzeltme_bileti_gun')
+                            ->label('Düzeltme bağlantısı geçerlilik süresi')
+                            ->helperText('Eksik evrak istendiğinde başvurana giden, hesap gerektirmeyen bağlantının ömrü.')
                             ->suffix('gün')
                             ->numeric()
                             ->required()

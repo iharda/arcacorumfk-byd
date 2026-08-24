@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BasvuruController;
+use App\Http\Controllers\BasvuruDuzeltmeController;
 use App\Http\Controllers\EvrakController;
 use App\Http\Controllers\HesapController;
 use App\Http\Controllers\HukukiMetinController;
@@ -52,6 +53,18 @@ Route::get('/metin/{tur}', [HukukiMetinController::class, 'goster'])
     ->name('hukuki.metin');
 
 Route::get('/basvuru/gonderildi', [BasvuruController::class, 'gonderildi'])->name('basvuru.gonderildi');
+
+/*
+ * Eksik evrak düzeltmesi -- HESAPSIZ. Kimlik yerine e-postayla giden tek
+ * kullanımlık, süreli bilet geçer; token adreste görünür ama tahmin edilemez
+ * ve sunucuda yalnızca hash'i durur.
+ */
+Route::middleware('throttle:basvuru-duzelt')->group(function () {
+    Route::get('/basvuru/duzelt/{token}', [BasvuruDuzeltmeController::class, 'form'])
+        ->name('basvuru.duzelt');
+    Route::post('/basvuru/duzelt/{token}', [BasvuruDuzeltmeController::class, 'kaydet'])
+        ->name('basvuru.duzelt.kaydet');
+});
 
 // İmzalı + süreli bağlantı; ulid ile bağlanır, sıralı id adreste görünmez.
 Route::middleware(['signed', 'throttle:hesap-aktivasyon'])->group(function () {

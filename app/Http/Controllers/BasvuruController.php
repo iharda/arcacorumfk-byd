@@ -346,6 +346,8 @@ class BasvuruController extends Controller
         return view('basvuru.gonderildi', [
             'eposta' => session('eposta'),
             'aktivasyon' => (bool) session('aktivasyon', true),
+            // Panelsiz düzeltmeden gelindiyse metin farklı: hesap/şifre yok.
+            'duzeltme' => (bool) session('duzeltme', false),
         ]);
     }
 

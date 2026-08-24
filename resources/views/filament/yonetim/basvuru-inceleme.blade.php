@@ -94,13 +94,22 @@
                 </x-filament::section>
             @endif
 
+            @if (filled($record->form_verisi['duzeltme_aciklamasi'] ?? null))
+                <x-filament::section compact>
+                    <x-slot name="heading">Başvuranın düzeltme açıklaması</x-slot>
+                    <p style="font-size:.82rem; white-space:pre-line;">{{ $record->form_verisi['duzeltme_aciklamasi'] }}</p>
+                </x-filament::section>
+            @endif
+
             <x-filament::section compact>
                 <x-slot name="heading">Başvuran yetkili</x-slot>
                 <dl style="display:grid; grid-template-columns:auto 1fr; gap:.4rem .75rem; font-size:.82rem;">
-                    <dt style="opacity:.6;">Ad</dt><dd>{{ $record->kullanici?->name }}</dd>
-                    <dt style="opacity:.6;">E-posta</dt><dd style="word-break:break-all;">{{ $record->kullanici?->email }}</dd>
-                    @if ($record->kullanici?->telefon)
-                        <dt style="opacity:.6;">Telefon</dt><dd>{{ $record->kullanici->telefon }}</dd>
+                    {{-- Hesap ONAY anında açılır: onaya kadar bilgiler başvurunun üstünde. --}}
+                    <dt style="opacity:.6;">Ad</dt><dd>{{ $record->basvuranAdi() }}</dd>
+                    <dt style="opacity:.6;">E-posta</dt><dd style="word-break:break-all;">{{ $record->basvuranEpostasi() }}</dd>
+                    @php $telefon = $record->kullanici?->telefon ?? $record->basvuran_telefon; @endphp
+                    @if ($telefon)
+                        <dt style="opacity:.6;">Telefon</dt><dd>{{ $telefon }}</dd>
                     @endif
                 </dl>
             </x-filament::section>

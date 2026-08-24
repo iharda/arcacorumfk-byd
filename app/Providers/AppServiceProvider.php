@@ -98,6 +98,10 @@ class AppServiceProvider extends ServiceProvider
         // Davet bağlantısı: token tahmin edilemez ama yine de kaba kuvvete kapalı.
         RateLimiter::for('davet', fn (Request $r) => Limit::perMinutes(10, 20)->by($r->ip()));
 
+        // Düzeltme bağlantısı: davetle aynı mantık; dosya yüklemesi olduğu için
+        // biraz daha dar.
+        RateLimiter::for('basvuru-duzelt', fn (Request $r) => Limit::perMinutes(10, 15)->by($r->ip()));
+
         /*
          * Turnike doğrulaması. Maç günü kısa sürede çok okutma olur; sınır
          * İSTEMCİ BAŞINA konur, kapılar birbirini kilitlemesin.

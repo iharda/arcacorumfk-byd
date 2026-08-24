@@ -6,7 +6,9 @@ use App\Enums\BasvuruDurumu;
 use App\Filament\Yonetim\Resources\Basvurus\BasvuruResource;
 use App\Models\Basvuru;
 use App\Models\EvrakTuru;
+use App\Notifications\EksikEvrakTalebi;
 use App\Servisler\BasvuruAkisi;
+use App\Servisler\BasvuruBiletiAkisi;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -173,6 +175,27 @@ class Inceleme extends Page
                         'Düzeltme talebi gönderildi.',
                     );
                 }),
+
+            /*
+             * Düzeltme bağlantısı e-postaya ulaşmadıysa ya da süresi dolduysa
+             * başvuran çıkmazda kalmasın: yetkili yenisini gönderebilir.
+             * Eski bağlantı ölür.
+             */
+            Action::make('duzeltmeBaglantisi')
+                ->label('Düzeltme bağlantısını yeniden gönder')
+                ->icon('heroicon-m-envelope')
+                ->color('gray')
+                ->requiresConfirmation()
+                ->modalHeading('Düzeltme bağlantısını yeniden gönder')
+                ->modalDescription('Başvurana yeni bir bağlantı gider ve önceki bağlantı geçersiz olur.')
+                ->modalSubmitActionLabel('Gönder')
+                ->visible(fn () => $this->record->durum === BasvuruDurumu::EksikEvrak
+                    && auth()->user()->can('eksikEvrakIste', $this->record))
+                ->action(fn () => $this->calistir(function () {
+                    $token = app(BasvuruBiletiAkisi::class)->yenidenGonder($this->record);
+
+                    $this->record->bildirimHedefi()->notify(new EksikEvrakTalebi($this->record, $token));
+                }, 'Yeni düzeltme bağlantısı gönderildi.')),
 
             Action::make('onayla')
                 ->label('Onayla')

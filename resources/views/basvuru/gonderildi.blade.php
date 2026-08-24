@@ -9,8 +9,16 @@
         </svg>
     </div>
 
-    <h1 class="mt-5 text-2xl font-semibold tracking-tight">Başvurunuz kaydedildi</h1>
-    @if ($aktivasyon)
+    <h1 class="mt-5 text-2xl font-semibold tracking-tight">
+        {{ $duzeltme ? 'Düzeltmeniz alındı' : 'Başvurunuz kaydedildi' }}
+    </h1>
+    @if ($duzeltme)
+        <p class="mt-3 text-neutral-600">
+            Başvurunuz yeniden incelemeye alındı. Sonuç
+            <strong class="font-medium text-koyu">{{ $eposta }}</strong> adresine bildirilecek.
+        </p>
+        <p class="mt-2 text-sm text-neutral-500">Kullandığınız düzeltme bağlantısı artık geçerli değil.</p>
+    @elseif ($aktivasyon)
         <p class="mt-3 text-neutral-600">
             <strong class="font-medium text-koyu">{{ $eposta }}</strong> adresine bir etkinleştirme bağlantısı gönderdik.
             Bağlantıdan şifrenizi belirledikten sonra evraklarınızı yükleyip başvurunuzu tamamlayabilirsiniz.

@@ -30,6 +30,7 @@ class BasvuruAkisi
         private DenetimYazici $denetim,
         private AkreditasyonAkisi $akreditasyon,
         private HesapAcici $hesapAcici,
+        private BasvuruBiletiAkisi $bilet,
     ) {}
 
     public function gonder(Basvuru $basvuru): void
@@ -135,7 +136,10 @@ class BasvuruAkisi
             'karar_gerekcesi' => $mesaj,
         ]);
 
-        $basvuru->bildirimHedefi()->notify(new EksikEvrakTalebi($basvuru));
+        // Panelsiz düzeltme bağlantısı: başvuranın hesabı olmayabilir.
+        $token = $this->bilet->uret($basvuru);
+
+        $basvuru->bildirimHedefi()->notify(new EksikEvrakTalebi($basvuru, $token));
     }
 
     /**
