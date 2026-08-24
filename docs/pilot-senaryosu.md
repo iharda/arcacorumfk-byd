@@ -44,28 +44,33 @@ php artisan byd:pilot-verisi --sil
 ### 1 · Başvuru (başvuran, kendi telefonundan)
 
 1. `byd.ordolive.com` → **Basın mensubu**
-2. Formu doldurur, kurumunu seçer, KVKK kutularını işaretler
-3. **E-postasına gelen bağlantıdan şifresini belirler**
-4. Panelde fotoğrafını, kimliğini ve çalışma belgesini yükler → **Gönder**
+2. Formu doldurur, kurumunu seçer, **fotoğrafını, kimliğini ve çalışma belgesini
+   aynı formda seçer**, KVKK kutularını işaretler → **Gönder**
+3. Başvuru o anda inceleme kuyruğuna düşer; "başvurunuz alındı" e-postası gelir
 
-**Ölçülecek:** E-posta kaç saniyede geldi? Spam'e düştü mü? Telefondan fotoğraf
-yüklemek kolay mı? Formun anlaşılmayan yeri var mı?
+Başvuran onaya kadar sisteme hiç girmez: hesabı ancak onaylanırsa açılır.
+
+**Ölçülecek:** Telefondan üç dosyayı seçmek kolay mı? Yükleme ne kadar sürdü?
+"Başvurunuz alındı" e-postası kaç saniyede geldi, spam'e düştü mü? Formun
+anlaşılmayan yeri var mı?
 
 ### 2 · İnceleme (yetkili)
 
 1. `/yonetim` → **Başvurular** → başvuruyu aç
 2. **İncelemeye al** → evrakları sağdaki bölmede kontrol et
-3. Bir başvuruda bilerek **eksik evrak iste** → başvuranın panelinde ve
-   e-postasında göründüğünü doğrula → başvuran düzeltip yeniden gönderir
-4. **Onayla**
+3. Bir başvuruda bilerek **eksik evrak iste** → başvurana giden e-postadaki
+   geçici bağlantıyı açtır → yalnızca istenen evrakı yükleyip yeniden gönderir
+   (hesap ve şifre gerekmez)
+4. **Onayla** — hesap bu anda açılır
 
 **Ölçülecek:** Evrak önizlemesi okunaklı mı? Karar düğmeleri anlaşılır mı?
 Eksik evrak açıklaması başvurana net geldi mi?
 
 ### 3 · Kart (başvuran)
 
-1. Onaydan sonra e-postayla **PDF kart** gelir
-2. Panelde `/panel` → **Kartım** → kart görünür, PDF indirilebilir
+1. Onay e-postasındaki **"şifremi belirle"** bağlantısından şifresini belirler
+2. Ardından e-postayla **PDF kart** gelir
+3. Panelde `/panel` → **Kartım** → kart görünür, PDF indirilebilir
 
 **Ölçülecek:** Kart telefonda okunaklı mı? Fotoğraf doğru mu? İsimdeki Türkçe
 harfler doğru mu? Yazdırıldığında ölçü tutuyor mu?

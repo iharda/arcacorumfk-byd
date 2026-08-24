@@ -40,7 +40,11 @@ class HesapAcici
 
         [$rol, $eskiRol] = $this->roller($basvuru->tur);
 
-        return DB::transaction(function () use ($basvuru, $eposta, $rol, $eskiRol) {
+        // Kişisel bilgiler onaya kadar başvurunun üstünde durur; hesap açılınca
+        // oraya taşınır (kurumsal başvuruda bu alanlar yoktur).
+        $form = $basvuru->form_verisi ?? [];
+
+        return DB::transaction(function () use ($basvuru, $eposta, $rol, $eskiRol, $form) {
             // withTrashed: ayrılıp silinmiş hesap yeniden kullanılır, ikinci
             // kayıt açılmaz (e-posta zaten benzersiz).
             $kullanici = User::withTrashed()->where('email', $eposta)->first();
@@ -53,6 +57,9 @@ class HesapAcici
                     // Yer tutucu; kullanıcı şifresini kendisi belirleyecek.
                     'password' => Hash::make(Str::random(64)),
                     'telefon' => $basvuru->basvuran_telefon,
+                    'adres' => $form['adres'] ?? null,
+                    'il' => $form['il'] ?? null,
+                    'ilce' => $form['ilce'] ?? null,
                     'kurum_id' => $basvuru->kurum_id,
                     'aktif' => true,
                 ]);
@@ -69,6 +76,9 @@ class HesapAcici
                 $kullanici->forceFill(array_filter([
                     'name' => $basvuru->basvuran_ad,
                     'telefon' => $basvuru->basvuran_telefon,
+                    'adres' => $form['adres'] ?? null,
+                    'il' => $form['il'] ?? null,
+                    'ilce' => $form['ilce'] ?? null,
                     'kurum_id' => $basvuru->kurum_id,
                 ], fn ($deger) => $deger !== null) + [
                     'aktif' => true,

@@ -22,9 +22,9 @@ use SensitiveParameter;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
- * Hesap BASVURU ANINDA acilir (Plan v1.0 md.5.5); onaya kadar panelde yalnizca
- * durum + evrak gorunur. Sistem sifre uretmez, kullanici aktivasyon linkiyle
- * kendi belirler.
+ * Hesap ONAY ANINDA acilir (Revizyon md.3.2): basvurusu onaylanmayan kisinin
+ * kullanici kaydi hic dogmaz. Sistem sifre uretmez; kullanici sifresini onay
+ * e-postasindaki imzali baglantiyla kendi belirler.
  */
 /*
  * 🪤 Laravel 13'te doldurulabilir alanlar bu ÖZNİTELİKTE tanımlı. Listede
@@ -126,12 +126,15 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 
         return match ($panel->getId()) {
             'yonetim' => $this->hasAnyRole([self::ROL_SUPER, self::ROL_YETKILI]),
-            // ⚠️ Akreditasyon ŞARTI YOK: hesap başvuru anında açılır ve kullanıcı
-            // onaya kadar panelde yalnızca "başvuru durumu + evrak yükleme"
-            // görür (Plan v1.0 md.5.5). Akreditasyona bağlı ekranlar panel
-            // içinde tek tek kapatılır.
             'kurum' => $this->hasRole(self::ROL_KURUM),
-            'uye' => $this->hasAnyRole([self::ROL_BASIN, self::ROL_ICERIK]),
+            /*
+             * ⚠️ Akreditasyon ŞARTI VAR (Revizyon md.3.5). Hesap onay anında
+             * açılır, rol ve akreditasyon da o işlemde doğar; ikisinden biri
+             * yoksa hesap ya elle açılmış ya veri taşımasından kalmıştır.
+             * Onaysız kişinin panele girmesi bu satırla kaynağında biter.
+             */
+            'uye' => $this->hasAnyRole([self::ROL_BASIN, self::ROL_ICERIK])
+                && $this->akreditasyonlar()->exists(),
             default => false,
         };
     }

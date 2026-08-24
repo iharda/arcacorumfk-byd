@@ -16,9 +16,11 @@
                                 padding:.85rem 1rem; border:1px solid rgb(var(--warning-300));
                                 background:rgb(var(--warning-50)); border-radius:.6rem;">
                         <div style="flex:1 1 16rem; min-width:12rem;">
-                            <div style="font-size:.9rem; font-weight:600;">{{ $basvuru->kullanici?->name }}</div>
+                            {{-- 🪤 `kullanici` YOK: hesap onay anında açılır (Revizyon md.1).
+                                 Ad ve e-posta başvurunun kendisinden okunur. --}}
+                            <div style="font-size:.9rem; font-weight:600;">{{ $basvuru->basvuranAdi() }}</div>
                             <div style="font-size:.75rem; opacity:.65;">
-                                {{ $basvuru->kullanici?->email }}
+                                {{ $basvuru->basvuranEpostasi() }}
                                 · {{ $basvuru->gonderildi_at?->timezone('Europe/Istanbul')->format('d.m.Y H:i') }}
                             </div>
                         </div>

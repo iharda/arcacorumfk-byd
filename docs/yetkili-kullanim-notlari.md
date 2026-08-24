@@ -42,13 +42,22 @@ Bir başvuruyu açtığınızda:
    yetkili aynı başvuruyla uğraşmaz.
 2. Evrakları kontrol edin. Fotoğrafı büyütmek için "Yeni sekmede aç".
 3. Karar:
-   - **Onayla** — kurum akredite olur ya da kişiye kart üretilir.
+   - **Onayla** — kurum akredite olur ya da kişiye kart üretilir. Başvuranın
+     **hesabı da bu anda açılır**: onay e-postası "şifremi belirle" bağlantısı
+     taşır.
    - **Eksik evrak iste** — hangi alanın neden sorunlu olduğunu **tek tek**
-     yazarsınız. Başvurana bu liste e-postayla gider ve panelinde görünür.
-   - **Reddet** — gerekçe zorunludur ve başvurana **aynen** iletilir.
+     yazarsınız. Başvurana bu liste, **tek kullanımlık bir düzeltme bağlantısıyla
+     birlikte** e-postayla gider; işaretlediğiniz alanları hesap açmadan
+     düzeltip yeniden gönderir. Bağlantı ulaşmazsa "Düzeltme bağlantısını
+     yeniden gönder" ile yenisini yollarsınız.
+   - **Reddet** — gerekçe zorunludur ve başvurana **aynen** iletilir. Reddedilen
+     kişiye hesap **açılmaz**.
 
-> **Onay geri alınamaz.** Kart üretilir, e-posta gider. Şüphedeyseniz önce
-> eksik evrak isteyin.
+> **Onay geri alınamaz.** Hesap açılır, kart üretilir, e-posta gider.
+> Şüphedeyseniz önce eksik evrak isteyin.
+
+> Başvuran onaya kadar sisteme hiç girmez: evrakını başvuru formunda verir,
+> eksiğini geçici bağlantıdan tamamlar.
 
 ### Kurum teyidi bekleyenler
 

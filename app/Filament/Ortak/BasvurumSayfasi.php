@@ -6,29 +6,27 @@ use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
 use App\Models\Basvuru;
 use App\Models\EvrakTuru;
-use App\Servisler\BasvuruAkisi;
 use App\Servisler\BasvuruUygunlugu;
-use App\Servisler\EvrakYukleyici;
 use BackedEnum;
-use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
-use Livewire\WithFileUploads;
-use Throwable;
 
 /**
  * "Başvurum" sayfasının ortak gövdesi — kurum ve üye panelleri aynı ekranı
- * kullanır (Plan v1.0 md.5.5: onaya kadar yalnızca durum + evrak yükleme).
+ * kullanır.
+ *
+ * 🔑 SALT OKUNUR (Revizyon md.3.6). Evrak artık başvuru formunda alınıyor,
+ * eksik evrak da panelsiz düzeltme bağlantısından tamamlanıyor; hesap ise
+ * ancak ONAY sonrası açılıyor. Yani bu sayfaya ulaşan herkesin başvurusu
+ * çoktan karara bağlanmıştır — burada yüklenecek bir şey kalmaz, geçmiş
+ * görünür.
  *
  * Panel başına ayrı ince bir alt sınıf var; Filament sayfaları panelin kendi
  * dizininden keşfediyor.
  */
 abstract class BasvurumSayfasi extends Page
 {
-    use WithFileUploads;
-
     protected string $view = 'filament.ortak.basvurum';
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-document-text';
@@ -40,9 +38,6 @@ abstract class BasvurumSayfasi extends Page
     protected static ?int $navigationSort = 1;
 
     public ?Basvuru $basvuru = null;
-
-    /** @var array<int, TemporaryUploadedFile|null> evrak_turu_id => dosya */
-    public array $dosyalar = [];
 
     public function mount(): void
     {
@@ -71,17 +66,10 @@ abstract class BasvurumSayfasi extends Page
         return EvrakTuru::turIcin($this->basvuru->tur);
     }
 
-    public function getYuklenebilirMiProperty(): bool
-    {
-        return in_array($this->basvuru->durum, [
-            BasvuruDurumu::Taslak,
-            BasvuruDurumu::EksikEvrak,
-        ], true);
-    }
-
     /**
      * Reddedilen başvurudan sonra yeniden başvuru. Kapalı bir kapı bırakmamak
      * için: red gerekçesini okuyan kişi aynı ekrandan yeni başvuruya geçebilir.
+     * Yeni başvuru da kamuya açık formdan yapılır — panelde form yok.
      *
      * @return array{adres: ?string, engel: ?string}
      */
@@ -100,57 +88,5 @@ abstract class BasvurumSayfasi extends Page
             BasvuruTuru::IcerikUreticisi => route('basvuru.icerik-ureticisi'),
             BasvuruTuru::BasinMensubu => route('basvuru.basin-mensubu'),
         }, 'engel' => null];
-    }
-
-    public function yukle(int $evrakTuruId): void
-    {
-        abort_unless($this->yuklenebilirMi, 403);
-
-        $dosya = $this->dosyalar[$evrakTuruId] ?? null;
-
-        if (! $dosya instanceof TemporaryUploadedFile) {
-            Notification::make()->title('Önce bir dosya seçin.')->danger()->send();
-
-            return;
-        }
-
-        $tur = EvrakTuru::findOrFail($evrakTuruId);
-
-        // Servis dosyanın türünü finfo ile kendisi okur; sarmalayıcıya güvenilmez.
-        try {
-            app(EvrakYukleyici::class)->yukle($this->basvuru, $tur, $dosya);
-        } catch (Throwable $e) {
-            Notification::make()->title($e->getMessage())->danger()->send();
-
-            return;
-        }
-
-        unset($this->dosyalar[$evrakTuruId]);
-        $this->basvuru->refresh()->load('evraklar.turu');
-
-        Notification::make()->title($tur->ad.' yüklendi.')->success()->send();
-    }
-
-    public function gonder(): void
-    {
-        abort_unless($this->yuklenebilirMi, 403);
-
-        try {
-            app(BasvuruAkisi::class)->gonder($this->basvuru);
-        } catch (Throwable $e) {
-            Notification::make()->title($e->getMessage())->danger()->send();
-
-            return;
-        }
-
-        $this->basvuru->refresh();
-
-        Notification::make()
-            ->title('Başvurunuz gönderildi.')
-            ->body($this->basvuru->kurumTeyidiBekliyorMu()
-                ? 'Önce kurumunuzun teyidi, ardından kulüp incelemesi bekleniyor.'
-                : 'İnceleme tamamlandığında e-posta ile bilgilendirileceksiniz.')
-            ->success()
-            ->send();
     }
 }

@@ -61,6 +61,24 @@ function icerikBildirimAdedi(isaret) {
   return (log.match(/YeniIcerik[^\n]*DONE/g) || []).length;
 }
 
+/**
+ * Kuyruk boşalana kadar bekler.
+ * 🪤 Bildirim SAYISI kullanıcı sayısına bağlı: "en az 3" görüp devam edince
+ * kalanlar bir sonraki ölçümün işaretinden SONRA düşüyor ve "ikinci bildirim
+ * gitti" gibi görünüyordu. Ölçüm almadan önce günlüğün durması beklenir.
+ */
+async function kuyrukSakinlesin(sakinSaniye = 3, enFazla = 40) {
+  let sonBoyut = -1, sabit = 0;
+  for (let i = 0; i < enFazla; i++) {
+    const boyut = statSync('/var/log/byd-horizon.log').size;
+    sabit = boyut === sonBoyut ? sabit + 1 : 0;
+    sonBoyut = boyut;
+    if (sabit >= sakinSaniye) return true;
+    await bekle(1000);
+  }
+  return false;
+}
+
 async function girisYap(sayfa, yol, eposta) {
   await sayfa.goto(`${KOK}${yol}/login`, { waitUntil: 'networkidle2' });
   await sayfa.type('#form\\.email', eposta);
@@ -168,6 +186,7 @@ echo 'AKREDITE:' . (in_array('${AKREDITE}', $a) ? 'evet' : 'hayir')
     (await uye.evaluate(() => document.body.innerText)).includes(BULTEN_BASLIK));
 
   /* ═════ 4) İkinci yayında tekrar e-posta YOK ═════ */
+  await kuyrukSakinlesin();
   const isaret2 = statSync('/var/log/byd-horizon.log').size;
   artisan(`
 $s = app(App\\Servisler\\IcerikAkisi::class);
@@ -179,12 +198,16 @@ echo 'TEKRAR';`);
   kontrol('Yeniden yayında İKİNCİ bildirim gitmiyor', icerikBildirimAdedi(isaret2) === 0,
     `${icerikBildirimAdedi(isaret2)} gönderim`);
 
-  /* ═════ 5) Akredite OLMAYAN içeriğe giremiyor ═════ */
+  /* ═════ 5) Akredite OLMAYAN içeriğe giremiyor ═════
+   * Revizyon md.3.5: hesap onay anında açılır, akreditasyon da o işlemde
+   * doğar. Akreditasyonu olmayan hesap panele HİÇ giremez -- eskiden panele
+   * girip içerik sayfasında 403 alıyordu. */
   const c2 = await b.createBrowserContext();
   const bekleyen = await c2.newPage();
   await girisYap(bekleyen, '/panel', BEKLEYEN);
-  const y = await bekleyen.goto(`${KOK}/panel/duyurular`, { waitUntil: 'domcontentloaded' });
-  kontrol('Akredite olmayan içerik sayfasına giremiyor', y.status() === 403, String(y.status()));
+  await bekleyen.goto(`${KOK}/panel/duyurular`, { waitUntil: 'domcontentloaded' });
+  kontrol('Akredite olmayan içerik sayfasına giremiyor',
+    bekleyen.url().includes('/login'), bekleyen.url().replace(KOK, ''));
   const menu = await bekleyen.goto(`${KOK}/panel`, { waitUntil: 'networkidle2' })
     .then(() => bekleyen.evaluate(() => document.body.innerText));
   kontrol('Akredite olmayanın menüsünde içerik YOK',
@@ -203,7 +226,10 @@ echo 'EKLENDI';`);
   kontrol('Akredite kullanıcı bülten ekini indirebiliyor', ekAkredite.status() === 200, String(ekAkredite.status()));
 
   const ekBekleyen = await bekleyen.goto(KOK + ekYol, { waitUntil: 'domcontentloaded' });
-  kontrol('Akredite olmayan bülten ekine ERİŞEMİYOR', ekBekleyen.status() === 403, String(ekBekleyen.status()));
+  const ekTur = ekBekleyen.headers()['content-type'] ?? '';
+  kontrol('Akredite olmayan bülten ekine ERİŞEMİYOR',
+    ! bekleyen.url().endsWith(ekYol) && ! /pdf/.test(ekTur),
+    `${ekBekleyen.status()} · ${bekleyen.url().replace(KOK, '')}`);
 
   // 🪤 Puppeteer yönlendirmeyi TAKİP eder: status() ana sayfanın 200'ü olur.
   //    "200 aldık" diye geçmiş sayma — dosyaya ULAŞILDI mı, ona bak.

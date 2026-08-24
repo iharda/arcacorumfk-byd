@@ -5,6 +5,7 @@ namespace App\Servisler;
 use App\Enums\AkreditasyonDurumu;
 use App\Enums\BasvuruDurumu;
 use App\Models\Ayar;
+use App\Models\Basvuru;
 use App\Models\User;
 use Closure;
 use Illuminate\Support\Carbon;
@@ -26,13 +27,22 @@ use RuntimeException;
  */
 class BasvuruUygunlugu
 {
-    /** Devam ediyor sayılan başvuru durumları — bunlar varken yenisi alınmaz. */
+    /**
+     * Devam ediyor sayılan başvuru durumları — bunlar varken yenisi alınmaz.
+     *
+     * 🪤 `Taslak` LİSTEDE DEĞİL: başvuru artık tek adımda gönderiliyor
+     * (Revizyon md.1), taslak yalnızca eski akıştan kalan kayıtlarda var.
+     * Listede bıraksaydık o kişiler ne taslağı gönderebilir ne de yeniden
+     * başvurabilirdi — kapalı bir kapı.
+     */
     public const SUREN_DURUMLAR = [
-        BasvuruDurumu::Taslak,
         BasvuruDurumu::Gonderildi,
         BasvuruDurumu::Incelemede,
         BasvuruDurumu::EksikEvrak,
     ];
+
+    /** Süren başvuru mesajı: hesap olsa da olmasa da aynı. */
+    private const SUREN_BASVURU_MESAJI = 'Bu e-posta ile devam eden bir başvurunuz var. Sonuç e-posta ile bildirilecektir.';
 
     /** Turnikede hâlâ bir karşılığı olan akreditasyonlar. */
     public const CANLI_AKREDITASYONLAR = [
@@ -64,7 +74,7 @@ class BasvuruUygunlugu
         }
 
         if ($kullanici->basvurular()->whereIn('durum', self::durumDegerleri())->exists()) {
-            return 'Bu e-posta ile devam eden bir başvurunuz var. Giriş yapıp panelden takip edebilirsiniz.';
+            return self::SUREN_BASVURU_MESAJI;
         }
 
         if ($kullanici->akreditasyonlar()->whereIn('durum', self::akreditasyonDegerleri())->exists()) {
@@ -79,26 +89,45 @@ class BasvuruUygunlugu
     }
 
     /**
+     * E-posta adresi için engel. Hesap ONAY anında açıldığından (Revizyon
+     * md.3.2) engel iki yerde olabilir: hesabın kendisinde ya da henüz hesabı
+     * olmayan, süren bir başvuruda. İkincisi olmadan aynı adresle sınırsız
+     * başvuru gönderilebilirdi.
+     */
+    public function epostaIcinEngel(string $eposta): ?string
+    {
+        if ($engel = $this->engel($this->hesapBul($eposta))) {
+            return $engel;
+        }
+
+        $hesapsizSuren = Basvuru::query()
+            ->whereNull('kullanici_id')
+            ->where('basvuran_eposta', $eposta)
+            ->whereIn('durum', self::durumDegerleri())
+            ->exists();
+
+        return $hesapsizSuren ? self::SUREN_BASVURU_MESAJI : null;
+    }
+
+    /** Akış için: uygun değilse durdurur (ekranlar `epostaIcinEngel` kullanır). */
+    public function epostaIcinDogrula(string $eposta): void
+    {
+        if ($engel = $this->epostaIcinEngel($eposta)) {
+            throw new RuntimeException($engel);
+        }
+    }
+
+    /**
      * Form doğrulama kuralı. `Rule::unique('users','email')` YERİNE kullanılır:
      * kayıtlı e-posta başlı başına engel değildir, engel olan durumlar burada.
      */
     public static function kural(): Closure
     {
         return function (string $alan, mixed $deger, Closure $hata): void {
-            $uygunluk = app(self::class);
-
-            if ($engel = $uygunluk->engel($uygunluk->hesapBul((string) $deger))) {
+            if ($engel = app(self::class)->epostaIcinEngel((string) $deger)) {
                 $hata($engel);
             }
         };
-    }
-
-    /** Ekran değil akış kullanır: uygun değilse akışı durdurur. */
-    public function dogrula(?User $kullanici): void
-    {
-        if ($engel = $this->engel($kullanici)) {
-            throw new RuntimeException($engel);
-        }
     }
 
     /**

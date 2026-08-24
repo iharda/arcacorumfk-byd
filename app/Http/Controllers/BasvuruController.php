@@ -4,34 +4,41 @@ namespace App\Http\Controllers;
 
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
+use App\Exceptions\EvrakAlinamadi;
 use App\Http\Requests\BireyselBasvuruIstegi;
 use App\Http\Requests\KurumBasvuruIstegi;
 use App\Models\Basvuru;
+use App\Models\EvrakTuru;
 use App\Models\Kurum;
-use App\Models\User;
-use App\Notifications\HesapAktivasyonu;
-use App\Notifications\YenidenBasvuruAlindi;
+use App\Servisler\BasvuruAkisi;
+use App\Servisler\BasvuruEvrakAlici;
 use App\Servisler\BasvuruUygunlugu;
 use App\Servisler\DavetAkisi;
 use App\Servisler\DenetimYazici;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use RuntimeException;
+use Throwable;
 
-/** Kamuya açık başvuru -- Plan v1.0 md.5.1. */
+/**
+ * Kamuya açık başvuru -- Plan v1.0 md.5.1, Revizyon md.1.
+ *
+ * 🔑 Başvuru TEK ADIMDIR: kurum/kişi bilgileri, evraklar ve KVKK onayları aynı
+ * formda gelir, gönderim anında başvuru doğrudan inceleme kuyruğuna düşer.
+ * Hesap AÇILMAZ -- onaylanmayan kişinin kullanıcı kaydı hiç doğmaz (md.3.2);
+ * iletişim bilgisi o güne kadar başvurunun üstünde durur.
+ */
 class BasvuruController extends Controller
 {
-    /** Son işlemde şifre belirleme bağlantısı mı gitti, bilgi maili mi? */
-    private bool $aktivasyonGonderildi = true;
-
     public function __construct(
         private DenetimYazici $denetim,
         private DavetAkisi $davetAkisi,
         private BasvuruUygunlugu $uygunluk,
+        private BasvuruEvrakAlici $evrakAlici,
+        private BasvuruAkisi $akis,
     ) {}
 
     public function secim(): View
@@ -41,7 +48,9 @@ class BasvuruController extends Controller
 
     public function kurumFormu(): View
     {
-        return view('basvuru.kurum');
+        return view('basvuru.kurum', [
+            'evrakTurleri' => EvrakTuru::turIcin(BasvuruTuru::Kurum),
+        ]);
     }
 
     public function kurumKaydet(KurumBasvuruIstegi $istek): RedirectResponse
@@ -49,64 +58,18 @@ class BasvuruController extends Controller
         $veri = $istek->validated();
 
         try {
-            $aktivasyon = DB::transaction(function () use ($veri) {
-                $kurumVerisi = [
-                    'resmi_unvan' => $veri['resmi_unvan'],
-                    'adres' => $veri['adres'],
-                    'il' => $veri['il'],
-                    'ilce' => $veri['ilce'],
-                    'telefon' => $this->telefonBicimle($veri['kurum_telefon']),
-                    'eposta' => $veri['kurum_eposta'],
-                    'vergi_dairesi' => $veri['vergi_dairesi'],
-                    'vergi_no' => $veri['vergi_no'],
-                    'calisan_sayisi' => $veri['calisan_sayisi'],
-                    'yayin_platformlari' => array_values($veri['yayin_platformlari']),
-                    'sosyal_medya' => array_filter($veri['sosyal_medya'] ?? []),
-                    'akreditasyon_durumu' => 'beklemede',
-                ];
-
-                // Hesap BAŞVURU ANINDA açılır; şifreyi kullanıcı aktivasyon
-                // bağlantısıyla kendisi belirler (md.5.5) -- sistem şifre üretmez.
-                // Yeniden başvuruda hesap da kurum kaydı da TEKRAR KULLANILIR.
-                $kullanici = $this->hesabiHazirla($veri['yetkili_eposta'], [
-                    'name' => $veri['yetkili_ad'],
-                    'telefon' => $this->telefonBicimle($veri['yetkili_telefon']),
-                ], User::ROL_KURUM);
-
-                $kurum = $this->kurumuHazirla($kullanici, $kurumVerisi);
-
-                $kullanici->forceFill(['kurum_id' => $kurum->id])->save();
-
-                $basvuru = Basvuru::create([
-                    'tur' => BasvuruTuru::Kurum,
-                    'durum' => BasvuruDurumu::Taslak,
-                    'kullanici_id' => $kullanici->id,
-                    'kurum_id' => $kurum->id,
-                    // Hesap ONAY aninda acilacak (Revizyon md.2.1); iletisim
-                    // bilgisi o gune kadar basvurunun ustunde durur.
-                    'basvuran_ad' => $veri['yetkili_ad'],
-                    'basvuran_eposta' => $veri['yetkili_eposta'],
-                    'basvuran_telefon' => $this->telefonBicimle($veri['yetkili_telefon']),
-                    'form_verisi' => [
-                        'yetkili_ad' => $veri['yetkili_ad'],
-                        'yetkili_telefon' => $veri['yetkili_telefon'],
-                        'kvkk_onay_at' => now()->toIso8601String(),
-                    ],
-                ]);
-
-                $this->denetim->yaz('basvuru.olusturuldu', $basvuru,
-                    yeni: ['tur' => 'kurum', 'kurum' => $kurum->resmi_unvan, 'yeniden' => ! $kullanici->wasRecentlyCreated],
-                    aktorTip: 'sistem');
-
-                return $this->basvuranaHaberVer($kullanici, $basvuru);
-            });
+            $this->basvuruyuAl(
+                fn () => $this->kurumBasvurusuOlustur($veri),
+                $istek->file('evraklar', []),
+                BasvuruTuru::Kurum,
+            );
+        } catch (EvrakAlinamadi $e) {
+            throw ValidationException::withMessages([$e->alan() => $e->getMessage()]);
         } catch (RuntimeException $e) {
             return back()->withInput()->withErrors(['genel' => $e->getMessage()]);
         }
 
-        return redirect()->route('basvuru.gonderildi')
-            ->with('eposta', $veri['yetkili_eposta'])
-            ->with('aktivasyon', $aktivasyon);
+        return redirect()->route('basvuru.gonderildi')->with('eposta', $veri['yetkili_eposta']);
     }
 
     /* ─────────── Bireysel başvurular (md.3.2 / md.3.3) ─────────── */
@@ -121,6 +84,7 @@ class BasvuruController extends Controller
             'tur' => $tur,
             'kurumlar' => $tur === BasvuruTuru::BasinMensubu ? $this->akrediteKurumlar() : collect(),
             'davet' => null,
+            'evrakTurleri' => EvrakTuru::turIcin($tur),
         ]);
     }
 
@@ -134,14 +98,18 @@ class BasvuruController extends Controller
             : null;
 
         try {
-            $this->bireyselOlustur($tur, $kurum, $veri, kurumBaslatti: false);
+            $this->basvuruyuAl(
+                fn () => $this->bireyselOlustur($tur, $kurum, $veri, kurumBaslatti: false),
+                $istek->file('evraklar', []),
+                $tur,
+            );
+        } catch (EvrakAlinamadi $e) {
+            throw ValidationException::withMessages([$e->alan() => $e->getMessage()]);
         } catch (RuntimeException $e) {
             return back()->withInput()->withErrors(['genel' => $e->getMessage()]);
         }
 
-        return redirect()->route('basvuru.gonderildi')
-            ->with('eposta', $veri['eposta'])
-            ->with('aktivasyon', $this->aktivasyonGonderildi);
+        return redirect()->route('basvuru.gonderildi')->with('eposta', $veri['eposta']);
     }
 
     /* ─────────── Davetle başvuru — "Yol B" (md.5.2) ─────────── */
@@ -156,6 +124,7 @@ class BasvuruController extends Controller
             'kurumlar' => collect(),
             'davet' => $davet,
             'token' => $token,
+            'evrakTurleri' => EvrakTuru::turIcin(BasvuruTuru::BasinMensubu),
         ]);
     }
 
@@ -172,131 +141,168 @@ class BasvuruController extends Controller
         // 🪤 Davet yolunda e-posta form kuralından GEÇMEZ (ad/e-posta davetten
         // gelir): uygunluk engeli buradan çıkar, 500 vermeden gösterilmeli.
         try {
-            $basvuru = $this->bireyselOlustur(
-                BasvuruTuru::BasinMensubu, $davet->kurum, $veri, kurumBaslatti: true,
+            $this->basvuruyuAl(
+                function () use ($davet, $veri) {
+                    $basvuru = $this->bireyselOlustur(
+                        BasvuruTuru::BasinMensubu, $davet->kurum, $veri, kurumBaslatti: true,
+                    );
+
+                    // Davetin tüketilmesi başvuruyla AYNI işlemde: başvuru geri
+                    // sararsa davet de yanmasın, ikisi birden olsun.
+                    $davet->update(['kullanildi_at' => now(), 'basvuru_id' => $basvuru->id]);
+
+                    return $basvuru;
+                },
+                $istek->file('evraklar', []),
+                BasvuruTuru::BasinMensubu,
             );
+        } catch (EvrakAlinamadi $e) {
+            throw ValidationException::withMessages([$e->alan() => $e->getMessage()]);
         } catch (RuntimeException $e) {
             return back()->withInput()->withErrors(['genel' => $e->getMessage()]);
         }
 
-        $davet->update(['kullanildi_at' => now(), 'basvuru_id' => $basvuru->id]);
-
-        return redirect()->route('basvuru.gonderildi')
-            ->with('eposta', $davet->eposta)
-            ->with('aktivasyon', $this->aktivasyonGonderildi);
+        return redirect()->route('basvuru.gonderildi')->with('eposta', $davet->eposta);
     }
 
-    /** İki yolun ortak gövdesi: kurum bağı ve teyit gerekliliği dışında aynı. */
+    /**
+     * Başvurunun tamamı TEK işlemde: kayıt, evraklar ve gönderim.
+     *
+     * 💣 Evrak dosyaları diske işlemden ÖNCE yazılır; geri sarma onları
+     * silmez. Bu yüzden her hata yolunda yazılanlar elle temizlenir --
+     * yarım kalan başvurudan diskte yetim dosya kalmaz.
+     *
+     * @param  callable(): Basvuru  $olustur
+     * @param  array<int|string, mixed>  $dosyalar
+     */
+    private function basvuruyuAl(callable $olustur, array $dosyalar, BasvuruTuru $tur): Basvuru
+    {
+        try {
+            return DB::transaction(function () use ($olustur, $dosyalar, $tur) {
+                $basvuru = $olustur();
+
+                $this->evrakAlici->hepsiniAl($basvuru, $dosyalar, EvrakTuru::turIcin($tur));
+
+                /*
+                 * Gönderim TEK KAPIDAN: durum geçişi, denetim kaydı, "başvurunuz
+                 * alındı" e-postası ve kurum teyidi kuralı BasvuruAkisi'nde.
+                 * Zorunlu evrak eksikse burada durur -- form kuralı atlansa bile
+                 * yarım başvuru kuyruğa düşmez.
+                 */
+                $this->akis->gonder($basvuru);
+
+                return $basvuru;
+            });
+        } catch (Throwable $e) {
+            $this->evrakAlici->yazilanlariSil();
+
+            throw $e;
+        }
+    }
+
+    /** @param array<string, mixed> $veri */
+    private function kurumBasvurusuOlustur(array $veri): Basvuru
+    {
+        $eposta = $veri['yetkili_eposta'];
+
+        $this->uygunluk->epostaIcinDogrula($eposta);
+
+        $kurum = $this->kurumuHazirla($eposta, [
+            'resmi_unvan' => $veri['resmi_unvan'],
+            'adres' => $veri['adres'],
+            'il' => $veri['il'],
+            'ilce' => $veri['ilce'],
+            'telefon' => $this->telefonBicimle($veri['kurum_telefon']),
+            'eposta' => $veri['kurum_eposta'],
+            'vergi_dairesi' => $veri['vergi_dairesi'],
+            'vergi_no' => $veri['vergi_no'],
+            'calisan_sayisi' => $veri['calisan_sayisi'],
+            'yayin_platformlari' => array_values($veri['yayin_platformlari']),
+            'sosyal_medya' => array_filter($veri['sosyal_medya'] ?? []),
+            'akreditasyon_durumu' => 'beklemede',
+        ]);
+
+        $basvuru = Basvuru::create([
+            'tur' => BasvuruTuru::Kurum,
+            'durum' => BasvuruDurumu::Taslak,
+            // Hesap ONAY anında açılır (Revizyon md.2.1); iletişim bilgisi
+            // o güne kadar başvurunun üstünde durur.
+            'kullanici_id' => null,
+            'kurum_id' => $kurum->id,
+            'basvuran_ad' => $veri['yetkili_ad'],
+            'basvuran_eposta' => $eposta,
+            'basvuran_telefon' => $this->telefonBicimle($veri['yetkili_telefon']),
+            'form_verisi' => [
+                'yetkili_ad' => $veri['yetkili_ad'],
+                'yetkili_telefon' => $veri['yetkili_telefon'],
+                'kvkk_onay_at' => now()->toIso8601String(),
+            ],
+        ]);
+
+        $this->denetim->yaz('basvuru.olusturuldu', $basvuru,
+            yeni: ['tur' => 'kurum', 'kurum' => $kurum->resmi_unvan],
+            aktorTip: 'sistem');
+
+        return $basvuru;
+    }
+
+    /**
+     * İki bireysel yolun ortak gövdesi: kurum bağı ve teyit gerekliliği
+     * dışında aynı.
+     *
+     * @param  array<string, mixed>  $veri
+     */
     private function bireyselOlustur(BasvuruTuru $tur, ?Kurum $kurum, array $veri, bool $kurumBaslatti): Basvuru
     {
-        return DB::transaction(function () use ($tur, $kurum, $veri, $kurumBaslatti) {
-            // Rol BAŞVURU ANINDA verilir: kullanıcı onaydan önce de panele girip
-            // evrak yükleyebilmeli (md.5.5). Yetkinin kendisi akreditasyona bağlı.
-            [$rol, $eskiRol] = $tur === BasvuruTuru::BasinMensubu
-                ? [User::ROL_BASIN, User::ROL_ICERIK]
-                : [User::ROL_ICERIK, User::ROL_BASIN];
+        $this->uygunluk->epostaIcinDogrula($veri['eposta']);
 
-            $kullanici = $this->hesabiHazirla($veri['eposta'], [
-                'name' => $veri['ad_soyad'],
-                'telefon' => $this->telefonBicimle($veri['telefon']),
+        $basvuru = Basvuru::create([
+            'tur' => $tur,
+            'durum' => BasvuruDurumu::Taslak,
+            'kullanici_id' => null,
+            'kurum_id' => $kurum?->id,
+            'kurum_baslatti' => $kurumBaslatti,
+            'basvuran_ad' => $veri['ad_soyad'],
+            'basvuran_eposta' => $veri['eposta'],
+            'basvuran_telefon' => $this->telefonBicimle($veri['telefon']),
+            // 🔑 Kişisel bilgiler hesap yerine BAŞVURUDA durur; onay anında
+            // HesapAcici bunları açtığı hesaba taşır.
+            'form_verisi' => array_filter([
                 'adres' => $veri['adres'],
                 'il' => $veri['il'],
                 'ilce' => $veri['ilce'],
-                'kurum_id' => $kurum?->id,
-            ], $rol, $eskiRol);
+                'basin_karti_var' => $veri['basin_karti_var'],
+                'sigorta_212_var' => $veri['sigorta_212_var'] ?? null,
+                'calisma_yili' => $veri['calisma_yili'] ?? null,
+                'sosyal_medya' => array_filter($veri['sosyal_medya'] ?? []) ?: null,
+                'kvkk_onay_at' => now()->toIso8601String(),
+            ], fn ($deger) => $deger !== null),
+        ]);
 
-            $basvuru = Basvuru::create([
-                'tur' => $tur,
-                'durum' => BasvuruDurumu::Taslak,
-                'kullanici_id' => $kullanici->id,
-                'kurum_id' => $kurum?->id,
-                'kurum_baslatti' => $kurumBaslatti,
-                'basvuran_ad' => $veri['ad_soyad'],
-                'basvuran_eposta' => $veri['eposta'],
-                'basvuran_telefon' => $this->telefonBicimle($veri['telefon']),
-                'form_verisi' => array_filter([
-                    'basin_karti_var' => $veri['basin_karti_var'],
-                    'sigorta_212_var' => $veri['sigorta_212_var'] ?? null,
-                    'calisma_yili' => $veri['calisma_yili'] ?? null,
-                    'sosyal_medya' => array_filter($veri['sosyal_medya'] ?? []) ?: null,
-                    'kvkk_onay_at' => now()->toIso8601String(),
-                ], fn ($d) => $d !== null),
-            ]);
+        $this->denetim->yaz('basvuru.olusturuldu', $basvuru,
+            yeni: [
+                'tur' => $tur->value,
+                'kurum' => $kurum?->resmi_unvan,
+                'yol' => $kurumBaslatti ? 'davet' : 'kendi',
+            ],
+            aktorTip: 'sistem');
 
-            $this->denetim->yaz('basvuru.olusturuldu', $basvuru,
-                yeni: [
-                    'tur' => $tur->value,
-                    'kurum' => $kurum?->resmi_unvan,
-                    'yol' => $kurumBaslatti ? 'davet' : 'kendi',
-                    'yeniden' => ! $kullanici->wasRecentlyCreated,
-                ],
-                aktorTip: 'sistem');
-
-            $this->basvuranaHaberVer($kullanici, $basvuru);
-
-            return $basvuru;
-        });
+        return $basvuru;
     }
 
     /**
-     * Başvuranın hesabı. VARSA TEKRAR KULLANILIR — reddedilen ya da kurumundan
-     * ayrılan kişi aynı e-postayla yeniden başvurabilsin diye (ikinci hesap
-     * açılmaz, e-posta zaten benzersiz). Yeniden başvuruda ayrılış işareti
-     * kalkar, iletişim bilgileri formdaki güncel değerlerle yenilenir ve
-     * değişiklik denetim kaydına eski → yeni olarak düşer.
+     * Kurum kaydı. Aynı yetkili daha önce başvurup reddedildiyse o kurum kaydı
+     * güncellenir; her denemede yeni bir kurum satırı açılmaz. Hesap artık
+     * başvuru anında olmadığı için bağ E-POSTA üzerinden kurulur.
      *
-     * ⚠️ Uygunluk BURADA da bakılır: davet yolunda form kuralı e-posta
-     * alanını hiç doğrulamıyor (ad/e-posta davetten geliyor).
+     * @param  array<string, mixed>  $veri
      */
-    private function hesabiHazirla(string $eposta, array $alanlar, string $rol, ?string $eskiRol = null): User
-    {
-        $kullanici = $this->uygunluk->hesapBul($eposta);
-        $this->uygunluk->dogrula($kullanici);
-
-        if ($kullanici === null) {
-            $kullanici = User::create($alanlar + [
-                'email' => $eposta,
-                'password' => Hash::make(Str::random(64)),   // yer tutucu; kullanıcı kendi belirler
-                'aktif' => true,
-            ]);
-        } else {
-            $eski = collect($alanlar)
-                ->keys()
-                ->mapWithKeys(fn (string $alan) => [$alan => $kullanici->getAttribute($alan)])
-                ->all();
-
-            if ($kullanici->trashed()) {
-                $kullanici->restore();
-            }
-
-            // Ayrılış işareti KALKAR: kişi yeniden süreçte ve evrak yükleyebilmek
-            // için panele girebilmeli. Eski akreditasyonu iptal olarak KALIR.
-            $kullanici->forceFill($alanlar + ['aktif' => true, 'ayrildi_at' => null])->save();
-
-            $this->denetim->yaz('hesap.yeniden_basvuru', $kullanici,
-                eski: $eski, yeni: $alanlar, aktorTip: 'sistem');
-        }
-
-        // Tür değiştiyse eski tür rolü kalmasın; kurum yetkililiği gibi başka
-        // roller korunur (syncRoles hepsini silerdi).
-        if ($eskiRol !== null) {
-            $kullanici->removeRole($eskiRol);
-        }
-
-        $kullanici->assignRole($rol);
-
-        return $kullanici;
-    }
-
-    /**
-     * Kurum kaydı. Yetkilinin daha önce reddedilmiş bir KURUM başvurusu varsa
-     * aynı kurum kaydı güncellenir; her denemede yeni bir kurum satırı açılmaz.
-     */
-    private function kurumuHazirla(User $kullanici, array $veri): Kurum
+    private function kurumuHazirla(string $eposta, array $veri): Kurum
     {
         $onceki = Kurum::query()
-            ->whereIn('id', $kullanici->basvurular()
+            ->whereIn('id', Basvuru::query()
                 ->where('tur', BasvuruTuru::Kurum->value)
+                ->where('basvuran_eposta', $eposta)
                 ->whereNotNull('kurum_id')
                 ->pluck('kurum_id'))
             ->where('akreditasyon_durumu', '!=', 'akredite')
@@ -310,24 +316,6 @@ class BasvuruController extends Controller
         }
 
         return Kurum::create($veri);
-    }
-
-    /**
-     * Hesabı henüz etkin değilse şifre belirleme bağlantısı, etkinse
-     * "yeni başvurunuz alındı" bilgisi gider. Aktivasyon bağlantısını hazır
-     * hesaba göndermek gereksiz bir şifre sıfırlama kapısı açardı.
-     */
-    private function basvuranaHaberVer(User $kullanici, Basvuru $basvuru): bool
-    {
-        if ($kullanici->email_verified_at === null) {
-            $kullanici->notify(new HesapAktivasyonu);
-
-            return $this->aktivasyonGonderildi = true;
-        }
-
-        $kullanici->notify(new YenidenBasvuruAlindi($basvuru));
-
-        return $this->aktivasyonGonderildi = false;
     }
 
     /** @return Collection<int, Kurum> */
@@ -345,8 +333,7 @@ class BasvuruController extends Controller
 
         return view('basvuru.gonderildi', [
             'eposta' => session('eposta'),
-            'aktivasyon' => (bool) session('aktivasyon', true),
-            // Panelsiz düzeltmeden gelindiyse metin farklı: hesap/şifre yok.
+            // Panelsiz düzeltmeden gelindiyse metin farklı.
             'duzeltme' => (bool) session('duzeltme', false),
         ]);
     }

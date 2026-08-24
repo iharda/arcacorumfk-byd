@@ -43,7 +43,7 @@
     @endif
 
     {{-- kurum: seçili kurum ULID'i ya da "yok" (kurumu listede olmayan aday). --}}
-    <form method="POST" action="{{ $eylem }}" class="mt-8 space-y-10"
+    <form method="POST" action="{{ $eylem }}" enctype="multipart/form-data" class="mt-8 space-y-10"
           x-data="{ kurum: @js(old('kurum_ulid', ($basin && ! $davet && $kurumlar->isEmpty()) ? 'yok' : '')) }">
         @csrf
 
@@ -148,6 +148,9 @@
             </section>
         @endif
 
+        {{-- ── Evraklar (Revizyon md.3.1: başvuruyla AYNI adımda) ── --}}
+        <x-parcalar.evraklar :turler="$evrakTurleri" />
+
         <section class="rounded-xl border border-neutral-200 bg-white p-5">
             <h2 class="text-base font-semibold">Kişisel verilerin korunması</h2>
             <div class="mt-4 space-y-3">
@@ -179,7 +182,6 @@
                     class="rounded-lg bg-kulup-600 px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-kulup-700 focus:ring-2 focus:ring-kulup-600/30 focus:outline-none disabled:cursor-not-allowed disabled:bg-neutral-300 disabled:text-neutral-500 disabled:hover:bg-neutral-300">
                 Başvuruyu gönder
             </button>
-            <span class="text-sm text-neutral-500">Fotoğraf ve kimlik yükleme sonraki adımda.</span>
         </div>
     </form>
 </div>

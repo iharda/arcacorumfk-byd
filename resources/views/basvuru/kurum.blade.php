@@ -18,7 +18,8 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('basvuru.kurum.kaydet') }}" class="mt-8 space-y-10"
+    <form method="POST" action="{{ route('basvuru.kurum.kaydet') }}" enctype="multipart/form-data"
+          class="mt-8 space-y-10"
           x-data="{
               platformlar: {{ json_encode(old('yayin_platformlari', [['ad' => '', 'url' => '']])) }},
               ekle() { this.platformlar.push({ ad: '', url: '' }) },
@@ -94,13 +95,16 @@
         {{-- ── Yetkili kişi ────────────────────────────────── --}}
         <section>
             <h2 class="text-base font-semibold">Başvuruyu yapan yetkili</h2>
-            <p class="mt-1 text-sm text-neutral-600">Hesap bu kişiye açılır; evrak yükleme ve çalışan başvuruları buradan yürütülür.</p>
+            <p class="mt-1 text-sm text-neutral-600">Başvuru onaylanırsa hesap bu kişiye açılır; çalışan başvuruları buradan yürütülür.</p>
             <div class="mt-4 grid gap-4 sm:grid-cols-2">
                 <x-parcalar.alan ad="yetkili_ad" etiket="Ad soyad" zorunlu :sutun="2" />
                 <x-parcalar.alan ad="yetkili_eposta" etiket="E-posta" tur="email" zorunlu :sutun="1" />
                 <x-parcalar.alan ad="yetkili_telefon" etiket="Telefon" tur="tel" zorunlu :sutun="1" ipucu="0500 000 00 00" />
             </div>
         </section>
+
+        {{-- ── Evraklar (Revizyon md.3.1: başvuruyla AYNI adımda) ── --}}
+        <x-parcalar.evraklar :turler="$evrakTurleri" />
 
         {{-- ── KVKK ────────────────────────────────────────── --}}
         <section class="rounded-xl border border-neutral-200 bg-white p-5">
@@ -134,7 +138,6 @@
                     class="rounded-lg bg-kulup-600 px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-kulup-700 focus:ring-2 focus:ring-kulup-600/30 focus:outline-none">
                 Başvuruyu gönder
             </button>
-            <span class="text-sm text-neutral-500">Evrak yükleme, hesabınızı etkinleştirdikten sonraki adımda.</span>
         </div>
     </form>
 </div>

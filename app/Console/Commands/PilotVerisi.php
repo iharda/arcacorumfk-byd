@@ -116,7 +116,7 @@ class PilotVerisi extends Command
             'name' => $ad,
             'email' => $onek.self::ETIKET,
             'password' => Hash::make(self::SIFRE),
-            'telefon' => '+90 5'.random_int(30, 59).' '.random_int(100, 999).' '.random_int(10, 99).' '.random_int(10, 99),
+            'telefon' => $this->telefon(),
             'kurum_id' => $kurum?->id,
             'aktif' => true,
             'email_verified_at' => now(),
@@ -124,6 +124,11 @@ class PilotVerisi extends Command
         $u->assignRole($rol);
 
         return $u;
+    }
+
+    private function telefon(): string
+    {
+        return '+90 5'.random_int(30, 59).' '.random_int(100, 999).' '.random_int(10, 99).' '.random_int(10, 99);
     }
 
     private function akrediteKisi(string $onek, string $ad, BasvuruTuru $tur, ?Kurum $kurum, array $bolgeler): void
@@ -136,6 +141,9 @@ class PilotVerisi extends Command
             'durum' => BasvuruDurumu::Onaylandi,
             'kullanici_id' => $kullanici->id,
             'kurum_id' => $kurum?->id,
+            'basvuran_ad' => $ad,
+            'basvuran_eposta' => $kullanici->email,
+            'basvuran_telefon' => $kullanici->telefon,
             'gonderildi_at' => now()->subDays(random_int(3, 20)),
             'karar_at' => now()->subDays(random_int(1, 2)),
         ]);
@@ -153,18 +161,30 @@ class PilotVerisi extends Command
         }
     }
 
+    /**
+     * İncelemeyi bekleyen başvuru.
+     *
+     * 🔑 HESAPSIZ: hesap onay anında açılır (Revizyon md.1). Kullanıcı kaydı
+     * üretmek, panele hiç giremeyecek yetim hesaplar bırakırdı.
+     */
     private function bekleyenBasvuru(string $onek, string $ad, BasvuruTuru $tur, ?Kurum $kurum, BasvuruDurumu $durum): void
     {
-        $rol = $tur === BasvuruTuru::BasinMensubu ? User::ROL_BASIN : User::ROL_ICERIK;
-        $kullanici = $this->kullanici($onek, $ad, $rol, $kurum);
-
         $basvuru = Basvuru::create([
             'tur' => $tur,
             'durum' => $durum,
-            'kullanici_id' => $kullanici->id,
+            'kullanici_id' => null,
             'kurum_id' => $kurum?->id,
+            'basvuran_ad' => $ad,
+            'basvuran_eposta' => $onek.self::ETIKET,
+            'basvuran_telefon' => $this->telefon(),
             'gonderildi_at' => now()->subDays(random_int(1, 4)),
-            'form_verisi' => ['basin_karti_var' => (bool) random_int(0, 1), 'calisma_yili' => random_int(1, 15)],
+            'form_verisi' => [
+                'adres' => 'Pilot Mahallesi '.random_int(1, 40).'. Sokak No: '.random_int(1, 60),
+                'il' => 'Çorum',
+                'ilce' => 'Merkez',
+                'basin_karti_var' => (bool) random_int(0, 1),
+                'calisma_yili' => random_int(1, 15),
+            ],
         ]);
 
         $this->evrak($basvuru, 'biyometrik_fotograf', 'foto.jpg', 'image/jpeg');
@@ -237,6 +257,16 @@ class PilotVerisi extends Command
     private function sil(): int
     {
         $sayac = 0;
+
+        // 🪤 Bekleyen başvuruların KULLANICISI YOK: yalnızca hesaplardan
+        //    yürüyen temizlik onları geride bırakırdı.
+        $hesapsiz = Basvuru::withTrashed()
+            ->whereNull('kullanici_id')
+            ->where('basvuran_eposta', 'like', '%'.self::ETIKET)
+            ->pluck('id');
+
+        Evrak::withTrashed()->whereIn('basvuru_id', $hesapsiz)->get()->each->forceDelete();
+        Basvuru::withTrashed()->whereIn('id', $hesapsiz)->forceDelete();
 
         foreach (User::withTrashed()->where('email', 'like', '%'.self::ETIKET)->get() as $u) {
             $basvuruIdleri = Basvuru::withTrashed()->where('kullanici_id', $u->id)->pluck('id');

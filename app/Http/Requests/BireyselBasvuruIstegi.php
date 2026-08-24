@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\BasvuruTuru;
+use App\Http\Requests\Concerns\EvrakKurallari;
 use App\Servisler\BasvuruUygunlugu;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -13,6 +14,8 @@ use Illuminate\Validation\Rule;
  */
 class BireyselBasvuruIstegi extends FormRequest
 {
+    use EvrakKurallari;
+
     public function authorize(): bool
     {
         return true;
@@ -68,7 +71,9 @@ class BireyselBasvuruIstegi extends FormRequest
             $kurallar['sosyal_medya.*'] = ['nullable', 'url', 'max:300'];
         }
 
-        return $kurallar;
+        // Evrak da bu formda alınır (Revizyon md.3.1): fotoğraf, kimlik ve
+        // -- basın mensubunda -- çalışma belgesi.
+        return $kurallar + $this->evrakKurallari($this->tur());
     }
 
     public function withValidator($validator): void
@@ -90,7 +95,7 @@ class BireyselBasvuruIstegi extends FormRequest
             'basin_karti_var' => 'basın kartı', 'calisma_yili' => 'çalışma yılı',
             'sosyal_medya' => 'sosyal medya bağlantıları',
             'kvkk_aydinlatma' => 'aydınlatma metni onayı', 'kvkk_riza' => 'açık rıza onayı',
-        ];
+        ] + $this->evrakAdlari($this->tur());
     }
 
     public function messages(): array
@@ -100,6 +105,7 @@ class BireyselBasvuruIstegi extends FormRequest
             'kurum_ulid.exists' => 'Seçilen kurum akredite değil. Kurumunuz önce kendi başvurusunu tamamlamalı.',
             'kvkk_aydinlatma.accepted' => 'Aydınlatma metnini okuduğunuzu onaylamalısınız.',
             'kvkk_riza.accepted' => 'Başvurunun değerlendirilebilmesi için açık rıza gereklidir.',
+            'evraklar.*.required' => ':attribute yüklemelisiniz.',
         ];
     }
 

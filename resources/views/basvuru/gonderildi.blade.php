@@ -18,19 +18,13 @@
             <strong class="font-medium text-koyu">{{ $eposta }}</strong> adresine bildirilecek.
         </p>
         <p class="mt-2 text-sm text-neutral-500">Kullandığınız düzeltme bağlantısı artık geçerli değil.</p>
-    @elseif ($aktivasyon)
-        <p class="mt-3 text-neutral-600">
-            <strong class="font-medium text-koyu">{{ $eposta }}</strong> adresine bir etkinleştirme bağlantısı gönderdik.
-            Bağlantıdan şifrenizi belirledikten sonra evraklarınızı yükleyip başvurunuzu tamamlayabilirsiniz.
-        </p>
-        <p class="mt-2 text-sm text-neutral-500">Bağlantı 48 saat geçerlidir.</p>
     @else
-        {{-- Hesabı zaten etkin: yeniden başvuru. Yeni şifre bağlantısı göndermiyoruz. --}}
+        {{-- Hesap ONAY anında açılır (Revizyon md.1): başvuranın yapacağı
+             başka bir adım YOK, bekleyecek. --}}
         <p class="mt-3 text-neutral-600">
-            Başvurunuz <strong class="font-medium text-koyu">{{ $eposta }}</strong> adresine kayıtlı mevcut hesabınıza eklendi.
-            Evraklarınızı yükleyip başvurunuzu göndermek için giriş yapın.
+            Başvurunuz evraklarıyla birlikte inceleme kuyruğuna alındı. Sonuç
+            <strong class="font-medium text-koyu">{{ $eposta }}</strong> adresine bildirilecek.
         </p>
-        <p class="mt-2 text-sm text-neutral-500">Şifrenizi hatırlamıyorsanız giriş ekranındaki “Şifremi unuttum” bağlantısını kullanın.</p>
     @endif
 
     <a href="{{ route('anasayfa') }}"

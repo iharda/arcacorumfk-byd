@@ -5,6 +5,7 @@ namespace App\Filament\Yonetim\Resources\Basvurus\Tables;
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
 use App\Filament\Yonetim\Resources\Basvurus\BasvuruResource;
+use App\Models\Basvuru;
 use App\Servisler\CsvDisaAktar;
 use Filament\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
@@ -42,21 +43,30 @@ class BasvurusTable
                  * gazeteden üç kişi başvurunca yetkili kimin kim olduğunu
                  * ayırt edemiyordu. Kişinin kurumu alt satırda duruyor.
                  */
-                TextColumn::make('kullanici.name')
+                /*
+                 * 💥 İLİŞKİDEN OKUMA: hesap onay anında açılır (Revizyon md.1),
+                 * kuyruktaki başvuruların çoğunda `kullanici` YOKTUR. Sütun
+                 * `kullanici.name` iken durum boş geliyor, Filament boş state'i
+                 * biçimlendirmeden geçiyor ve kuyrukta AD HİÇ GÖRÜNMÜYORDU.
+                 * Ad/e-posta artık başvurunun kendisinden okunur.
+                 */
+                TextColumn::make('basvuran')
                     ->label('Başvuran')
-                    ->formatStateUsing(fn ($state, $record) => $record->tur === BasvuruTuru::Kurum
-                        ? ($record->kurum?->resmi_unvan ?: $state)
-                        : $state)
-                    ->description(fn ($record) => $record->tur === BasvuruTuru::Kurum
-                        ? $record->kullanici?->email
+                    ->state(fn (Basvuru $record) => $record->tur === BasvuruTuru::Kurum
+                        ? ($record->kurum?->resmi_unvan ?: $record->basvuranAdi())
+                        : $record->basvuranAdi())
+                    ->description(fn (Basvuru $record) => $record->tur === BasvuruTuru::Kurum
+                        ? $record->basvuranEpostasi()
                         : implode(' · ', array_filter([
                             $record->kurum?->resmi_unvan,
-                            $record->kullanici?->email,
+                            $record->basvuranEpostasi(),
                         ])))
                     ->wrap()
                     ->searchable(query: fn (Builder $query, string $search) => $query
                         ->where(fn (Builder $alt) => $alt
-                            ->whereHas('kurum', fn (Builder $k) => $k->where('resmi_unvan', 'ilike', "%{$search}%"))
+                            ->where('basvuran_ad', 'ilike', "%{$search}%")
+                            ->orWhere('basvuran_eposta', 'ilike', "%{$search}%")
+                            ->orWhereHas('kurum', fn (Builder $k) => $k->where('resmi_unvan', 'ilike', "%{$search}%"))
                             ->orWhereHas('kullanici', fn (Builder $k) => $k
                                 ->where('name', 'ilike', "%{$search}%")
                                 ->orWhere('email', 'ilike', "%{$search}%")))),
@@ -105,8 +115,8 @@ class BasvurusTable
                         fn ($b) => [
                             $b->ulid,
                             $b->tur->etiket(),
-                            $b->kullanici?->name,
-                            $b->kullanici?->email,
+                            $b->basvuranAdi(),
+                            $b->basvuranEpostasi(),
                             $b->kurum?->resmi_unvan,
                             $b->durum->etiket(),
                             $b->gonderildi_at?->timezone('Europe/Istanbul')->format('d.m.Y H:i'),

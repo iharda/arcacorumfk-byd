@@ -2,15 +2,22 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\BasvuruTuru;
+use App\Http\Requests\Concerns\EvrakKurallari;
 use App\Servisler\BasvuruUygunlugu;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Kurumsal başvuru formu -- Plan v1.0 md.3.1.
  * Doğrulama SUNUCUDA; tarayıcı tarafı yalnızca kolaylık.
+ *
+ * 🔑 Evrak da bu formda alınır (Revizyon md.3.1): başvuru tek adımda tamamlanır,
+ * arada hesap açma / giriş yapma adımı yoktur.
  */
 class KurumBasvuruIstegi extends FormRequest
 {
+    use EvrakKurallari;
+
     public function authorize(): bool
     {
         return true;
@@ -37,7 +44,7 @@ class KurumBasvuruIstegi extends FormRequest
             'sosyal_medya' => ['array'],
             'sosyal_medya.*' => ['nullable', 'url', 'max:300'],
 
-            // Yetkili kişi -- hesap bu kişiye açılır
+            // Yetkili kişi -- hesap ONAY anında bu kişiye açılır
             'yetkili_ad' => ['required', 'string', 'min:3', 'max:120'],
             // 🔑 `unique` DEĞİL: başvurusu reddedilen kurum yetkilisi aynı
             // e-postayla yeniden başvurabilmeli (bkz. BasvuruUygunlugu).
@@ -47,7 +54,7 @@ class KurumBasvuruIstegi extends FormRequest
             // KVKK -- açık rıza olmadan başvuru alınmaz (md.11)
             'kvkk_aydinlatma' => ['accepted'],
             'kvkk_riza' => ['accepted'],
-        ];
+        ] + $this->evrakKurallari(BasvuruTuru::Kurum);
     }
 
     public function attributes(): array
@@ -60,7 +67,7 @@ class KurumBasvuruIstegi extends FormRequest
             'yetkili_ad' => 'yetkili adı soyadı', 'yetkili_eposta' => 'yetkili e-postası',
             'yetkili_telefon' => 'yetkili telefonu',
             'kvkk_aydinlatma' => 'aydınlatma metni onayı', 'kvkk_riza' => 'açık rıza onayı',
-        ];
+        ] + $this->evrakAdlari(BasvuruTuru::Kurum);
     }
 
     public function messages(): array
@@ -70,6 +77,7 @@ class KurumBasvuruIstegi extends FormRequest
             'kvkk_aydinlatma.accepted' => 'Aydınlatma metnini okuduğunuzu onaylamalısınız.',
             'kvkk_riza.accepted' => 'Başvurunun değerlendirilebilmesi için açık rıza gereklidir.',
             'yayin_platformlari.min' => 'En az bir yayın platformu bağlantısı girmelisiniz.',
+            'evraklar.*.required' => ':attribute yüklemelisiniz.',
         ];
     }
 }

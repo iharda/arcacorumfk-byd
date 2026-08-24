@@ -19,12 +19,6 @@ parameters:
 			path: app/Models/User.php
 
 		-
-			message: '#^Empty array passed to foreach\.$#'
-			identifier: foreach.emptyArray
-			count: 1
-			path: app/Notifications/EksikEvrakTalebi.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$baslangic_at\.$#'
 			identifier: property.notFound
 			count: 1

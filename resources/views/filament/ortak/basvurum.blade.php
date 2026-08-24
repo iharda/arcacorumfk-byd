@@ -1,4 +1,6 @@
-{{-- "Başvurum" — kurum ve üye panellerinde AYNI ekran.
+{{-- "Başvurum" — kurum ve üye panellerinde AYNI ekran. SALT OKUNUR:
+     evrak başvuru formunda alınır, eksik evrak panelsiz düzeltilir
+     (Revizyon md.3.6).
      ⚠️ Filament panelinde KENDİ Tailwind sınıflarımız derlenmez; burada
      yalnızca Filament'in kendi bileşenleri (x-filament::…) ve panelin
      paketinde ZATEN bulunan yardımcı sınıflar kullanılır. Şüphede kalınca
@@ -104,28 +106,9 @@
                         <x-filament::badge color="gray">Bekliyor</x-filament::badge>
                     @endif
 
-                    @if ($this->yuklenebilirMi)
-                        <div style="display:flex; align-items:center; gap:.5rem; flex:0 0 auto;">
-                            <input type="file" wire:model="dosyalar.{{ $tur->id }}"
-                                   accept="{{ collect($tur->izinli_formatlar ?? [])->map(fn ($u) => '.' . $u)->implode(',') }}"
-                                   style="font-size:.78rem; max-width:14rem;">
-                            <x-filament::button size="sm" wire:click="yukle({{ $tur->id }})"
-                                                wire:loading.attr="disabled" wire:target="dosyalar.{{ $tur->id }},yukle">
-                                {{ $yuklu ? 'Değiştir' : 'Yükle' }}
-                            </x-filament::button>
-                        </div>
-                    @endif
                 </div>
             @endforeach
         </div>
     </x-filament::section>
-
-    @if ($this->yuklenebilirMi)
-        <div style="display:flex; justify-content:flex-end;">
-            <x-filament::button wire:click="gonder" wire:loading.attr="disabled" size="lg">
-                Başvuruyu gönder
-            </x-filament::button>
-        </div>
-    @endif
 
 </x-filament-panels::page>

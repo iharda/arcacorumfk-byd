@@ -2,9 +2,10 @@
  * BYD — SİSTEM GENELİ İNSAN SENARYOSU
  *
  * Gerçek bir kullanıcının tarayıcıda yapacağı sırayla, insan hızında:
- *   Perde 1  Kurum başvurusu (Kızılırmak Medya) — yanlış dosya denemesi dahil
+ *   Perde 1  Kurum başvurusu (Kızılırmak Medya) — evrak formda, yanlış dosya
+ *            denemesi dahil
  *   Perde 2  İkinci kurum başvurusu (reddedilecek)
- *   Perde 3  Yetkili: eksik evrak → düzeltme → ONAY  ·  diğerini RED
+ *   Perde 3  Yetkili: eksik evrak → PANELSİZ düzeltme → ONAY  ·  diğerini RED
  *   Perde 4  Basın mensubu başvurusu → kurum teyidi → onay → kart no
  *   Perde 5  Basın kartı + kapı (turnike) doğrulaması
  *   Perde 6  Duyuru yayını ve ayrılış → akreditasyon iptali
@@ -14,6 +15,9 @@
  *    `--birak` ile veriler panelde incelenmek üzere BIRAKILIR.
  *
  * Ekran görüntüleri: /root/byd-senaryo/NN-*.png
+ *
+ * 🔑 Hesap ONAY anında açılır (Revizyon md.1): başvuran onaya kadar sisteme
+ *    hiç girmez, evrakını formda verir, eksiğini geçici bağlantıdan tamamlar.
  *
  * node /root/byd-insan-senaryosu.mjs [--birak]
  */
@@ -47,6 +51,9 @@ const K2 = {
   kurumEposta: `anadolukent+${damga}@ornek.test`,
 };
 const P1 = { ad: 'Elif Karaman', eposta: `elif+${damga}@ornek.test` };
+// Yetki matrisinde "başka kurumun yetkilisi" rolü. Reddedilen başvurana artık
+// hesap açılmadığı için (Revizyon md.3.2) yabancıyı ayrıca kuruyoruz.
+const YABANCI = { unvan: `Yabancı Ajans ${damga}`, eposta: `yabanci+${damga}@ornek.test` };
 
 if (existsSync(SHOT)) rmSync(SHOT, { recursive: true });
 mkdirSync(SHOT, { recursive: true });
@@ -117,7 +124,7 @@ const b = await puppeteer.launch({
 });
 
 /** Kamuya açık kurum başvurusunu insan gibi doldurur. */
-async function kurumBasvurusu(s, kisi, adres, vergiNo, kvkkGez) {
+async function kurumBasvurusu(s, kisi, adres, vergiNo, kvkkGez, evraklar) {
   await s.goto(`${KOK}/`, { waitUntil: 'networkidle2' });
   await dusun(700, 1400);
   await s.evaluate(() => [...document.querySelectorAll('a')]
@@ -160,14 +167,34 @@ async function kurumBasvurusu(s, kisi, adres, vergiNo, kvkkGez) {
 
   await s.click('[name="kvkk_aydinlatma"]');
   await s.click('[name="kvkk_riza"]');
+
+  // Evrak AYNI formda isteniyor (Revizyon md.3.1).
+  await evraklariSec(s, evraklar);
+
   await dusun(400, 800);
+  await formuGonder(s);
+}
+
+/** Formdaki dosya kutularını sırayla doldurur; kutu sayısını döner. */
+async function evraklariSec(s, dosyalar = []) {
+  const girisler = await s.$$('input[type="file"]');
+  for (let i = 0; i < girisler.length; i++) {
+    if (dosyalar[i]) await girisler[i].uploadFile(dosyalar[i]);
+  }
+  return girisler.length;
+}
+
+async function formuGonder(s) {
   await Promise.all([
     s.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
     s.click('button[type="submit"]'),
   ]);
 }
 
-/** Aktivasyon → şifre belirleme. */
+/**
+ * ONAY sonrası şifre belirleme. Hesap onayla birlikte açılır ve onay
+ * e-postasındaki imzalı bağlantı buraya götürür (Revizyon md.3.2).
+ */
 async function sifreBelirle(s, eposta) {
   const bag = aktivasyonBaglantisi(eposta);
   await s.goto(bag, { waitUntil: 'networkidle2' });
@@ -178,17 +205,6 @@ async function sifreBelirle(s, eposta) {
     s.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
     s.click('button[type="submit"]'),
   ]);
-}
-
-/** i. evrak satırına dosya bırak ve Yükle'ye bas. */
-async function evrakYukle(s, sira, dosya) {
-  const girisler = await s.$$('input[type="file"]');
-  if (!girisler[sira]) return false;
-  await girisler[sira].uploadFile(dosya);
-  await bekle(2000);
-  await s.evaluate(i => [...document.querySelectorAll('button[wire\\:click^="yukle("]')][i]?.click(), sira);
-  await bekle(2600);
-  return true;
 }
 
 async function yetkiliGiris() {
@@ -240,59 +256,48 @@ try {
   const s1 = await c1.newPage();
   await s1.setViewport({ width: 1440, height: 1000 });
 
-  await kurumBasvurusu(s1, K1, 'Gazi Caddesi No: 48/3', '4820561973', true);
-  kontrol('Kurum başvurusu gönderildi', s1.url().includes('/basvuru/gonderildi'),
+  // İnsan hatası: ticaret sicil yerine PDF sandığı bozuk dosyayı seçer.
+  await kurumBasvurusu(s1, K1, 'Gazi Caddesi No: 48/3', '4820561973', true,
+    [`${D}/sahte-belge.pdf`, `${D}/vergi-levhasi.pdf`]);
+  const hata1 = await govde(s1);
+  kontrol('Sahte PDF (magic byte) formda reddedildi',
+    s1.url().includes('/basvuru/kurum') && /kabul edilmiyor/i.test(hata1),
+    (hata1.match(/[^\n]*kabul edilmiyor[^\n]*/) || ['-'])[0].slice(0, 60));
+  kontrol('Yazdıkları kaybolmadı (form eski değerlerle doldu)',
+    (await s1.$eval('[name="resmi_unvan"]', e => e.value)) === K1.unvan);
+  await foto(s1, 'sahte-dosya-reddi');
+
+  // Doğru dosyaları seçip yeniden gönderir: yalnızca dosyalar yeniden seçilir.
+  await evraklariSec(s1, [`${D}/ticaret-sicil.pdf`, `${D}/vergi-levhasi.pdf`]);
+  await dusun(400, 800);
+  await formuGonder(s1);
+  kontrol('Kurum başvurusu evraklarıyla tek adımda gönderildi',
+    s1.url().includes('/basvuru/gonderildi'),
     s1.url().replace(KOK, '') + ((await govde(s1)).match(/429|Too Many/) ? ' (HIZ SINIRI)' : ''));
   await foto(s1, 'kurum-basvuru-gonderildi');
   if (!s1.url().includes('/basvuru/gonderildi')) throw new Error('K1 formu gönderilemedi');
 
-  await sifreBelirle(s1, K1.yetkiliEposta);
-  kontrol('Aktivasyon + şifre ile kurum paneline girildi', s1.url().includes('/kurum'), s1.url().replace(KOK, ''));
-  await foto(s1, 'kurum-paneli-ilk-giris');
-
-  await s1.goto(`${KOK}/kurum/basvurum`, { waitUntil: 'networkidle2' });
-  await dusun(800, 1500);
-  const bs1 = await govde(s1);
-  kontrol('Başvurum ekranı evrak listesini gösteriyor', bs1.includes('Evraklar'));
-
-  // İnsan hatası: PDF sanıp bozuk dosya yükler.
-  await evrakYukle(s1, 0, `${D}/sahte-belge.pdf`);
-  const hata1 = await govde(s1);
-  kontrol('Sahte PDF (magic byte) reddedildi',
-    /kabul edilmiyor|geçersiz|hata|desteklenmiyor/i.test(hata1),
-    (hata1.match(/[^\n]*kabul edilmiyor[^\n]*/) || ['-'])[0].slice(0, 60));
-  await foto(s1, 'sahte-dosya-reddi');
-
-  await s1.reload({ waitUntil: 'networkidle2' });
-  await evrakYukle(s1, 0, `${D}/ticaret-sicil.pdf`);
-  await evrakYukle(s1, 1, `${D}/vergi-levhasi.pdf`);
-  await s1.reload({ waitUntil: 'networkidle2' });
-  const bs2 = await govde(s1);
-  kontrol('İki evrak da yüklendi', (bs2.match(/Yüklendi/g) || []).length >= 2,
-    `${(bs2.match(/Yüklendi/g) || []).length} evrak`);
-  await foto(s1, 'evraklar-yuklendi');
-
-  await tikla(s1, 'Başvuruyu gönder');
-  await bekle(2600);
-  await s1.reload({ waitUntil: 'networkidle2' });
-  kontrol('Başvuru gönderildi durumunda', (await govde(s1)).includes('Gönderildi'));
+  const k1Durum = artisan(`
+$b = App\\Models\\Basvuru::where('basvuran_eposta','${K1.yetkiliEposta}')->latest('id')->first();
+echo 'DURUM:' . ($b?->durum->value ?? 'yok') . ' EVRAK:' . ($b?->evraklar()->count() ?? 0)
+   . ' HESAP:' . (App\\Models\\User::withTrashed()->where('email','${K1.yetkiliEposta}')->exists() ? 'var' : 'yok');`);
+  kontrol('Başvuru iki evrakıyla kuyruğa düştü',
+    /DURUM:gonderildi/.test(k1Durum) && /EVRAK:2/.test(k1Durum), cek(k1Durum, 'DURUM'));
+  kontrol('Onaydan önce hesap AÇILMADI', /HESAP:yok/.test(k1Durum), cek(k1Durum, 'HESAP'));
 
   /* ═══════════ PERDE 2 — İkinci kurum (reddedilecek) ═══════════ */
   perde('PERDE 2 — İkinci kurum başvurusu: Anadolu Kent Haber Ajansı');
   const c2 = await b.createBrowserContext();
   const s2 = await c2.newPage();
   await s2.setViewport({ width: 1440, height: 1000 });
-  await kurumBasvurusu(s2, K2, 'İnönü Caddesi No: 7', '7391045628', false);
-  kontrol('İkinci kurum başvurusu gönderildi', s2.url().includes('/basvuru/gonderildi'));
-  await sifreBelirle(s2, K2.yetkiliEposta);
-  await s2.goto(`${KOK}/kurum/basvurum`, { waitUntil: 'networkidle2' });
-  await evrakYukle(s2, 0, `${D}/ticaret-sicil.pdf`);
-  await evrakYukle(s2, 1, `${D}/vergi-levhasi.jpg`);
-  await s2.reload({ waitUntil: 'networkidle2' });
-  await tikla(s2, 'Başvuruyu gönder');
-  await bekle(2600);
-  await s2.reload({ waitUntil: 'networkidle2' });
-  kontrol('İkinci başvuru da kuyrukta', (await govde(s2)).includes('Gönderildi'));
+  await kurumBasvurusu(s2, K2, 'İnönü Caddesi No: 7', '7391045628', false,
+    [`${D}/ticaret-sicil.pdf`, `${D}/vergi-levhasi.jpg`]);
+  kontrol('İkinci kurum başvurusu gönderildi', s2.url().includes('/basvuru/gonderildi'),
+    s2.url().replace(KOK, ''));
+  const k2Durum = artisan(`
+$b = App\\Models\\Basvuru::where('basvuran_eposta','${K2.yetkiliEposta}')->latest('id')->first();
+echo 'KUYRUKTA:' . ($b && App\\Models\\Basvuru::kuyrukta()->whereKey($b->id)->exists() ? 'evet' : 'hayir');`);
+  kontrol('İkinci başvuru da kuyrukta', /KUYRUKTA:evet/.test(k2Durum), cek(k2Durum, 'KUYRUKTA'));
 
   /* ═══════════ PERDE 3 — Yetkili kararları ═══════════ */
   perde('PERDE 3 — Yetkili: eksik evrak → düzeltme → onay, diğerine red');
@@ -340,21 +345,29 @@ try {
     inc3.includes('Eksik evrak') && inc3.includes('Levha okunmuyor'));
   await foto(y, 'eksik-evrak-talebi');
 
-  // Kurum düzeltmeyi görüyor ve yeniden gönderiyor.
-  await s1.goto(`${KOK}/kurum/basvurum`, { waitUntil: 'networkidle2' });
+  /*
+   * Başvuranın HESABI YOK: düzeltme, e-postayla giden tek kullanımlık geçici
+   * bağlantıdan yapılır (Revizyon md.3.4). Ham token yalnızca üretildiği anda
+   * görünür; yetkilinin "yeniden gönder" eylemi yenisini üretir.
+   */
+  const duzToken = cek(artisan(`
+$b = App\\Models\\Basvuru::where('basvuran_eposta','${K1.yetkiliEposta}')->latest('id')->firstOrFail();
+echo 'TOKEN:' . app(App\\Servisler\\BasvuruBiletiAkisi::class)->yenidenGonder($b);`), 'TOKEN');
+
+  await s1.goto(`${KOK}/basvuru/duzelt/${duzToken}`, { waitUntil: 'networkidle2' });
   await dusun(800, 1400);
   const kur = await govde(s1);
-  kontrol('Kurum düzeltme talebini görüyor',
-    kur.includes('Düzeltilmesi istenen') && kur.includes('Levha okunmuyor'));
-  await foto(s1, 'kurum-duzeltme-notu');
-  await evrakYukle(s1, 1, `${D}/vergi-levhasi.jpg`);
-  await s1.reload({ waitUntil: 'networkidle2' });
-  await tikla(s1, 'Başvuruyu gönder');
-  await bekle(2600);
-  await s1.reload({ waitUntil: 'networkidle2' });
-  const kur2 = await govde(s1);
+  kontrol('Başvuran düzeltme bağlantısını HESAPSIZ açıyor',
+    kur.includes('Başvurunuzu düzeltin') && kur.includes('Levha okunmuyor'));
+  kontrol('Sayfada yalnızca istenen evrak açık', (await evraklariSec(s1, [`${D}/vergi-levhasi.jpg`])) === 1);
+  await foto(s1, 'panelsiz-duzeltme');
+  await formuGonder(s1);
+  const kur2 = artisan(`
+$b = App\\Models\\Basvuru::where('basvuran_eposta','${K1.yetkiliEposta}')->latest('id')->firstOrFail();
+echo 'DURUM:' . $b->durum->value . ' NOT:' . (blank($b->duzeltme_notlari) ? 'temiz' : 'duruyor');`);
   kontrol('Düzeltip yeniden gönderdi, notlar temizlendi',
-    kur2.includes('Gönderildi') && !kur2.includes('Düzeltilmesi istenen'));
+    s1.url().includes('/basvuru/gonderildi') && /DURUM:gonderildi/.test(kur2) && /NOT:temiz/.test(kur2),
+    cek(kur2, 'DURUM'));
 
   // Onay
   await y.goto(bag1, { waitUntil: 'networkidle2' });
@@ -369,6 +382,12 @@ try {
   const akr = artisan(`echo 'AKRED:' . (App\\Models\\Kurum::where('resmi_unvan','${K1.unvan}')->first()?->akreditasyon_durumu ?? 'yok');`);
   kontrol('Kurum akredite oldu (veritabanı)', /AKRED:akredite/.test(akr), cek(akr, 'AKRED'));
   await foto(y, 'kurum-onaylandi');
+
+  // HESAP ONAYLA BİRLİKTE AÇILDI: yetkili artık şifresini belirleyip girebilir.
+  await sifreBelirle(s1, K1.yetkiliEposta);
+  kontrol('Onaydan sonra yetkili şifresini belirleyip kurum paneline girdi',
+    s1.url().includes('/kurum'), s1.url().replace(KOK, ''));
+  await foto(s1, 'kurum-paneli-ilk-giris');
 
   // Red
   const bag2 = await incelemeBaglantisi(y, K2.unvan.slice(0, 24));
@@ -388,13 +407,14 @@ try {
     kontrol('İkinci kurum REDDEDİLDİ', (await govde(y)).includes('Reddedildi'));
     await foto(y, 'kurum-reddedildi');
 
-    await s2.goto(`${KOK}/kurum/basvurum`, { waitUntil: 'networkidle2' });
-    await bekle(1200);
-    const red = await govde(s2);
-    kontrol('Reddedilen kurum gerekçeyi görüyor',
-      red.includes('Reddedildi') && /güncel değil/.test(red),
-      (red.match(/[^\n]*güncel değil[^\n]*/) || ['gerekçe yok'])[0].slice(0, 50));
-    await foto(s2, 'kurum-red-gerekcesi');
+    // Reddedilene hesap AÇILMAZ (Revizyon md.3.2): gerekçe kayda geçer ve
+    // e-postayla gider, panelde gösterilecek bir yer yoktur.
+    const red = artisan(`
+$b = App\\Models\\Basvuru::where('basvuran_eposta','${K2.yetkiliEposta}')->latest('id')->firstOrFail();
+echo 'GEREKCE:' . (str_contains((string) $b->karar_gerekcesi, 'güncel değil') ? 'var' : 'yok')
+   . ' HESAP:' . (App\\Models\\User::withTrashed()->where('email','${K2.yetkiliEposta}')->exists() ? 'var' : 'yok');`);
+    kontrol('Red gerekçesi başvuruya işlendi', /GEREKCE:var/.test(red), cek(red, 'GEREKCE'));
+    kontrol('Reddedilen başvurana HESAP AÇILMADI', /HESAP:yok/.test(red), cek(red, 'HESAP'));
   }
 
   /* ═══════════ PERDE 4 — Basın mensubu ═══════════ */
@@ -446,32 +466,19 @@ try {
   await yaz(s3, '[name="calisma_yili"]', '5');
   await s3.click('[name="kvkk_aydinlatma"]');
   await s3.click('[name="kvkk_riza"]');
+
+  const uyeEvrakSayisi = await evraklariSec(s3,
+    [`${D}/foto.jpg`, `${D}/kimlik.jpg`, `${D}/calisma-belgesi.pdf`]);
+  kontrol('Üç kişisel evrak da formda isteniyor', uyeEvrakSayisi === 3, `${uyeEvrakSayisi} kutu`);
   await foto(s3, 'basin-mensubu-formu');
-  await Promise.all([
-    s3.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
-    s3.click('button[type="submit"]'),
-  ]);
+  await formuGonder(s3);
   kontrol('Basın mensubu başvurusu alındı', s3.url().includes('/basvuru/gonderildi'), s3.url().replace(KOK, ''));
 
-  await sifreBelirle(s3, P1.eposta);
-  kontrol('Basın mensubu üye paneline girdi', s3.url().includes('/panel'), s3.url().replace(KOK, ''));
-  await s3.goto(`${KOK}/panel/basvurum`, { waitUntil: 'networkidle2' });
-  await evrakYukle(s3, 0, `${D}/foto.jpg`);
-  await evrakYukle(s3, 1, `${D}/kimlik.jpg`);
-  await evrakYukle(s3, 2, `${D}/calisma-belgesi.pdf`);
-  await s3.reload({ waitUntil: 'networkidle2' });
-  const uye = await govde(s3);
-  kontrol('Üç kişisel evrak yüklendi', (uye.match(/Yüklendi/g) || []).length >= 3,
-    `${(uye.match(/Yüklendi/g) || []).length} evrak`);
-  await foto(s3, 'uye-evraklari');
-  await tikla(s3, 'Başvuruyu gönder');
-  await bekle(2600);
-  await s3.reload({ waitUntil: 'networkidle2' });
-  kontrol('Başvuru gönderildi', (await govde(s3)).includes('Gönderildi'));
-
   const kuy = artisan(`
-$bv = App\\Models\\Basvuru::whereHas('kullanici', fn($q) => $q->where('email','${P1.eposta}'))->first();
-echo 'KUYRUKTA:' . (App\\Models\\Basvuru::kuyrukta()->whereKey($bv->id)->exists() ? 'evet' : 'hayir');`);
+$bv = App\\Models\\Basvuru::where('basvuran_eposta','${P1.eposta}')->latest('id')->firstOrFail();
+echo 'EVRAK:' . $bv->evraklar()->count()
+   . ' KUYRUKTA:' . (App\\Models\\Basvuru::kuyrukta()->whereKey($bv->id)->exists() ? 'evet' : 'hayir');`);
+  kontrol('Üç evrak da başvuruya bağlandı', /EVRAK:3/.test(kuy), cek(kuy, 'EVRAK'));
   kontrol('Teyit beklerken yetkili kuyruğuna DÜŞMÜYOR', /KUYRUKTA:hayir/.test(kuy), cek(kuy, 'KUYRUKTA'));
 
   // Kurum yetkilisi teyit veriyor.
@@ -485,7 +492,7 @@ echo 'KUYRUKTA:' . (App\\Models\\Basvuru::kuyrukta()->whereKey($bv->id)->exists(
     .find(x => /^(Onayla|Teyit et|Evet)$/i.test(x.innerText.trim()) && x.closest('.fi-modal, [role="dialog"]'))?.click());
   await bekle(3000);
   const kuy2 = artisan(`
-$bv = App\\Models\\Basvuru::whereHas('kullanici', fn($q) => $q->where('email','${P1.eposta}'))->first();
+$bv = App\\Models\\Basvuru::where('basvuran_eposta','${P1.eposta}')->latest('id')->firstOrFail();
 echo 'KUYRUKTA:' . (App\\Models\\Basvuru::kuyrukta()->whereKey($bv->id)->exists() ? 'evet' : 'hayir');`);
   kontrol('Teyit sonrası kuyruğa girdi', /KUYRUKTA:evet/.test(kuy2), cek(kuy2, 'KUYRUKTA'));
 
@@ -512,6 +519,11 @@ $a = App\\Models\\Akreditasyon::whereHas('kullanici', fn($q)=>$q->where('email',
 echo 'KART:' . ($a?->kart_no ?? 'yok') . ' DURUM:' . ($a?->durum?->value ?? '-') . ' ULID:' . ($a?->ulid ?? '-');`);
   kontrol('Kart numarası üretildi', /KART:\d{4}-\w-\d{4}/.test(kart), cek(kart, 'KART'));
   const akrUlid = cek(kart, 'ULID');
+
+  // Üyenin hesabı da onayla açıldı: şifresini belirleyip panele girer.
+  await sifreBelirle(s3, P1.eposta);
+  kontrol('Basın mensubu onaydan sonra üye paneline girdi',
+    s3.url().includes('/panel'), s3.url().replace(KOK, ''));
 
   /* ═══════════ PERDE 5 — Kart ve kapı ═══════════ */
   perde('PERDE 5 — Basın kartı ve kapı (turnike) doğrulaması');
@@ -558,9 +570,18 @@ echo 'PDF:' . ($k && Illuminate\\Support\\Facades\\Storage::disk($k->disk)->exis
    * kaydına da giremiyordu. Ters yön de burada sınanır: başka kurumun
    * yetkilisi bu kayıtların hiçbirini göremez.
    */
+  // Reddedilen başvurana hesap açılmadığı için "yabancı" yetkiliyi ayrıca
+  // kuruyoruz: ölçülen şey kurumlar arası yalıtım.
+  artisan(`
+$k = App\\Models\\Kurum::create(['resmi_unvan' => '${YABANCI.unvan}', 'akreditasyon_durumu' => 'akredite']);
+$u = App\\Models\\User::create(['name' => 'Yabancı Yetkili', 'email' => '${YABANCI.eposta}',
+    'password' => bcrypt('${SIFRE}'), 'kurum_id' => $k->id, 'aktif' => true, 'email_verified_at' => now()]);
+$u->assignRole(App\\Models\\User::ROL_KURUM);
+echo 'YABANCI_HAZIR';`);
+
   const yetkiMatrisi = artisan(`
 $sahip = App\\Models\\User::where('email','${P1.eposta}')->first();
-$yabanci = App\\Models\\User::where('email','${K2.yetkiliEposta}')->first();
+$yabanci = App\\Models\\User::where('email','${YABANCI.eposta}')->first();
 $bv = App\\Models\\Basvuru::where('kullanici_id', $sahip->id)->first();
 $ev = App\\Models\\Evrak::where('basvuru_id', $bv->id)->first();
 $ak = App\\Models\\Akreditasyon::where('kullanici_id', $sahip->id)->first();
@@ -656,19 +677,34 @@ echo 'DURUM:' . ($a?->durum?->value ?? '-');`);
   try { await b.close(); } catch {}
 } finally {
   if (!BIRAK) {
+    // 🪤 Hesap onaya kadar YOK (reddedilende hiç açılmaz): temizlik
+    //    BAŞVURUDAN yürür, kullanıcıdan değil.
     const kod = `
-foreach (['${K1.yetkiliEposta}', '${K2.yetkiliEposta}', '${P1.eposta}'] as $e) {
+foreach (['${K1.yetkiliEposta}', '${K2.yetkiliEposta}', '${P1.eposta}', '${YABANCI.eposta}'] as $e) {
     $u = App\\Models\\User::withTrashed()->where('email', $e)->first();
-    if (! $u) continue;
-    $ids = App\\Models\\Basvuru::withTrashed()->where('kullanici_id', $u->id)->pluck('id');
-    App\\Models\\Evrak::withTrashed()->whereIn('basvuru_id', $ids)->get()->each->forceDelete();
+    $ids = App\\Models\\Basvuru::withTrashed()
+        ->where('basvuran_eposta', $e)
+        ->when($u, fn ($q) => $q->orWhere('kullanici_id', $u->id))
+        ->pluck('id');
+    $kurumlar = App\\Models\\Basvuru::withTrashed()->whereIn('id', $ids)->pluck('kurum_id')->filter();
+    foreach (App\\Models\\Evrak::withTrashed()->whereIn('basvuru_id', $ids)->get() as $ev) {
+        Illuminate\\Support\\Facades\\Storage::disk($ev->disk)->delete($ev->yol);
+        $ev->forceDelete();
+    }
     // 🪤 Akreditasyon SoftDeletes KULLANMIYOR: withTrashed() burada patlar.
-    App\\Models\\Akreditasyon::where('kullanici_id', $u->id)->get()->each(function ($a) {
-        $a->kartlar()->get()->each->forceDelete(); $a->delete();
+    App\\Models\\Akreditasyon::whereIn('basvuru_id', $ids)->get()->each(function ($a) {
+        $a->kartlar()->get()->each->forceDelete();
+        $a->gecisKayitlari()->delete();
+        $a->delete();
     });
+    App\\Models\\BasvuruBileti::whereIn('basvuru_id', $ids)->delete();
     App\\Models\\Basvuru::withTrashed()->whereIn('id', $ids)->forceDelete();
-    $k = $u->kurum; $u->forceDelete();
-    if ($k) { $k->forceDelete(); }
+    if ($u) {
+        $kurumlar = $kurumlar->merge([$u->kurum_id])->filter();
+        Illuminate\\Support\\Facades\\DB::table('model_has_roles')->where('model_id', $u->id)->delete();
+        $u->forceDelete();
+    }
+    App\\Models\\Kurum::withTrashed()->whereIn('id', $kurumlar->unique())->forceDelete();
 }
 App\\Models\\GecisKaydi::where('kapi_kodu', 'SEN${damga}')->delete();
 App\\Models\\KapiIstemcisi::where('kapi_kodu', 'SEN${damga}')->forceDelete();

@@ -3,6 +3,7 @@
 namespace App\Filament\Yonetim\Resources\Basvurus\Pages;
 
 use App\Enums\BasvuruDurumu;
+use App\Enums\BasvuruTuru;
 use App\Filament\Yonetim\Resources\Basvurus\BasvuruResource;
 use App\Models\Basvuru;
 use App\Models\EvrakTuru;
@@ -19,6 +20,7 @@ use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
 use Filament\Support\Enums\Width;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Throwable;
 
@@ -58,7 +60,8 @@ class Inceleme extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return $this->record->kurum?->resmi_unvan ?? $this->record->kullanici?->name ?? 'Başvuru';
+        // Hesap onaya kadar yok: ad başvurunun üstünden okunur.
+        return $this->record->kurum?->resmi_unvan ?? $this->record->basvuranAdi();
     }
 
     public function getSubheading(): string|Htmlable|null
@@ -85,33 +88,66 @@ class Inceleme extends Page
      */
     public function getGecmisBasvurularProperty()
     {
-        if ($this->record->kullanici_id === null) {
+        $eposta = $this->record->basvuranEpostasi();
+
+        if ($eposta === null) {
             return collect();
         }
 
+        /*
+         * 🔑 Bağ E-POSTA üzerinden kurulur: hesap onay anında açıldığı için
+         * (Revizyon md.3.2) kişinin eski başvurularının çoğunda `kullanici_id`
+         * BOŞTUR. Yalnızca hesaba baksaydık "bunu daha önce görmüş müydük"
+         * sorusunun cevabı hep boş çıkardı.
+         */
         return Basvuru::query()
-            ->where('kullanici_id', $this->record->kullanici_id)
+            ->where(fn (Builder $sorgu) => $sorgu
+                ->where('basvuran_eposta', $eposta)
+                ->when(
+                    $this->record->kullanici_id,
+                    fn (Builder $alt, int $id) => $alt->orWhere('kullanici_id', $id),
+                ))
             ->whereKeyNot($this->record->getKey())
             ->latest('id')
             ->get();
     }
 
-    /** Eksik evrak talebinde işaretlenebilecek alanlar. */
+    /**
+     * Eksik evrak talebinde işaretlenebilecek alanlar. Liste BAŞVURU TÜRÜNE
+     * göre değişir: bireysel başvuruda "vergi dairesi" diye bir alan yok,
+     * kurumsal başvuruda "basın kartı" yok.
+     */
     public function isaretlenebilirAlanlar(): array
     {
-        $alanlar = [
-            'Resmi ünvan' => 'Resmi ünvan',
+        $ortak = [
+            'Ad soyad' => 'Ad soyad',
             'Adres' => 'Adres',
             'İl / ilçe' => 'İl / ilçe',
             'Telefon' => 'Telefon',
             'E-posta' => 'E-posta',
-            'Vergi dairesi' => 'Vergi dairesi',
-            'Vergi numarası' => 'Vergi numarası',
-            'Çalışan sayısı' => 'Çalışan sayısı',
-            'Yayın platformları' => 'Yayın platformları',
             'Sosyal medya' => 'Sosyal medya',
-            'Yetkili bilgileri' => 'Yetkili bilgileri',
         ];
+
+        $alanlar = $this->record->tur === BasvuruTuru::Kurum
+            ? [
+                'Resmi ünvan' => 'Resmi ünvan',
+                'Adres' => 'Adres',
+                'İl / ilçe' => 'İl / ilçe',
+                'Telefon' => 'Telefon',
+                'E-posta' => 'E-posta',
+                'Vergi dairesi' => 'Vergi dairesi',
+                'Vergi numarası' => 'Vergi numarası',
+                'Çalışan sayısı' => 'Çalışan sayısı',
+                'Yayın platformları' => 'Yayın platformları',
+                'Sosyal medya' => 'Sosyal medya',
+                'Yetkili bilgileri' => 'Yetkili bilgileri',
+            ]
+            : $ortak + [
+                'Kurum' => 'Kurum',
+                'Basın kartı' => 'Basın kartı',
+                '212 sigortası' => '212 sigortası',
+                'Mesleki deneyim' => 'Mesleki deneyim',
+            ];
 
         foreach (EvrakTuru::turIcin($this->record->tur) as $tur) {
             $alanlar[$tur->ad] = $tur->ad;
@@ -203,7 +239,11 @@ class Inceleme extends Page
                 ->color('success')
                 ->requiresConfirmation()
                 ->modalHeading('Başvuruyu onayla')
-                ->modalDescription('Kurum akredite edilecek ve yetkiliye bildirim gidecek. Bu adım geri alınamaz.')
+                // Hesap onayla birlikte açılır; bireysel başvuruda "kurum
+                // akredite edilecek" metni yanlıştı.
+                ->modalDescription(fn () => $this->record->tur === BasvuruTuru::Kurum
+                    ? 'Kurum akredite edilecek, yetkiliye hesap açılacak ve bildirim gidecek. Bu adım geri alınamaz.'
+                    : 'Başvurana hesap açılacak, akreditasyon ve kart numarası oluşacak. Bu adım geri alınamaz.')
                 ->modalSubmitActionLabel('Onayla')
                 ->visible(fn () => auth()->user()->can('kararVer', $this->record))
                 ->action(fn () => $this->calistir(

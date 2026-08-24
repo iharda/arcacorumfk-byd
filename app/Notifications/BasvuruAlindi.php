@@ -8,7 +8,13 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-/** Plan v1.0 md.9 — "Başvuru alındı" bildirimi. Kuyruk üzerinden gider. */
+/**
+ * Plan v1.0 md.9 — "Başvuru alındı" bildirimi. Kuyruk üzerinden gider.
+ *
+ * 🔑 Panele bağlantı YOK: hesap onay anında açılır (Revizyon md.1), başvuranın
+ * girebileceği bir panel henüz yoktur. Bildirim hesapsız da gidebildiği için
+ * (`Basvuru::bildirimHedefi()`) metin "siz" diline göre yazılır.
+ */
 class BasvuruAlindi extends Notification implements ShouldQueue
 {
     use Queueable;
@@ -27,8 +33,8 @@ class BasvuruAlindi extends Notification implements ShouldQueue
             ->greeting('Merhaba '.$this->basvuru->basvuranAdi().',')
             ->line('**'.$this->basvuru->tur->etiket().'** başvurunuz tarafımıza ulaştı.')
             ->line('Başvuru numaranız: **'.$this->basvuru->ulid.'**')
-            ->line('Yetkili incelemesi tamamlandığında sonuç e-posta ile bildirilecektir.')
-            ->action('Başvurumu görüntüle', url('/kurum'))
+            ->line('Evraklarınızla birlikte inceleme kuyruğuna alındı.')
+            ->line('Yetkili incelemesi tamamlandığında sonuç bu e-posta adresine bildirilecektir.')
             ->salutation('ARCA Çorum FK');
     }
 }

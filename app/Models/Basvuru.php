@@ -22,6 +22,8 @@ use RuntimeException;
  * @property ?string $basvuran_ad
  * @property ?string $basvuran_eposta
  * @property ?string $basvuran_telefon
+ * @property ?array<string, mixed> $form_verisi
+ * @property ?array<string, string> $duzeltme_notlari
  */
 class Basvuru extends Model
 {

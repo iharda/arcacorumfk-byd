@@ -91,17 +91,17 @@ async function gir(s, panelYolu, eposta) {
   await ctx.close();
 }
 
-// 6) SINIR: panel İÇİNDEKİ gerçek 403 aynen kalmalı.
-//    Akredite olmayan üye, içerik sayfasını açamaz -- burada 403 DOĞRU cevaptır
-//    ve yönlendirme onu yutmamalı.
+// 6) SINIR: ONAYLANMAMIŞ hesap panele HİÇ giremez (Revizyon md.3.5).
+//    Hesap onay anında açılır; rol ve akreditasyon aynı işlemde doğar. Elde
+//    kalmış akreditasyonsuz bir hesap kapıda durdurulur -- yönlendirme onu
+//    içeri almaz.
 {
   const { ctx, s } = await yeniSekme();
   await gir(s, '/panel', ADAY_UYE);
-  kontrol('Akreditasyonsuz üye kendi paneline girebiliyor', yol(s).startsWith('/panel'), yol(s));
+  kontrol('Akreditasyonsuz hesap üye paneline GİREMİYOR', yol(s).includes('/login'), yol(s));
   const y = await s.goto(`${KOK}/panel/duyurular`, { waitUntil: 'networkidle2' });
-  const g = await metin(s);
-  kontrol('Panel içi 403 korunuyor (akreditasyonsuz üye içeriği göremez)',
-    y.status() === 403 || /403|Yasak/.test(g), `${y.status()} ${g.slice(0, 40)}`);
+  kontrol('İçerik sayfası da açılmıyor, giriş ekranına düşüyor',
+    yol(s).includes('/login'), `${y.status()} ${yol(s)}`);
   await ctx.close();
 }
 

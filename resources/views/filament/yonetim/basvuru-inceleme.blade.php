@@ -102,7 +102,7 @@
             @endif
 
             <x-filament::section compact>
-                <x-slot name="heading">Başvuran yetkili</x-slot>
+                <x-slot name="heading">{{ $record->tur === \App\Enums\BasvuruTuru::Kurum ? 'Başvuran yetkili' : 'Başvuran' }}</x-slot>
                 <dl style="display:grid; grid-template-columns:auto 1fr; gap:.4rem .75rem; font-size:.82rem;">
                     {{-- Hesap ONAY anında açılır: onaya kadar bilgiler başvurunun üstünde. --}}
                     <dt style="opacity:.6;">Ad</dt><dd>{{ $record->basvuranAdi() }}</dd>
@@ -113,6 +113,50 @@
                     @endif
                 </dl>
             </x-filament::section>
+
+            {{-- Bireysel başvurunun form verisi. Hesap onaya kadar açılmadığı
+                 için (Revizyon md.1) bu bilgiler kullanıcı kaydında DEĞİL,
+                 başvurunun `form_verisi` alanında durur. --}}
+            @if ($record->tur !== \App\Enums\BasvuruTuru::Kurum)
+                @php
+                    $form = $record->form_verisi ?? [];
+                    $evetHayir = fn (string $anahtar) => array_key_exists($anahtar, $form)
+                        ? ($form[$anahtar] ? 'Var' : 'Yok')
+                        : null;
+                @endphp
+
+                <x-filament::section compact>
+                    <x-slot name="heading">Başvuru bilgileri</x-slot>
+                    <dl style="display:grid; grid-template-columns:auto 1fr; gap:.4rem .75rem; font-size:.82rem;">
+                        @foreach ([
+                            'Adres' => trim(($form['adres'] ?? '') . ' · ' . ($form['ilce'] ?? '') . '/' . ($form['il'] ?? ''), ' ·/'),
+                            'Basın kartı' => $evetHayir('basin_karti_var'),
+                            '212 sigortası' => $evetHayir('sigorta_212_var'),
+                            'Mesleki deneyim' => isset($form['calisma_yili']) ? $form['calisma_yili'] . ' yıl' : null,
+                        ] as $etiket => $deger)
+                            @if (filled($deger))
+                                <dt style="opacity:.6; white-space:nowrap;">{{ $etiket }}</dt>
+                                <dd style="word-break:break-word;">{{ $deger }}</dd>
+                            @endif
+                        @endforeach
+                    </dl>
+
+                    @if (filled(array_filter($form['sosyal_medya'] ?? [])))
+                        <div style="margin-top:.9rem;">
+                            <div style="font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; opacity:.55;">Yayın adresleri</div>
+                            <ul style="margin-top:.35rem; display:flex; flex-wrap:wrap; gap:.4rem;">
+                                @foreach (array_filter($form['sosyal_medya']) as $ag => $url)
+                                    <li>
+                                        <a href="{{ $url }}" target="_blank" rel="noopener noreferrer">
+                                            <x-filament::badge color="gray">{{ $ag }}</x-filament::badge>
+                                        </a>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+                </x-filament::section>
+            @endif
 
             @if ($this->gecmisBasvurular->isNotEmpty())
                 <x-filament::section compact>

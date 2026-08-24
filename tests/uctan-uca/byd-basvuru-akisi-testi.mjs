@@ -1,8 +1,12 @@
 /**
- * BYD — kurumsal başvuru akışının uçtan uca testi (Aşama 02).
+ * BYD — kurumsal başvuru akışının uçtan uca testi (Başvuru akışı v2).
  *
- * Kapsam: kamuya açık form → hesap aktivasyonu → evrak yükleme → gönderim →
- *         yetkili incelemesi → eksik evrak → düzeltme → onay.
+ * Kapsam: kamuya açık form (EVRAK DAHİL, tek adım) → yetkili incelemesi →
+ *         eksik evrak → PANELSİZ düzeltme bağlantısı → onay → hesabın onayda
+ *         açılması.
+ *
+ * 🔑 Eski akıştaki "hesap aktivasyonu → panele gir → evrak yükle → gönder"
+ *    adımları YOK: hesap onay anında açılır (Revizyon md.1).
  *
  * ⚠️ Bu test ÜRETİME YAZAR (kayıt oluşturur). Kendi oluşturduğu kaydı sonunda
  *    temizler; BAŞKA kayda dokunmaz. Süzgeç sayıları sabit yazılmaz.
@@ -10,7 +14,7 @@
  * node /root/byd-basvuru-akisi-testi.mjs
  */
 import puppeteer from 'puppeteer-core';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { totp } from './byd-totp.mjs';
 
@@ -18,13 +22,11 @@ const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
 const ALAN = 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
-const LOG = '/home/byd.ordolive.com/laravel/storage/logs/laravel.log';
 const DOSYA = '/root/byd-test-dosyalari';
 
 const damga = Date.now();
 const EPOSTA = `bydtest+${damga}@ornek.test`;
 const UNVAN = `BYD Test Medya A.Ş. ${damga}`;
-const SIFRE = 'Kirmizi-Kartal-2026-x9';
 
 const sonuc = [];
 const kontrol = (ad, gecti, ek = '') => {
@@ -39,27 +41,11 @@ function artisan(kod) {
   });
 }
 
-/**
- * Aktivasyon bağlantısını ÜRET.
- *
- * 🪤 Eskiden posta günlüğünden okunuyordu; SMTP açılınca günlüğe hiçbir şey
- *    yazılmadı ve test koptu. Bağlantı imzalı-süreli bir adres; üretmek için
- *    postaya ihtiyaç yok. Postanın gerçekten gittiği kuyruk kaydından ayrıca
- *    doğrulanıyor.
- */
-function aktivasyonBaglantisi(eposta) {
-  const cikti = artisan(`
-$u = App\\Models\\User::where('email', '${eposta}')->firstOrFail();
-echo 'BAG:' . Illuminate\\Support\\Facades\\URL::temporarySignedRoute(
-    'hesap.aktivasyon', now()->addHours(48), ['kullanici' => $u->ulid]);`);
-  return (cikti.match(/BAG:(\S+)/) || [])[1];
-}
-
 /** Kuyruk bildirimi gerçekten işlendi mi? (Horizon günlüğünden) */
-function bildirimIslendiMi(saniye = 30) {
+function bildirimIslendiMi(desen, saniye = 30) {
   for (let i = 0; i < saniye; i++) {
     const log = readFileSync('/var/log/byd-horizon.log', 'utf8').slice(-6000);
-    if (/HesapAktivasyonu[^\n]*DONE/.test(log)) return true;
+    if (desen.test(log)) return true;
     execFileSync('sleep', ['1']);
   }
   return false;
@@ -73,7 +59,7 @@ const b = await puppeteer.launch({
 let temizlenecekEposta = null;
 
 try {
-  /* ───────── 1) Kamuya açık başvuru formu ───────── */
+  /* ───────── 1) Kamuya açık başvuru formu — evrak dahil ───────── */
   const s = await b.newPage();
   await s.setViewport({ width: 1440, height: 1000 });
   await s.goto(`${KOK}/basvuru/kurum`, { waitUntil: 'networkidle2', timeout: 60000 });
@@ -95,6 +81,12 @@ try {
   await doldur('yetkili_telefon', '0532 111 22 33');
   await s.click('[name="kvkk_aydinlatma"]');
   await s.click('[name="kvkk_riza"]');
+
+  // Evrak artık AYNI formda: iki zorunlu evrak da burada seçilir.
+  const girisler = await s.$$('input[type="file"]');
+  kontrol('Evrak alanları başvuru formunda', girisler.length >= 2, `${girisler.length} alan`);
+  await girisler[0]?.uploadFile(`${DOSYA}/ticaret-sicil.pdf`);
+  await girisler[1]?.uploadFile(`${DOSYA}/vergi-levhasi.jpg`);
   temizlenecekEposta = EPOSTA;
 
   await Promise.all([
@@ -102,75 +94,26 @@ try {
     s.click('button[type="submit"]'),
   ]);
   const gonderimMetni = await s.evaluate(() => document.body.innerText);
-  kontrol('Başvuru formu kabul edildi', s.url().includes('/basvuru/gonderildi'),
+  kontrol('Başvuru tek adımda kabul edildi', s.url().includes('/basvuru/gonderildi'),
     s.url().includes('/basvuru/gonderildi')
       ? ''
       : (/429|Too Many/i.test(gonderimMetni) ? 'HIZ SINIRI (429) — 10 dk bekle' : gonderimMetni.replace(/\s+/g, ' ').slice(0, 90)));
   if (!s.url().includes('/basvuru/gonderildi')) throw new Error('form gönderilemedi');
 
-  /* ───────── 2) Aktivasyon e-postası ───────── */
-  kontrol('Aktivasyon e-postası kuyrukta işlendi', bildirimIslendiMi());
-  const baglanti = aktivasyonBaglantisi(EPOSTA);
-  kontrol('Aktivasyon bağlantısı üretildi', !!baglanti);
-  if (!baglanti) throw new Error('aktivasyon bağlantısı yok');
+  /* ───────── 2) Hesap AÇILMADI, başvuru kuyrukta ───────── */
+  const ilkDurum = artisan(`
+$b = App\\Models\\Basvuru::where('basvuran_eposta','${EPOSTA}')->latest('id')->first();
+echo 'DURUM:' . ($b?->durum->value ?? 'yok')
+   . ' EVRAK:' . ($b?->evraklar()->count() ?? 0)
+   . ' HESAP:' . (App\\Models\\User::withTrashed()->where('email','${EPOSTA}')->exists() ? 'var' : 'yok');`);
+  kontrol('Başvuru doğrudan "Gönderildi" ve iki evrakı var',
+    /DURUM:gonderildi/.test(ilkDurum) && /EVRAK:2/.test(ilkDurum),
+    (ilkDurum.match(/DURUM:\w+ EVRAK:\d+/) || ['?'])[0]);
+  kontrol('Onaydan önce HESAP AÇILMADI', /HESAP:yok/.test(ilkDurum));
+  kontrol('"Başvurunuz alındı" e-postası kuyrukta işlendi',
+    bildirimIslendiMi(/BasvuruAlindi[^\n]*DONE/));
 
-  /* ───────── 3) Şifre belirleme ───────── */
-  await s.goto(baglanti, { waitUntil: 'networkidle2' });
-  kontrol('Aktivasyon sayfası açıldı', (await s.content()).includes('Şifrenizi belirleyin'));
-  await s.type('[name="sifre"]', SIFRE);
-  await s.type('[name="sifre_confirmation"]', SIFRE);
-  await Promise.all([
-    s.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
-    s.click('button[type="submit"]'),
-  ]);
-  kontrol('Şifre kaydedildi ve kurum paneline girildi', s.url().includes('/kurum'), s.url().replace(KOK, ''));
-
-  /* ───────── 4) Evrak yükleme ───────── */
-  await s.goto(`${KOK}/kurum/basvurum`, { waitUntil: 'networkidle2' });
-  const govde0 = await s.evaluate(() => document.body.innerText);
-  kontrol('Başvurum sayfası açıldı', govde0.includes('Evraklar'), govde0.split('\n').find(Boolean));
-
-  const girisler = await s.$$('input[type="file"]');
-  kontrol('Evrak alanları listelendi', girisler.length >= 2, `${girisler.length} alan`);
-
-  const dosyalar = [`${DOSYA}/ticaret-sicil.pdf`, `${DOSYA}/vergi-levhasi.jpg`];
-  for (let i = 0; i < Math.min(2, girisler.length); i++) {
-    await girisler[i].uploadFile(dosyalar[i]);
-    await bekle(1800);                                  // Livewire yüklemesi
-    const dugmeler = await s.$$('button');
-    for (const d of dugmeler) {
-      const t = (await s.evaluate(el => el.innerText.trim(), d));
-      const wire = await s.evaluate(el => el.getAttribute('wire:click') || '', d);
-      if (wire.startsWith('yukle(') && (t === 'Yükle' || t === 'Değiştir')) {
-        const sira = Number(wire.match(/\d+/)[0]);
-        if (i === 0 || sira) { /* sırayla ilerliyoruz */ }
-      }
-    }
-    // i. satırın Yükle düğmesine bas
-    await s.evaluate((idx) => {
-      const btns = [...document.querySelectorAll('button[wire\\:click^="yukle("]')];
-      btns[idx]?.click();
-    }, i);
-    await bekle(2500);
-  }
-  await s.reload({ waitUntil: 'networkidle2' });
-  const govde1 = await s.evaluate(() => document.body.innerText);
-  const yuklenenSayisi = (govde1.match(/Yüklendi/g) || []).length;
-  kontrol('İki evrak da yüklendi', yuklenenSayisi >= 2, `${yuklenenSayisi} evrak`);
-
-  /* ───────── 5) Başvuruyu gönder ───────── */
-  await s.evaluate(() => [...document.querySelectorAll('button')]
-    .find(b => b.innerText.trim() === 'Başvuruyu gönder')?.click());
-  await bekle(2500);
-  await s.reload({ waitUntil: 'networkidle2' });
-  const govde2 = await s.evaluate(() => document.body.innerText);
-  kontrol('Başvuru "Gönderildi" durumuna geçti', govde2.includes('Gönderildi'),
-    (govde2.match(/Taslak|Gönderildi|İncelemede|Eksik evrak|Onaylandı|Reddedildi/) || ['?'])[0]);
-
-  /* ───────── 6) Yetkili girişi (2FA dahil) ───────── */
-  // 🪤 AYRI tarayıcı bağlamı ŞART: aynı bağlamda kurum kullanıcısının oturum
-  //    çerezi duruyor, /yonetim/login onu görüp panele yönlendiriyor ve giriş
-  //    formu hiç render edilmiyor.
+  /* ───────── 3) Yetkili girişi (2FA dahil) ───────── */
   const yBaglam = await b.createBrowserContext();
   const y = await yBaglam.newPage();
   await y.setViewport({ width: 1600, height: 1000 });
@@ -186,7 +129,6 @@ try {
   //    kutudan oluşuyor; asıl input gizli. Kutulara yazmak gerekiyor.
   const gizli = readFileSync('/root/.byd-admin-totp', 'utf8').trim();
   const kutular = await y.$$('input[inputmode="numeric"]');
-  // İlk kutu autocomplete="one-time-code", kalan beşi "off" — hepsi aynı bileşen.
   if (kutular.length >= 6) {
     await kutular[0].click();
     await y.keyboard.type(totp(gizli), { delay: 60 });
@@ -197,7 +139,7 @@ try {
   }
   kontrol('Yetkili 2FA ile giriş yaptı', !y.url().includes('/login'), y.url().replace(KOK, ''));
 
-  /* ───────── 7) Kuyrukta görünüyor mu ───────── */
+  /* ───────── 4) Kuyrukta görünüyor mu ───────── */
   await y.goto(`${KOK}/yonetim/basvurular`, { waitUntil: 'networkidle2' });
   await bekle(1200);
   const kuyruk = await y.evaluate(() => document.body.innerText);
@@ -210,12 +152,13 @@ try {
   kontrol('İnceleme bağlantısı var', !!acLink);
   if (!acLink) throw new Error('inceleme bağlantısı yok');
 
-  /* ───────── 8) İnceleme ekranı ───────── */
+  /* ───────── 5) İnceleme ekranı ───────── */
   await y.goto(acLink, { waitUntil: 'networkidle2' });
   await bekle(900);
   const inc = await y.evaluate(() => document.body.innerText);
   kontrol('İnceleme ekranı açıldı', inc.includes('Evraklar') && inc.includes(UNVAN.slice(0, 24)));
-  kontrol('Evrak önizleme bölmesi var', await y.evaluate(() => !!document.querySelector('iframe, img[src*="/evrak/"]')));
+  kontrol('Başvuranın adı ve e-postası ekranda',
+    inc.includes('Deneme Yetkili') && inc.includes(EPOSTA));
 
   // 🔎 Görsel önizlemeye güvenmek yetmez (başsız Chrome PDF çizmez).
   //    Evrak ucunun GERÇEKTEN dosyayı döndürdüğünü ayrıca ölç.
@@ -231,14 +174,14 @@ try {
     evrakYanit ? `${evrakYanit.durum} · ${evrakYanit.tur} · ${evrakYanit.boyut} B` : 'kaynak yok');
   await y.screenshot({ path: '/root/byd-inceleme.png', fullPage: true });
 
-  /* ───────── 9) İncelemeye al ───────── */
+  /* ───────── 6) İncelemeye al ───────── */
   await y.evaluate(() => [...document.querySelectorAll('button, a')]
     .find(e => e.innerText.trim() === 'İncelemeye al')?.click());
   await bekle(2500);
   const inc2 = await y.evaluate(() => document.body.innerText);
   kontrol('Durum "İncelemede" oldu', inc2.includes('İncelemede'));
 
-  /* ───────── 10) Alan bazlı eksik evrak talebi ───────── */
+  /* ───────── 7) Alan bazlı eksik evrak talebi ───────── */
   await y.evaluate(() => [...document.querySelectorAll('button, a')]
     .find(e => e.innerText.trim() === 'Eksik evrak iste')?.click());
   await bekle(2200);
@@ -257,24 +200,34 @@ try {
   kontrol('Durum "Eksik evrak" oldu', inc3.includes('Eksik evrak'));
   kontrol('İstenen düzeltme kayda geçti', inc3.includes('Levha okunmuyor'));
 
-  /* ───────── 11) Kurum tarafı düzeltmeyi görüyor mu ───────── */
-  await s.goto(`${KOK}/kurum/basvurum`, { waitUntil: 'networkidle2' });
-  await bekle(800);
-  const kur = await s.evaluate(() => document.body.innerText);
-  kontrol('Kurum düzeltme talebini görüyor',
-    kur.includes('Düzeltilmesi istenen') && kur.includes('Levha okunmuyor'));
-  kontrol('Kurum yeniden gönderebiliyor', kur.includes('Başvuruyu gönder'));
+  /* ───────── 8) PANELSİZ düzeltme: başvuranın hesabı yok ───────── */
+  // Ham token yalnızca üretildiği anda görünür (sunucuda hash'i durur);
+  // yetkilinin "yeniden gönder" eylemi yenisini üretir.
+  const tokenCikti = artisan(`
+$b = App\\Models\\Basvuru::where('basvuran_eposta','${EPOSTA}')->latest('id')->first();
+echo 'TOKEN:' . app(App\\Servisler\\BasvuruBiletiAkisi::class)->yenidenGonder($b);`);
+  const token = (tokenCikti.match(/TOKEN:(\S+)/) || [])[1];
+  kontrol('Düzeltme bileti üretildi', !!token);
+  if (!token) throw new Error('düzeltme bileti yok');
 
-  /* ───────── 12) Düzelt ve yeniden gönder ───────── */
-  await s.evaluate(() => [...document.querySelectorAll('button')]
-    .find(b => b.innerText.trim() === 'Başvuruyu gönder')?.click());
-  await bekle(2500);
-  await s.reload({ waitUntil: 'networkidle2' });
-  const kur2 = await s.evaluate(() => document.body.innerText);
-  kontrol('Yeniden gönderildi ve düzeltme notları temizlendi',
-    kur2.includes('Gönderildi') && !kur2.includes('Düzeltilmesi istenen'));
+  // 🪤 AYRI bağlam: bu sayfanın hiçbir oturuma ihtiyacı OLMAMALI.
+  const dBaglam = await b.createBrowserContext();
+  const d = await dBaglam.newPage();
+  await d.goto(`${KOK}/basvuru/duzelt/${token}`, { waitUntil: 'networkidle2' });
+  const duz = await d.evaluate(() => document.body.innerText);
+  kontrol('Düzeltme sayfası hesap gerektirmeden açıldı',
+    duz.includes('Başvurunuzu düzeltin') && duz.includes('Levha okunmuyor'));
 
-  /* ───────── 13) Onay ───────── */
+  const duzGirisler = await d.$$('input[type="file"]');
+  kontrol('Yalnızca işaretlenen evrak açıldı', duzGirisler.length === 1, `${duzGirisler.length} alan`);
+  await duzGirisler[0]?.uploadFile(`${DOSYA}/vergi-levhasi.pdf`);
+  await Promise.all([
+    d.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
+    d.click('button[type="submit"]'),
+  ]);
+  kontrol('Düzeltme gönderildi', d.url().includes('/basvuru/gonderildi'), d.url().replace(KOK, ''));
+
+  /* ───────── 9) Onay ───────── */
   await y.goto(acLink, { waitUntil: 'networkidle2' });
   await bekle(900);
   await y.evaluate(() => [...document.querySelectorAll('button, a')]
@@ -291,11 +244,17 @@ try {
     (inc4.match(/Taslak|Gönderildi|İncelemede|Eksik evrak|Onaylandı|Reddedildi/) || ['?'])[0]);
   await y.screenshot({ path: '/root/byd-inceleme.png', fullPage: true });
 
-  /* ───────── 14) Kurum akredite oldu mu (veritabanı) ───────── */
-  const durum = artisan(`$u = App\\Models\\User::where('email','${EPOSTA}')->first();
-    echo 'AKRED:' . ($u?->kurum?->akreditasyon_durumu ?? 'yok');`);
-  kontrol('Kurum akredite edildi', /AKRED:akredite/.test(durum),
-    (durum.match(/AKRED:\w+/) || ['?'])[0]);
+  /* ───────── 10) Hesap ONAYDA açıldı, kurum akredite ───────── */
+  const sonDurum = artisan(`
+$u = App\\Models\\User::where('email','${EPOSTA}')->first();
+echo 'HESAP:' . ($u ? 'var' : 'yok')
+   . ' ROL:' . ($u?->getRoleNames()->implode(',') ?: 'yok')
+   . ' AKRED:' . ($u?->kurum?->akreditasyon_durumu ?? 'yok');`);
+  kontrol('Hesap ONAY anında açıldı ve kurum rolü verildi',
+    /HESAP:var/.test(sonDurum) && /ROL:[^ ]*kurum/.test(sonDurum),
+    (sonDurum.match(/HESAP:\w+ ROL:\S+/) || ['?'])[0]);
+  kontrol('Kurum akredite edildi', /AKRED:akredite/.test(sonDurum),
+    (sonDurum.match(/AKRED:\w+/) || ['?'])[0]);
 
   await b.close();
 } catch (e) {
@@ -305,16 +264,23 @@ try {
 } finally {
   /* ───────── Temizlik: SADECE bu testin oluşturduğu kayıt ───────── */
   if (temizlenecekEposta) {
+    // 🪤 Hesap onaya kadar YOK: temizlik başvurudan yürür, kullanıcıdan değil.
     const kod = `
-$u = App\\Models\\User::where('email', '${temizlenecekEposta}')->first();
+$bler = App\\Models\\Basvuru::withTrashed()->where('basvuran_eposta', '${temizlenecekEposta}')->get();
+$kurumlar = $bler->pluck('kurum_id')->filter()->unique();
+foreach (App\\Models\\Evrak::withTrashed()->whereIn('basvuru_id', $bler->pluck('id'))->get() as $e) {
+    Illuminate\\Support\\Facades\\Storage::disk($e->disk)->delete($e->yol);
+}
+App\\Models\\Evrak::withTrashed()->whereIn('basvuru_id', $bler->pluck('id'))->forceDelete();
+App\\Models\\BasvuruBileti::whereIn('basvuru_id', $bler->pluck('id'))->delete();
+App\\Models\\Basvuru::withTrashed()->whereIn('id', $bler->pluck('id'))->forceDelete();
+$u = App\\Models\\User::withTrashed()->where('email', '${temizlenecekEposta}')->first();
 if ($u) {
-    $k = $u->kurum;
-    App\\Models\\Evrak::whereIn('basvuru_id', $u->basvurular()->pluck('id'))->get()->each->forceDelete();
-    $u->basvurular()->forceDelete();
+    Illuminate\\Support\\Facades\\DB::table('model_has_roles')->where('model_id', $u->id)->delete();
     $u->forceDelete();
-    if ($k) { $k->forceDelete(); }
-    echo 'TEMIZ';
-} else { echo 'YOK'; }`;
+}
+App\\Models\\Kurum::withTrashed()->whereIn('id', $kurumlar)->forceDelete();
+echo 'TEMIZ';`;
     try { console.log('🧹 ' + artisan(kod).trim().split('\n').pop()); }
     catch (e) { console.log('⚠️ temizlik yapılamadı: ' + e.message); }
   }

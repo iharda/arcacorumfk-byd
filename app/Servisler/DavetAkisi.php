@@ -41,7 +41,7 @@ class DavetAkisi
         // Kayıtlı e-posta tek başına engel DEĞİL: reddedilen ya da eski
         // kurumundan ayrılmış biri yeniden davet edilebilmeli. Engel yalnızca
         // süren başvuru / geçerli akreditasyon hâllerinde (BasvuruUygunlugu).
-        $this->uygunluk->dogrula($this->uygunluk->hesapBul($eposta));
+        $this->uygunluk->epostaIcinDogrula($eposta);
 
         if ($kurum->kontenjanDoldu()) {
             throw new RuntimeException('Kurum kontenjanı dolu. Yeni davet için kulüple görüşün.');
