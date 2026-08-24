@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
+use App\Enums\CalisanAraligi;
 use App\Jobs\KartUret;
 use App\Models\Akreditasyon;
 use App\Models\Antrenman;
@@ -104,7 +105,7 @@ class PilotVerisi extends Command
             'eposta' => 'iletisim'.self::ETIKET,
             'vergi_dairesi' => 'Çorum Vergi Dairesi',
             'vergi_no' => (string) random_int(1000000000, 9999999999),
-            'calisan_sayisi' => random_int(8, 40),
+            'calisan_araligi' => CalisanAraligi::sayidan(random_int(8, 40)),
             'yayin_platformlari' => [['ad' => $unvan, 'url' => 'https://ornek.test']],
             'akreditasyon_durumu' => $durum,
         ]);

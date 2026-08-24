@@ -3,9 +3,17 @@
 namespace App\Http\Requests;
 
 use App\Enums\BasvuruTuru;
+use App\Enums\CalisanAraligi;
 use App\Http\Requests\Concerns\EvrakKurallari;
+use App\Models\Kurum;
+use App\Rules\TelefonNumarasi;
+use App\Rules\VergiNumarasi;
 use App\Servisler\BasvuruUygunlugu;
+use App\Support\IlIlce;
+use App\Support\UlkeKodu;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Unique;
 
 /**
  * Kurumsal başvuru formu -- Plan v1.0 md.3.1.
@@ -29,13 +37,21 @@ class KurumBasvuruIstegi extends FormRequest
             // Kurum
             'resmi_unvan' => ['required', 'string', 'min:3', 'max:200'],
             'adres' => ['required', 'string', 'max:300'],
-            'il' => ['required', 'string', 'max:60'],
-            'ilce' => ['required', 'string', 'max:60'],
-            'kurum_telefon' => ['required', 'string', 'max:25'],
+            // 🔑 İl/ilçe SERBEST METİN DEĞİL: istemcinin gönderdiği çift resmi
+            // listeyle karşılaştırılır (md.5.1).
+            'il' => ['required', 'string', Rule::in(IlIlce::iller())],
+            'ilce' => ['required', 'string', function (string $alan, mixed $deger, \Closure $hata) {
+                if (! IlIlce::gecerliMi($this->input('il'), (string) $deger)) {
+                    $hata('Seçilen ilçe, ile ait değil.');
+                }
+            }],
+            'kurum_telefon_ulke' => ['required', Rule::in(UlkeKodu::kodlar())],
+            // Kurum telefonu SABİT HAT olabilir: cep zorunluluğu yok.
+            'kurum_telefon' => ['required', 'string', 'max:25', new TelefonNumarasi('kurum_telefon_ulke', cep: false)],
             'kurum_eposta' => ['required', 'email:rfc', 'max:150'],
             'vergi_dairesi' => ['required', 'string', 'max:100'],
-            'vergi_no' => ['required', 'string', 'regex:/^\d{10,11}$/'],
-            'calisan_sayisi' => ['required', 'integer', 'min:1', 'max:100000'],
+            'vergi_no' => ['required', 'string', new VergiNumarasi, $this->vergiNoTekilligi()],
+            'calisan_araligi' => ['required', Rule::enum(CalisanAraligi::class)],
 
             'yayin_platformlari' => ['required', 'array', 'min:1'],
             'yayin_platformlari.*.ad' => ['required', 'string', 'max:120'],
@@ -49,12 +65,26 @@ class KurumBasvuruIstegi extends FormRequest
             // 🔑 `unique` DEĞİL: başvurusu reddedilen kurum yetkilisi aynı
             // e-postayla yeniden başvurabilmeli (bkz. BasvuruUygunlugu).
             'yetkili_eposta' => ['required', 'email:rfc', 'max:150', BasvuruUygunlugu::kural()],
-            'yetkili_telefon' => ['required', 'string', 'max:25'],
+            'yetkili_telefon_ulke' => ['required', Rule::in(UlkeKodu::kodlar())],
+            'yetkili_telefon' => ['required', 'string', 'max:25', new TelefonNumarasi('yetkili_telefon_ulke')],
 
             // KVKK -- açık rıza olmadan başvuru alınmaz (md.11)
             'kvkk_aydinlatma' => ['accepted'],
             'kvkk_riza' => ['accepted'],
         ] + $this->evrakKurallari(BasvuruTuru::Kurum);
+    }
+
+    /**
+     * Aynı vergi numarasıyla ikinci kurum kaydı açılamaz. Yetkilinin KENDİ
+     * önceki (akredite olmayan) kurum kaydı hariç: yeniden başvuran kişi kendi
+     * numarasına takılmamalı.
+     */
+    private function vergiNoTekilligi(): Unique
+    {
+        $kural = Rule::unique('kurumlar', 'vergi_no')->whereNull('deleted_at');
+        $onceki = Kurum::yetkilininOncekiKurumu((string) $this->input('yetkili_eposta'));
+
+        return $onceki === null ? $kural : $kural->ignore($onceki->id);
     }
 
     public function attributes(): array
@@ -63,9 +93,11 @@ class KurumBasvuruIstegi extends FormRequest
             'resmi_unvan' => 'resmi ünvan', 'adres' => 'adres', 'il' => 'il', 'ilce' => 'ilçe',
             'kurum_telefon' => 'kurum telefonu', 'kurum_eposta' => 'kurum e-postası',
             'vergi_dairesi' => 'vergi dairesi', 'vergi_no' => 'vergi numarası',
-            'calisan_sayisi' => 'çalışan sayısı', 'yayin_platformlari' => 'yayın platformları',
+            'calisan_araligi' => 'çalışan sayısı', 'yayin_platformlari' => 'web siteleri ve yayın adresleri',
             'yetkili_ad' => 'yetkili adı soyadı', 'yetkili_eposta' => 'yetkili e-postası',
             'yetkili_telefon' => 'yetkili telefonu',
+            'kurum_telefon_ulke' => 'kurum telefonu ülke kodu',
+            'yetkili_telefon_ulke' => 'yetkili telefonu ülke kodu',
             'kvkk_aydinlatma' => 'aydınlatma metni onayı', 'kvkk_riza' => 'açık rıza onayı',
         ] + $this->evrakAdlari(BasvuruTuru::Kurum);
     }
@@ -73,10 +105,10 @@ class KurumBasvuruIstegi extends FormRequest
     public function messages(): array
     {
         return [
-            'vergi_no.regex' => 'Vergi numarası 10 veya 11 haneli olmalıdır.',
+            'vergi_no.unique' => 'Bu vergi numarasıyla kayıtlı bir kurum zaten var. Kurumunuz başvurduysa yetkilisiyle görüşün.',
             'kvkk_aydinlatma.accepted' => 'Aydınlatma metnini okuduğunuzu onaylamalısınız.',
             'kvkk_riza.accepted' => 'Başvurunun değerlendirilebilmesi için açık rıza gereklidir.',
-            'yayin_platformlari.min' => 'En az bir yayın platformu bağlantısı girmelisiniz.',
+            'yayin_platformlari.min' => 'En az bir yayın adresi girmelisiniz.',
             'evraklar.*.required' => ':attribute yüklemelisiniz.',
         ];
     }

@@ -66,6 +66,10 @@ Sistem canlıya çıkmadan önce buradaki her maddenin **evet** olması gerekir.
 - [ ] Hedef sunucuda: PHP 8.3+, PostgreSQL, Redis, başsız Chrome
 - [ ] Yoksa yedek planlar: MySQL/MariaDB · veritabanı kuyruğu + cron · PHP PDF motoru
 - [ ] `.env`'deki her yol yeni sunucuya göre güncellendi *(kodda sabit yol yok)*
+- [ ] **Yükleme sınırı**: php-fpm `post_max_size` ≥ 32M, `upload_max_filesize`
+      ≥ 16M; nginx `client_max_body_size` **PHP'den yüksek** (40M) olmalı ki
+      taşan istek nginx'in çıplak 413'üne değil uygulamanın 413 sayfasına düşsün.
+      Basın mensubu başvurusu üç evrakla 21 MB'a çıkabiliyor.
 - [ ] `opcache.max_accelerated_files` **en az 32000** — varsayılan 10.000 yetmiyor,
       site 9 kat yavaşlıyor
 - [ ] Zamanlayıcı cron'u kuruldu *(evrak imhası)*

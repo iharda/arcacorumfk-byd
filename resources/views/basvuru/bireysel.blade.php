@@ -54,10 +54,9 @@
                     <x-parcalar.alan ad="ad_soyad" etiket="Ad soyad" zorunlu :sutun="2" />
                     <x-parcalar.alan ad="eposta" etiket="E-posta" tur="email" zorunlu :sutun="1" />
                 @endunless
-                <x-parcalar.alan ad="telefon" etiket="Telefon" tur="tel" zorunlu :sutun="1" ipucu="0500 000 00 00" />
+                <x-parcalar.telefon ad="telefon" etiket="Cep telefonu" />
                 <x-parcalar.alan ad="adres" etiket="Adres" zorunlu :sutun="2" />
-                <x-parcalar.alan ad="il" etiket="İl" zorunlu :sutun="1" />
-                <x-parcalar.alan ad="ilce" etiket="İlçe" zorunlu :sutun="1" />
+                <x-parcalar.il-ilce />
             </div>
         </section>
 
@@ -118,7 +117,7 @@
 
                     <x-parcalar.evet-hayir ad="sigorta_212_var" etiket="212 sayılı Basın İş Kanunu sigortası" zorunlu />
                     <x-parcalar.evet-hayir ad="basin_karti_var" etiket="Basın kartı" zorunlu />
-                    <x-parcalar.alan ad="calisma_yili" etiket="Medya sektöründe çalışma yılı"
+                    <x-parcalar.alan ad="calisma_yili" etiket="Medya sektöründeki deneyiminiz (yıl)"
                                      tur="number" zorunlu :sutun="1" min="0" max="70" />
                 </div>
             </section>

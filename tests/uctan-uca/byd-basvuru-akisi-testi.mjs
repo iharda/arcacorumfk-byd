@@ -67,18 +67,22 @@ try {
   const doldur = async (ad, deger) => { await s.type(`[name="${ad}"]`, deger); };
   await doldur('resmi_unvan', UNVAN);
   await doldur('adres', 'Gazi Caddesi No: 12');
-  await doldur('il', 'Çorum');
-  await doldur('ilce', 'Merkez');
-  await doldur('kurum_telefon', '0364 213 45 67');
+  // 🪤 İl/ilçe artık AÇILIR LİSTE ve bağlı: ilçe seçenekleri il seçildikten
+  //    sonra çizilir. Telefon alanı maskeli — yalnızca rakam yazılır.
+  await s.select('#il', 'Çorum');
+  await bekle(500);
+  await s.select('#ilce', 'Merkez');
+  await doldur('kurum_telefon', '3642134567');
   await doldur('kurum_eposta', `kurum+${damga}@ornek.test`);
   await doldur('vergi_dairesi', 'Çorum Vergi Dairesi');
+  // Sağlaması tutan VKN (bkz. tests/Unit/VergiNumarasiTest).
   await doldur('vergi_no', '1234567890');
-  await doldur('calisan_sayisi', '24');
+  await s.select('#calisan_araligi', '21-50');
   await s.type('[name="yayin_platformlari[0][ad]"]', 'Test Haber');
   await s.type('[name="yayin_platformlari[0][url]"]', 'https://ornek.test/haber');
   await doldur('yetkili_ad', 'Deneme Yetkili');
   await doldur('yetkili_eposta', EPOSTA);
-  await doldur('yetkili_telefon', '0532 111 22 33');
+  await doldur('yetkili_telefon', '5321112233');
   await s.click('[name="kvkk_aydinlatma"]');
   await s.click('[name="kvkk_riza"]');
 

@@ -101,13 +101,17 @@ try {
   await form.goto(`${KOK}/basvuru/kurum`, { waitUntil: 'networkidle2' });
   const doldur = async (ad, d) => form.type(`[name="${ad}"]`, d);
   await doldur('resmi_unvan', `KVKK Test ${damga}`); await doldur('adres', 'Adres');
-  await doldur('il', 'Çorum'); await doldur('ilce', 'Merkez');
-  await doldur('kurum_telefon', '0364 111 11 11'); await doldur('kurum_eposta', `kvkk+${damga}@ornek.test`);
+  // 🪤 İl/ilçe bağlı açılır liste, telefon maskeli, çalışan sayısı seçmeli
+  //    (Revizyon md.5): eski `type()` çağrıları alanları bulamıyordu.
+  await form.select('#il', 'Çorum');
+  await bekle(500);
+  await form.select('#ilce', 'Merkez');
+  await doldur('kurum_telefon', '3641111111'); await doldur('kurum_eposta', `kvkk+${damga}@ornek.test`);
   await doldur('vergi_dairesi', 'VD'); await doldur('vergi_no', '1234567890');
-  await doldur('calisan_sayisi', '3');
+  await form.select('#calisan_araligi', '1-5');
   await doldur('yayin_platformlari[0][ad]', 'X'); await doldur('yayin_platformlari[0][url]', 'https://ornek.test');
   await doldur('yetkili_ad', 'Ad Soyad'); await doldur('yetkili_eposta', `kvkkyetkili+${damga}@ornek.test`);
-  await doldur('yetkili_telefon', '0532 000 00 00');
+  await doldur('yetkili_telefon', '5320000000');
   // KVKK kutuları BİLEREK işaretlenmiyor
   await form.evaluate(() => document.querySelectorAll('[required]').forEach(e => e.removeAttribute('required')));
   await Promise.all([form.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}), form.click('button[type="submit"]')]);
@@ -159,7 +163,7 @@ echo 'TOKEN:' . $token;`);
     g.set('_token', document.querySelector('input[name=_token]').value);
     g.set('kurum_ulid', ulid);
     g.set('ad_soyad', 'Sızma Deneme'); g.set('eposta', eposta);
-    g.set('telefon', '0530 000 00 00'); g.set('adres', 'Adres');
+    g.set('telefon_ulke', '+90'); g.set('telefon', '530 000 00 00'); g.set('adres', 'Adres');
     g.set('il', 'Çorum'); g.set('ilce', 'Merkez'); g.set('calisma_yili', '2');
     g.set('sigorta_212_var', '1'); g.set('basin_karti_var', '0');
     g.set('kvkk_aydinlatma', '1'); g.set('kvkk_riza', '1');

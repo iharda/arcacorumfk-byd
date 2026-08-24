@@ -50,10 +50,10 @@
                         @foreach ([
                             'Ünvan'        => $record->kurum->resmi_unvan,
                             'Adres'        => trim(($record->kurum->adres ?? '') . ' · ' . ($record->kurum->ilce ?? '') . '/' . ($record->kurum->il ?? ''), ' ·/'),
-                            'Telefon'      => $record->kurum->telefon,
+                            'Telefon'      => \App\Support\Telefon::goster($record->kurum->telefon),
                             'E-posta'      => $record->kurum->eposta,
                             'Vergi'        => trim(($record->kurum->vergi_dairesi ?? '') . ' · ' . ($record->kurum->vergi_no ?? ''), ' ·'),
-                            'Çalışan'      => $record->kurum->calisan_sayisi,
+                            'Çalışan'      => $record->kurum->calisan_araligi?->etiket() ?? $record->kurum->calisan_sayisi,
                         ] as $etiket => $deger)
                             @if (filled($deger))
                                 <dt style="opacity:.6; white-space:nowrap;">{{ $etiket }}</dt>
@@ -107,9 +107,10 @@
                     {{-- Hesap ONAY anında açılır: onaya kadar bilgiler başvurunun üstünde. --}}
                     <dt style="opacity:.6;">Ad</dt><dd>{{ $record->basvuranAdi() }}</dd>
                     <dt style="opacity:.6;">E-posta</dt><dd style="word-break:break-all;">{{ $record->basvuranEpostasi() }}</dd>
-                    @php $telefon = $record->kullanici?->telefon ?? $record->basvuran_telefon; @endphp
+                    {{-- Saklama biçimi E.164; okunur biçim ekranda üretilir. --}}
+                    @php $telefon = $record->basvuran_telefon ?? $record->kullanici?->telefon; @endphp
                     @if ($telefon)
-                        <dt style="opacity:.6;">Telefon</dt><dd>{{ $telefon }}</dd>
+                        <dt style="opacity:.6;">Telefon</dt><dd>{{ \App\Support\Telefon::goster($telefon) }}</dd>
                     @endif
                 </dl>
             </x-filament::section>

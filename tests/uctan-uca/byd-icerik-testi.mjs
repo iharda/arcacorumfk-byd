@@ -45,10 +45,15 @@ echo 'SAYI:' . Illuminate\\Support\\Facades\\DB::table('jobs')->count();`);
   return Number((cikti.match(/SAYI:(\d+)/) || [, '0'])[1]);
 }
 
-/** Horizon kuyruğu boşalana kadar bekle. */
+/**
+ * Horizon kuyruğu boşalana kadar bekle.
+ *
+ * 💀 Eskiden `jobs` TABLOSUNU sayıyordu: o tablo veritabanı sürücüsüne ait,
+ * bu kurulumda kuyruk REDIS'te. Sayı hep 0 çıkıyor, fonksiyon hiç beklemiyordu.
+ */
 function kuyrukBosalsin(saniye = 40) {
   for (let i = 0; i < saniye; i++) {
-    const c = artisan(`echo 'BEKLEYEN:' . Illuminate\\Support\\Facades\\DB::table('jobs')->count();`);
+    const c = artisan(`echo 'BEKLEYEN:' . Illuminate\\Support\\Facades\\Queue::size();`);
     if ((c.match(/BEKLEYEN:(\d+)/) || [, '1'])[1] === '0') return true;
     execFileSync('sleep', ['1']);
   }
@@ -186,6 +191,9 @@ echo 'AKREDITE:' . (in_array('${AKREDITE}', $a) ? 'evet' : 'hayir')
     (await uye.evaluate(() => document.body.innerText)).includes(BULTEN_BASLIK));
 
   /* ═════ 4) İkinci yayında tekrar e-posta YOK ═════ */
+  // 🪤 İKİ ölçüt birden: kuyruk gerçekten boşalmalı (yetkili kaynak) VE günlük
+  //    yazımı durmalı (Horizon çıktısı tamponlu; iş bittikten sonra da yazıyor).
+  kuyrukBosalsin();
   await kuyrukSakinlesin();
   const isaret2 = statSync('/var/log/byd-horizon.log').size;
   artisan(`
@@ -195,6 +203,8 @@ $s->yayindanKaldir($d, 'duyuru');
 $s->yayinla($d, 'duyuru');
 echo 'TEKRAR';`);
   await bekle(5000);
+  kuyrukBosalsin();
+  await kuyrukSakinlesin();
   kontrol('Yeniden yayında İKİNCİ bildirim gitmiyor', icerikBildirimAdedi(isaret2) === 0,
     `${icerikBildirimAdedi(isaret2)} gönderim`);
 

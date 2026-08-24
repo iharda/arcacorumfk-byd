@@ -15,6 +15,7 @@ use App\Servisler\BasvuruEvrakAlici;
 use App\Servisler\BasvuruUygunlugu;
 use App\Servisler\DavetAkisi;
 use App\Servisler\DenetimYazici;
+use App\Support\Telefon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -212,11 +213,11 @@ class BasvuruController extends Controller
             'adres' => $veri['adres'],
             'il' => $veri['il'],
             'ilce' => $veri['ilce'],
-            'telefon' => $this->telefonBicimle($veri['kurum_telefon']),
+            'telefon' => Telefon::e164($veri['kurum_telefon'], $veri['kurum_telefon_ulke']),
             'eposta' => $veri['kurum_eposta'],
             'vergi_dairesi' => $veri['vergi_dairesi'],
             'vergi_no' => $veri['vergi_no'],
-            'calisan_sayisi' => $veri['calisan_sayisi'],
+            'calisan_araligi' => $veri['calisan_araligi'],
             'yayin_platformlari' => array_values($veri['yayin_platformlari']),
             'sosyal_medya' => array_filter($veri['sosyal_medya'] ?? []),
             'akreditasyon_durumu' => 'beklemede',
@@ -231,10 +232,9 @@ class BasvuruController extends Controller
             'kurum_id' => $kurum->id,
             'basvuran_ad' => $veri['yetkili_ad'],
             'basvuran_eposta' => $eposta,
-            'basvuran_telefon' => $this->telefonBicimle($veri['yetkili_telefon']),
+            'basvuran_telefon' => Telefon::e164($veri['yetkili_telefon'], $veri['yetkili_telefon_ulke']),
             'form_verisi' => [
                 'yetkili_ad' => $veri['yetkili_ad'],
-                'yetkili_telefon' => $veri['yetkili_telefon'],
                 'kvkk_onay_at' => now()->toIso8601String(),
             ],
         ]);
@@ -264,7 +264,7 @@ class BasvuruController extends Controller
             'kurum_baslatti' => $kurumBaslatti,
             'basvuran_ad' => $veri['ad_soyad'],
             'basvuran_eposta' => $veri['eposta'],
-            'basvuran_telefon' => $this->telefonBicimle($veri['telefon']),
+            'basvuran_telefon' => Telefon::e164($veri['telefon'], $veri['telefon_ulke']),
             // 🔑 Kişisel bilgiler hesap yerine BAŞVURUDA durur; onay anında
             // HesapAcici bunları açtığı hesaba taşır.
             'form_verisi' => array_filter([
@@ -299,15 +299,8 @@ class BasvuruController extends Controller
      */
     private function kurumuHazirla(string $eposta, array $veri): Kurum
     {
-        $onceki = Kurum::query()
-            ->whereIn('id', Basvuru::query()
-                ->where('tur', BasvuruTuru::Kurum->value)
-                ->where('basvuran_eposta', $eposta)
-                ->whereNotNull('kurum_id')
-                ->pluck('kurum_id'))
-            ->where('akreditasyon_durumu', '!=', 'akredite')
-            ->latest('id')
-            ->first();
+        // Aynı arama vergi no tekillik kuralında da kullanılıyor: tek kaynak.
+        $onceki = Kurum::yetkilininOncekiKurumu($eposta);
 
         if ($onceki) {
             $onceki->update($veri);
@@ -336,25 +329,5 @@ class BasvuruController extends Controller
             // Panelsiz düzeltmeden gelindiyse metin farklı.
             'duzeltme' => (bool) session('duzeltme', false),
         ]);
-    }
-
-    /**
-     * Telefonu +90 XXX XXX XX XX biçimine çevirir.
-     * (ValCert'te 2445 kaydı sonradan düzeltmek zorunda kalmıştık — baştan yaz.)
-     */
-    private function telefonBicimle(string $ham): string
-    {
-        $rakam = preg_replace('/\D+/', '', $ham) ?? '';
-        $rakam = ltrim($rakam, '0');
-        if (str_starts_with($rakam, '90')) {
-            $rakam = substr($rakam, 2);
-        }
-
-        if (strlen($rakam) !== 10) {
-            return $ham;   // beklenmedik biçim: olduğu gibi sakla, veri kaybetme
-        }
-
-        return sprintf('+90 %s %s %s %s',
-            substr($rakam, 0, 3), substr($rakam, 3, 3), substr($rakam, 6, 2), substr($rakam, 8, 2));
     }
 }

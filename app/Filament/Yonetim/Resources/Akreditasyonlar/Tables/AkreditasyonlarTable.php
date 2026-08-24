@@ -9,6 +9,7 @@ use App\Models\Ayar;
 use App\Servisler\AkreditasyonAkisi;
 use App\Servisler\CsvDisaAktar;
 use App\Servisler\DenetimYazici;
+use App\Support\Telefon;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Textarea;
@@ -99,7 +100,7 @@ class AkreditasyonlarTable
                             $a->kart_no,
                             $a->kullanici?->name,
                             $a->kullanici?->email,
-                            $a->kullanici?->telefon,
+                            Telefon::goster($a->kullanici?->telefon),
                             $a->kurum?->resmi_unvan ?? 'Bağımsız',
                             $a->durum->etiket(),
                             implode(', ', $a->bolge_yetkileri ?? []),

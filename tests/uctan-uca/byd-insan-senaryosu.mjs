@@ -134,20 +134,23 @@ async function kurumBasvurusu(s, kisi, adres, vergiNo, kvkkGez, evraklar) {
 
   await yaz(s, '[name="resmi_unvan"]', kisi.unvan);
   await yaz(s, '[name="adres"]', adres);
-  await yaz(s, '[name="il"]', 'Çorum');
-  await yaz(s, '[name="ilce"]', 'Merkez');
+  // 🪤 İl/ilçe bağlı açılır liste: ilçeler il seçildikten SONRA çizilir.
+  await s.select('#il', 'Çorum');
+  await bekle(500);
+  await s.select('#ilce', 'Merkez');
   await dusun();
-  await yaz(s, '[name="kurum_telefon"]', '0364 213 45 67');
+  // Telefon maskeli: yalnızca rakam yazılır, biçimi maske verir.
+  await yaz(s, '[name="kurum_telefon"]', '3642134567');
   await yaz(s, '[name="kurum_eposta"]', kisi.kurumEposta);
   await yaz(s, '[name="vergi_dairesi"]', 'Çorum Vergi Dairesi');
   await yaz(s, '[name="vergi_no"]', vergiNo);
-  await yaz(s, '[name="calisan_sayisi"]', '24');
+  await s.select('#calisan_araligi', '21-50');
   await yaz(s, '[name="yayin_platformlari[0][ad]"]', 'Kızılırmak Haber');
   await yaz(s, '[name="yayin_platformlari[0][url]"]', 'https://ornek.test/kizilirmak');
   await dusun();
   await yaz(s, '[name="yetkili_ad"]', kisi.yetkiliAd);
   await yaz(s, '[name="yetkili_eposta"]', kisi.yetkiliEposta);
-  await yaz(s, '[name="yetkili_telefon"]', '0532 411 22 33');
+  await yaz(s, '[name="yetkili_telefon"]', '5324112233');
 
   if (kvkkGez) {
     // İnsan gibi: onay kutusunu işaretlemeden önce metni açıp okur.
@@ -257,7 +260,7 @@ try {
   await s1.setViewport({ width: 1440, height: 1000 });
 
   // İnsan hatası: ticaret sicil yerine PDF sandığı bozuk dosyayı seçer.
-  await kurumBasvurusu(s1, K1, 'Gazi Caddesi No: 48/3', '4820561973', true,
+  await kurumBasvurusu(s1, K1, 'Gazi Caddesi No: 48/3', '6971435586', true,
     [`${D}/sahte-belge.pdf`, `${D}/vergi-levhasi.pdf`]);
   const hata1 = await govde(s1);
   kontrol('Sahte PDF (magic byte) formda reddedildi',
@@ -290,7 +293,7 @@ echo 'DURUM:' . ($b?->durum->value ?? 'yok') . ' EVRAK:' . ($b?->evraklar()->cou
   const c2 = await b.createBrowserContext();
   const s2 = await c2.newPage();
   await s2.setViewport({ width: 1440, height: 1000 });
-  await kurumBasvurusu(s2, K2, 'İnönü Caddesi No: 7', '7391045628', false,
+  await kurumBasvurusu(s2, K2, 'İnönü Caddesi No: 7', '1721541811', false,
     [`${D}/ticaret-sicil.pdf`, `${D}/vergi-levhasi.jpg`]);
   kontrol('İkinci kurum başvurusu gönderildi', s2.url().includes('/basvuru/gonderildi'),
     s2.url().replace(KOK, ''));
@@ -451,10 +454,11 @@ echo 'GEREKCE:' . (str_contains((string) $b->karar_gerekcesi, 'güncel değil') 
 
   await yaz(s3, '[name="ad_soyad"]', P1.ad);
   await yaz(s3, '[name="eposta"]', P1.eposta);
-  await yaz(s3, '[name="telefon"]', '0535 220 11 44');
+  await yaz(s3, '[name="telefon"]', '5352201144');
   await yaz(s3, '[name="adres"]', 'Bahçelievler Mah. 3. Sok. No: 9');
-  await yaz(s3, '[name="il"]', 'Çorum');
-  await yaz(s3, '[name="ilce"]', 'Merkez');
+  await s3.select('#il', 'Çorum');
+  await bekle(500);
+  await s3.select('#ilce', 'Merkez');
   const k1Ulid = await s3.$$eval('#kurum_ulid option',
     (o, u) => o.find(x => x.textContent.includes(u))?.value, 'Kızılırmak');
   await s3.select('#kurum_ulid', k1Ulid);

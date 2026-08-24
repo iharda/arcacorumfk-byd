@@ -89,22 +89,29 @@ $gonder = function (CookieJar $kavanoz, string $yol, array $alanlar, array $dosy
     return $istek->post($kok.$yol, $alanlar);
 };
 
-$kurumAlanlari = fn (string $eposta, string $jeton) => [
+/*
+ * 🪤 Vergi numarası artık SAĞLAMALI ve TEKİL: her gönderim kendi geçerli
+ * numarasını kullanır, yoksa reddedilen denemeler "vergi no zaten kayıtlı"
+ * hatasına takılır ve ölçmek istediğimiz evrak hatası hiç görünmez.
+ */
+$kurumAlanlari = fn (string $eposta, string $jeton, string $vergiNo) => [
     '_token' => $jeton,
     'resmi_unvan' => "Form Testi Medya {$damga}",
     'adres' => 'Gazi Caddesi No 1',
     'il' => 'Çorum',
     'ilce' => 'Merkez',
-    'kurum_telefon' => '0364 000 00 00',
+    'kurum_telefon_ulke' => '+90',
+    'kurum_telefon' => '364 213 45 67',
     'kurum_eposta' => $eposta,
     'vergi_dairesi' => 'Çorum',
-    'vergi_no' => '1234567890',
-    'calisan_sayisi' => '7',
+    'vergi_no' => $vergiNo,
+    'calisan_araligi' => '6-10',
     'yayin_platformlari[0][ad]' => 'Form Testi Haber',
     'yayin_platformlari[0][url]' => 'https://ornek.com.tr',
     'yetkili_ad' => 'Form Testi Yetkilisi',
     'yetkili_eposta' => $eposta,
-    'yetkili_telefon' => '0555 000 00 00',
+    'yetkili_telefon_ulke' => '+90',
+    'yetkili_telefon' => '555 000 00 00',
     'kvkk_aydinlatma' => '1',
     'kvkk_riza' => '1',
 ];
@@ -126,7 +133,7 @@ try {
         str_contains($sayfa->body(), 'name="evraklar['.$ticaret->id.']"')
         && str_contains($sayfa->body(), 'enctype="multipart/form-data"'));
 
-    $yanit = $gonder($kavanoz, '/basvuru/kurum', $kurumAlanlari($eposta, $tokenBul($sayfa->body())), [
+    $yanit = $gonder($kavanoz, '/basvuru/kurum', $kurumAlanlari($eposta, $tokenBul($sayfa->body()), '5486177004'), [
         'evraklar['.$ticaret->id.']' => ["{$belge}/ticaret-sicil.pdf", 'ticaret-sicil.pdf'],
         'evraklar['.$vergi->id.']' => ["{$belge}/vergi-levhasi.pdf", 'vergi-levhasi.pdf'],
     ]);
@@ -164,7 +171,7 @@ try {
     $eksikEposta = "eksik+{$damga}@ornek.test";
     [$kavanoz2, $sayfa2] = $formAc('/basvuru/kurum');
 
-    $eksikYanit = $gonder($kavanoz2, '/basvuru/kurum', $kurumAlanlari($eksikEposta, $tokenBul($sayfa2->body())), [
+    $eksikYanit = $gonder($kavanoz2, '/basvuru/kurum', $kurumAlanlari($eksikEposta, $tokenBul($sayfa2->body()), '9734428737'), [
         'evraklar['.$ticaret->id.']' => ["{$belge}/ticaret-sicil.pdf", 'ticaret-sicil.pdf'],
     ]);
 
@@ -186,7 +193,7 @@ try {
 
     // İlk evrak GEÇERLİ (diske yazılır), ikincisi PDF gibi görünen bir CSV:
     // işlem geri sarar, birincinin dosyası diskte kalmamalı.
-    $bozukYanit = $gonder($kavanoz3, '/basvuru/kurum', $kurumAlanlari($bozukEposta, $tokenBul($sayfa3->body())), [
+    $bozukYanit = $gonder($kavanoz3, '/basvuru/kurum', $kurumAlanlari($bozukEposta, $tokenBul($sayfa3->body()), '8976910380'), [
         'evraklar['.$ticaret->id.']' => ["{$belge}/ticaret-sicil.pdf", 'ticaret-sicil.pdf'],
         'evraklar['.$vergi->id.']' => ["{$belge}/sahte-belge.pdf", 'vergi-levhasi.pdf'],
     ]);
@@ -205,7 +212,7 @@ try {
     /* ── 4. Aynı e-postayla ikinci başvuru ─────────────────────────── */
     $sinirSifirla();
     [$kavanoz4, $sayfa4] = $formAc('/basvuru/kurum');
-    $tekrarYanit = $gonder($kavanoz4, '/basvuru/kurum', $kurumAlanlari($eposta, $tokenBul($sayfa4->body())), [
+    $tekrarYanit = $gonder($kavanoz4, '/basvuru/kurum', $kurumAlanlari($eposta, $tokenBul($sayfa4->body()), '5486177004'), [
         'evraklar['.$ticaret->id.']' => ["{$belge}/ticaret-sicil.pdf", 'ticaret-sicil.pdf'],
         'evraklar['.$vergi->id.']' => ["{$belge}/vergi-levhasi.pdf", 'vergi-levhasi.pdf'],
     ]);
@@ -225,7 +232,8 @@ try {
         '_token' => $tokenBul($sayfa5->body()),
         'ad_soyad' => 'Form Testi Üretici',
         'eposta' => $bireyEposta,
-        'telefon' => '0555 000 00 01',
+        'telefon_ulke' => '+90',
+        'telefon' => '555 000 00 01',
         'adres' => 'İnönü Caddesi No 2',
         'il' => 'Çorum',
         'ilce' => 'Sungurlu',
@@ -251,6 +259,8 @@ try {
 
     $temizlik['basvuru'][] = $birey->id;
 
+    $kontrol('Telefon E.164 olarak saklandı',
+        $birey->basvuran_telefon === '+905550000001', (string) $birey->basvuran_telefon);
     $kontrol('Kişisel bilgiler hesap yerine başvuruda duruyor',
         ($birey->form_verisi['il'] ?? null) === 'Çorum'
         && ($birey->form_verisi['ilce'] ?? null) === 'Sungurlu'

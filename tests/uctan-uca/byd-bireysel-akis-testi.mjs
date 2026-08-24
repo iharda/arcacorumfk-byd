@@ -146,10 +146,12 @@ echo 'HAZIR';`);
   await s1.goto(`${KOK}/basvuru/icerik-ureticisi`, { waitUntil: 'networkidle2' });
   await s1.type('[name="ad_soyad"]', 'Bağımsız Gazeteci');
   await s1.type('[name="eposta"]', ICERIK);
-  await s1.type('[name="telefon"]', '0533 111 22 33');
+  await s1.type('[name="telefon"]', '5331112233');
   await s1.type('[name="adres"]', 'Yeni Mahalle 5');
-  await s1.type('[name="il"]', 'Çorum');
-  await s1.type('[name="ilce"]', 'Merkez');
+  // 🪤 İl/ilçe bağlı açılır liste; ilçeler il seçilince çizilir.
+  await s1.select('#il', 'Çorum');
+  await bekle(500);
+  await s1.select('#ilce', 'Merkez');
   await s1.type('[name="sosyal_medya[x]"]', 'https://ornek.test/x');
   await s1.evaluate(() => {
     document.querySelector('input[name="basin_karti_var"][value="0"]').click();
@@ -175,10 +177,11 @@ echo 'HAZIR';`);
   await s2.goto(`${KOK}/basvuru/basin-mensubu`, { waitUntil: 'networkidle2' });
   await s2.type('[name="ad_soyad"]', 'Muhabir Aday');
   await s2.type('[name="eposta"]', BASIN);
-  await s2.type('[name="telefon"]', '0534 222 33 44');
+  await s2.type('[name="telefon"]', '5342223344');
   await s2.type('[name="adres"]', 'Gazi Cad. 9');
-  await s2.type('[name="il"]', 'Çorum');
-  await s2.type('[name="ilce"]', 'Merkez');
+  await s2.select('#il', 'Çorum');
+  await bekle(500);
+  await s2.select('#ilce', 'Merkez');
   await s2.type('[name="calisma_yili"]', '6');
   const kurumSecildi = await s2.evaluate((unvan) => {
     const sec = document.querySelector('select[name="kurum_ulid"]');
@@ -260,10 +263,11 @@ echo 'HAZIR';`);
     kontrol('Davet formunda ad/e-posta alanı YOK (kurumdan gelir)',
       await s4.evaluate(() => !document.querySelector('[name="ad_soyad"]')));
 
-    await s4.type('[name="telefon"]', '0535 333 44 55');
+    await s4.type('[name="telefon"]', '5353334455');
     await s4.type('[name="adres"]', 'İnönü Cad. 3');
-    await s4.type('[name="il"]', 'Çorum');
-    await s4.type('[name="ilce"]', 'Merkez');
+    await s4.select('#il', 'Çorum');
+    await bekle(500);
+    await s4.select('#ilce', 'Merkez');
     await s4.type('[name="calisma_yili"]', '3');
     await s4.evaluate(() => {
       document.querySelector('input[name="sigorta_212_var"][value="1"]').click();

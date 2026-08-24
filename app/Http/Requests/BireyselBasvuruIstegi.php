@@ -4,7 +4,10 @@ namespace App\Http\Requests;
 
 use App\Enums\BasvuruTuru;
 use App\Http\Requests\Concerns\EvrakKurallari;
+use App\Rules\TelefonNumarasi;
 use App\Servisler\BasvuruUygunlugu;
+use App\Support\IlIlce;
+use App\Support\UlkeKodu;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -38,9 +41,15 @@ class BireyselBasvuruIstegi extends FormRequest
     {
         $kurallar = [
             'adres' => ['required', 'string', 'max:300'],
-            'il' => ['required', 'string', 'max:60'],
-            'ilce' => ['required', 'string', 'max:60'],
-            'telefon' => ['required', 'string', 'max:25'],
+            // 🔑 İl/ilçe SERBEST METİN DEĞİL: çift resmi listeyle doğrulanır (md.5.1).
+            'il' => ['required', 'string', Rule::in(IlIlce::iller())],
+            'ilce' => ['required', 'string', function (string $alan, mixed $deger, \Closure $hata) {
+                if (! IlIlce::gecerliMi($this->input('il'), (string) $deger)) {
+                    $hata('Seçilen ilçe, ile ait değil.');
+                }
+            }],
+            'telefon_ulke' => ['required', Rule::in(UlkeKodu::kodlar())],
+            'telefon' => ['required', 'string', 'max:25', new TelefonNumarasi('telefon_ulke')],
 
             'basin_karti_var' => ['required', 'boolean'],
 
@@ -90,9 +99,10 @@ class BireyselBasvuruIstegi extends FormRequest
     {
         return [
             'ad_soyad' => 'ad soyad', 'eposta' => 'e-posta', 'telefon' => 'telefon',
+            'telefon_ulke' => 'telefon ülke kodu',
             'adres' => 'adres', 'il' => 'il', 'ilce' => 'ilçe',
             'kurum_ulid' => 'kurum', 'sigorta_212_var' => '212 sigortası',
-            'basin_karti_var' => 'basın kartı', 'calisma_yili' => 'çalışma yılı',
+            'basin_karti_var' => 'basın kartı', 'calisma_yili' => 'mesleki deneyim',
             'sosyal_medya' => 'sosyal medya bağlantıları',
             'kvkk_aydinlatma' => 'aydınlatma metni onayı', 'kvkk_riza' => 'açık rıza onayı',
         ] + $this->evrakAdlari($this->tur());

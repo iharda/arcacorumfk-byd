@@ -54,10 +54,12 @@ async function basvuruGonder(adSoyad) {
   await s.goto(`${KOK}/basvuru/basin-mensubu`, { waitUntil: 'networkidle2' });
   await s.type('[name="ad_soyad"]', adSoyad);
   await s.type('[name="eposta"]', ADAY);
-  await s.type('[name="telefon"]', '0535 444 55 66');
+  await s.type('[name="telefon"]', '5354445566');
   await s.type('[name="adres"]', 'İnönü Cad. 12');
-  await s.type('[name="il"]', 'Çorum');
-  await s.type('[name="ilce"]', 'Merkez');
+  // 🪤 İl/ilçe bağlı açılır liste (Revizyon md.5.1).
+  await s.select('#il', 'Çorum');
+  await bekle(500);
+  await s.select('#ilce', 'Merkez');
   await s.type('[name="calisma_yili"]', '4');
   const secildi = await s.evaluate((unvan) => {
     const sec = document.querySelector('select[name="kurum_ulid"]');

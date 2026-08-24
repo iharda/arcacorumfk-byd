@@ -31,21 +31,37 @@
         <section>
             <h2 class="text-base font-semibold">Kurum bilgileri</h2>
             <div class="mt-4 grid gap-4 sm:grid-cols-2">
-                <x-parcalar.alan ad="resmi_unvan" etiket="Resmi ünvan" zorunlu :sutun="2" />
+                <x-parcalar.alan ad="resmi_unvan" etiket="Resmi unvan" zorunlu :sutun="2" />
                 <x-parcalar.alan ad="adres" etiket="Adres" zorunlu :sutun="2" />
-                <x-parcalar.alan ad="il" etiket="İl" zorunlu :sutun="1" />
-                <x-parcalar.alan ad="ilce" etiket="İlçe" zorunlu :sutun="1" />
-                <x-parcalar.alan ad="kurum_telefon" etiket="Telefon" tur="tel" zorunlu :sutun="1" ipucu="0364 000 00 00" />
+                <x-parcalar.il-ilce />
+                <x-parcalar.telefon ad="kurum_telefon" etiket="Telefon" ipucu="364 213 45 67" />
                 <x-parcalar.alan ad="kurum_eposta" etiket="E-posta" tur="email" zorunlu :sutun="1" />
                 <x-parcalar.alan ad="vergi_dairesi" etiket="Vergi dairesi" zorunlu :sutun="1" />
-                <x-parcalar.alan ad="vergi_no" etiket="Vergi numarası" zorunlu :sutun="1" ipucu="10 veya 11 hane" inputmode="numeric" />
-                <x-parcalar.alan ad="calisan_sayisi" etiket="Çalışan sayısı" tur="number" zorunlu :sutun="1" min="1" />
+                <x-parcalar.alan ad="vergi_no" etiket="Vergi numarası" zorunlu :sutun="1"
+                                 ipucu="10 haneli vergi no veya 11 haneli T.C. kimlik no" inputmode="numeric" />
+
+                @php $calisanHata = $errors->first('calisan_araligi'); @endphp
+                <div>
+                    <label for="calisan_araligi" class="zorunlu block text-sm font-medium text-neutral-800">Çalışan sayısı</label>
+                    <select id="calisan_araligi" name="calisan_araligi" required
+                            @class([
+                                'mt-1.5 block w-full rounded-lg border px-3 py-2 text-sm shadow-xs transition focus:border-kulup-600 focus:ring-2 focus:ring-kulup-600/20 focus:outline-none',
+                                'border-neutral-300 bg-white' => ! $calisanHata,
+                                'border-kulup-600 bg-kulup-50' => (bool) $calisanHata,
+                            ])>
+                        <option value="">Seçiniz…</option>
+                        @foreach (App\Enums\CalisanAraligi::secenekler() as $deger => $etiket)
+                            <option value="{{ $deger }}" @selected(old('calisan_araligi') === $deger)>{{ $etiket }}</option>
+                        @endforeach
+                    </select>
+                    @if ($calisanHata)<p class="mt-1 text-xs text-kulup-700">{{ $calisanHata }}</p>@endif
+                </div>
             </div>
         </section>
 
         {{-- ── Yayın platformları (tekrarlanabilir) ────────── --}}
         <section>
-            <h2 class="text-base font-semibold">Yayın platformları</h2>
+            <h2 class="text-base font-semibold">Web siteleri ve yayın adresleri</h2>
             @error('yayin_platformlari')
                 <p class="mt-1 text-xs text-kulup-700">{{ $message }}</p>
             @enderror
@@ -54,10 +70,10 @@
                 <template x-for="(p, i) in platformlar" :key="i">
                     <div class="flex gap-3">
                         <input type="text" :name="`yayin_platformlari[${i}][ad]`" x-model="p.ad"
-                               placeholder="Yayın adı" required
+                               placeholder="Örn. Çorum Haber Gazetesi" required
                                class="w-1/3 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm shadow-xs focus:border-kulup-600 focus:ring-2 focus:ring-kulup-600/20 focus:outline-none">
                         <input type="url" :name="`yayin_platformlari[${i}][url]`" x-model="p.url"
-                               placeholder="https://" required
+                               placeholder="https://ornek.com.tr" required
                                class="flex-1 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm shadow-xs focus:border-kulup-600 focus:ring-2 focus:ring-kulup-600/20 focus:outline-none">
                         <button type="button" @click="cikar(i)" x-show="platformlar.length > 1"
                                 class="rounded-lg border border-neutral-300 px-3 text-sm text-neutral-500 transition hover:border-kulup-600 hover:text-kulup-700"
@@ -67,7 +83,7 @@
             </div>
             <button type="button" @click="ekle()"
                     class="mt-3 rounded-lg border border-dashed border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 transition hover:border-kulup-600 hover:text-kulup-700">
-                + Platform ekle
+                + Adres ekle
             </button>
         </section>
 
@@ -99,7 +115,7 @@
             <div class="mt-4 grid gap-4 sm:grid-cols-2">
                 <x-parcalar.alan ad="yetkili_ad" etiket="Ad soyad" zorunlu :sutun="2" />
                 <x-parcalar.alan ad="yetkili_eposta" etiket="E-posta" tur="email" zorunlu :sutun="1" />
-                <x-parcalar.alan ad="yetkili_telefon" etiket="Telefon" tur="tel" zorunlu :sutun="1" ipucu="0500 000 00 00" />
+                <x-parcalar.telefon ad="yetkili_telefon" etiket="Cep telefonu" />
             </div>
         </section>
 
