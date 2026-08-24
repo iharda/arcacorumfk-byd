@@ -17,6 +17,7 @@ use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
 use Filament\Support\Enums\Width;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\Collection;
 use Throwable;
 
 /**
@@ -71,6 +72,26 @@ class Inceleme extends Page
     public function getSeciliEvrakModeliProperty()
     {
         return $this->record->evraklar->firstWhere('ulid', $this->seciliEvrak);
+    }
+
+    /**
+     * Aynı kişinin ÖNCEKİ başvuruları. Reddedilen ya da ayrılan biri yeniden
+     * başvurabildiği için yetkili "bunu daha önce görmüş müydük" sorusunun
+     * cevabını ekranda görmeli.
+     *
+     * @return Collection<int, Basvuru>
+     */
+    public function getGecmisBasvurularProperty()
+    {
+        if ($this->record->kullanici_id === null) {
+            return collect();
+        }
+
+        return Basvuru::query()
+            ->where('kullanici_id', $this->record->kullanici_id)
+            ->whereKeyNot($this->record->getKey())
+            ->latest('id')
+            ->get();
     }
 
     /** Eksik evrak talebinde işaretlenebilecek alanlar. */

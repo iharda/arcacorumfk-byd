@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Servisler\BasvuruUygunlugu;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 /**
  * Kurumsal başvuru formu -- Plan v1.0 md.3.1.
@@ -39,7 +39,9 @@ class KurumBasvuruIstegi extends FormRequest
 
             // Yetkili kişi -- hesap bu kişiye açılır
             'yetkili_ad' => ['required', 'string', 'min:3', 'max:120'],
-            'yetkili_eposta' => ['required', 'email:rfc', 'max:150', Rule::unique('users', 'email')],
+            // 🔑 `unique` DEĞİL: başvurusu reddedilen kurum yetkilisi aynı
+            // e-postayla yeniden başvurabilmeli (bkz. BasvuruUygunlugu).
+            'yetkili_eposta' => ['required', 'email:rfc', 'max:150', BasvuruUygunlugu::kural()],
             'yetkili_telefon' => ['required', 'string', 'max:25'],
 
             // KVKK -- açık rıza olmadan başvuru alınmaz (md.11)
@@ -65,7 +67,6 @@ class KurumBasvuruIstegi extends FormRequest
     {
         return [
             'vergi_no.regex' => 'Vergi numarası 10 veya 11 haneli olmalıdır.',
-            'yetkili_eposta.unique' => 'Bu e-posta adresiyle daha önce bir hesap açılmış. Giriş yapabilirsiniz.',
             'kvkk_aydinlatma.accepted' => 'Aydınlatma metnini okuduğunuzu onaylamalısınız.',
             'kvkk_riza.accepted' => 'Başvurunun değerlendirilebilmesi için açık rıza gereklidir.',
             'yayin_platformlari.min' => 'En az bir yayın platformu bağlantısı girmelisiniz.',

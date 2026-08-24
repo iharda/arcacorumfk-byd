@@ -105,6 +105,26 @@
                 </dl>
             </x-filament::section>
 
+            @if ($this->gecmisBasvurular->isNotEmpty())
+                <x-filament::section compact>
+                    <x-slot name="heading">Önceki başvuruları</x-slot>
+                    <div style="display:flex; flex-direction:column; gap:.5rem;">
+                        @foreach ($this->gecmisBasvurular as $gecmis)
+                            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; font-size:.8rem;">
+                                <x-filament::badge :color="$gecmis->durum->renk()">{{ $gecmis->durum->etiket() }}</x-filament::badge>
+                                <span>{{ $gecmis->tur->etiket() }}</span>
+                                <span style="opacity:.6;">
+                                    {{ ($gecmis->karar_at ?? $gecmis->created_at)?->timezone('Europe/Istanbul')->format('d.m.Y') }}
+                                </span>
+                                @if (filled($gecmis->karar_gerekcesi))
+                                    <span style="flex-basis:100%; opacity:.75;">{{ $gecmis->karar_gerekcesi }}</span>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </x-filament::section>
+            @endif
+
             <x-filament::section compact>
                 <x-slot name="heading">Evraklar</x-slot>
                 @if ($record->evraklar->isEmpty())

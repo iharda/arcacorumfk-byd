@@ -51,6 +51,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property ?array $iki_adimli_kurtarma_kodlari
  * @property ?Kurum $kurum
  * @property ?Akreditasyon $akreditasyon
+ * @property Collection<int, Akreditasyon> $akreditasyonlar
  * @property Collection<int, Basvuru> $basvurular
  */
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery, MustVerifyEmail
@@ -81,19 +82,36 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         ];
     }
 
+    /** @return BelongsTo<Kurum, $this> */
     public function kurum(): BelongsTo
     {
         return $this->belongsTo(Kurum::class, 'kurum_id');
     }
 
+    /** @return HasMany<Basvuru, $this> */
     public function basvurular(): HasMany
     {
         return $this->hasMany(Basvuru::class, 'kullanici_id');
     }
 
+    /**
+     * 🪤 Bu ilişki YALNIZCA "en yeni" kaydı verir. Toplu bir işlem (ayrılış,
+     * hesap kapatma) yaparken buna bakma — kişinin birden çok akreditasyonu
+     * olabilir ve eskisi hâlâ AKTİF durabilir. O iş için akreditasyonlar().
+     */
     public function akreditasyon(): HasOne
     {
         return $this->hasOne(Akreditasyon::class, 'kullanici_id')->latestOfMany();
+    }
+
+    /**
+     * Kişinin bütün akreditasyonları — yeniden başvuranda birden fazla olur.
+     *
+     * @return HasMany<Akreditasyon, $this>
+     */
+    public function akreditasyonlar(): HasMany
+    {
+        return $this->hasMany(Akreditasyon::class, 'kullanici_id');
     }
 
     /**

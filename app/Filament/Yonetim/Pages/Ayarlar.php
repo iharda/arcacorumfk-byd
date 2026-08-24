@@ -49,6 +49,7 @@ class Ayarlar extends Page
         $this->form->fill([
             'kurum_teyidi_istensin' => (bool) Ayar::al('kurum_teyidi_istensin', false),
             'davet_gecerlilik_gun' => (int) Ayar::al('davet_gecerlilik_gun', 7),
+            'yeniden_basvuru_bekleme_gun' => (int) Ayar::al('yeniden_basvuru_bekleme_gun', 0),
             'kart_kodu_basin' => KartNoUretici::kod(BasvuruTuru::BasinMensubu),
             'kart_kodu_icerik' => KartNoUretici::kod(BasvuruTuru::IcerikUreticisi),
             'bolgeler' => collect((array) Ayar::al('bolgeler', []))
@@ -79,6 +80,15 @@ class Ayarlar extends Page
                             ->required()
                             ->minValue(1)
                             ->maxValue(60),
+
+                        TextInput::make('yeniden_basvuru_bekleme_gun')
+                            ->label('Reddedilen başvurudan sonra bekleme süresi')
+                            ->suffix('gün')
+                            ->helperText('0 = bekleme yok; reddedilen kişi hemen yeniden başvurabilir. Kuyruk aynı adaylarla dolarsa gün verin — süre son red kararından işler. Ayrılan kişilerde bekleme uygulanmaz.')
+                            ->numeric()
+                            ->required()
+                            ->minValue(0)
+                            ->maxValue(365),
                     ]),
 
                 Section::make('Kart ve bölgeler')

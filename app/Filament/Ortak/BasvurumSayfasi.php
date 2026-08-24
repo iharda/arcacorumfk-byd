@@ -3,9 +3,11 @@
 namespace App\Filament\Ortak;
 
 use App\Enums\BasvuruDurumu;
+use App\Enums\BasvuruTuru;
 use App\Models\Basvuru;
 use App\Models\EvrakTuru;
 use App\Servisler\BasvuruAkisi;
+use App\Servisler\BasvuruUygunlugu;
 use App\Servisler\EvrakYukleyici;
 use BackedEnum;
 use Filament\Notifications\Notification;
@@ -75,6 +77,29 @@ abstract class BasvurumSayfasi extends Page
             BasvuruDurumu::Taslak,
             BasvuruDurumu::EksikEvrak,
         ], true);
+    }
+
+    /**
+     * Reddedilen başvurudan sonra yeniden başvuru. Kapalı bir kapı bırakmamak
+     * için: red gerekçesini okuyan kişi aynı ekrandan yeni başvuruya geçebilir.
+     *
+     * @return array{adres: ?string, engel: ?string}
+     */
+    public function getYenidenBasvuruProperty(): array
+    {
+        if ($this->basvuru->durum !== BasvuruDurumu::Reddedildi) {
+            return ['adres' => null, 'engel' => null];
+        }
+
+        if ($engel = app(BasvuruUygunlugu::class)->engel(Auth::user())) {
+            return ['adres' => null, 'engel' => $engel];
+        }
+
+        return ['adres' => match ($this->basvuru->tur) {
+            BasvuruTuru::Kurum => route('basvuru.kurum'),
+            BasvuruTuru::IcerikUreticisi => route('basvuru.icerik-ureticisi'),
+            BasvuruTuru::BasinMensubu => route('basvuru.basin-mensubu'),
+        }, 'engel' => null];
     }
 
     public function yukle(int $evrakTuruId): void

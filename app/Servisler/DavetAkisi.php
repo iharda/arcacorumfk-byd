@@ -5,7 +5,6 @@ namespace App\Servisler;
 use App\Models\Ayar;
 use App\Models\Davet;
 use App\Models\Kurum;
-use App\Models\User;
 use App\Notifications\CalisanDaveti;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +20,10 @@ use RuntimeException;
  */
 class DavetAkisi
 {
-    public function __construct(private DenetimYazici $denetim) {}
+    public function __construct(
+        private DenetimYazici $denetim,
+        private BasvuruUygunlugu $uygunluk,
+    ) {}
 
     /**
      * @return array{davet: Davet, token: string}
@@ -36,9 +38,10 @@ class DavetAkisi
             throw new RuntimeException('Kurum akredite olmadan çalışan daveti gönderilemez.');
         }
 
-        if (User::where('email', $eposta)->exists()) {
-            throw new RuntimeException('Bu e-posta ile zaten bir hesap var; kişi doğrudan başvurabilir.');
-        }
+        // Kayıtlı e-posta tek başına engel DEĞİL: reddedilen ya da eski
+        // kurumundan ayrılmış biri yeniden davet edilebilmeli. Engel yalnızca
+        // süren başvuru / geçerli akreditasyon hâllerinde (BasvuruUygunlugu).
+        $this->uygunluk->dogrula($this->uygunluk->hesapBul($eposta));
 
         if ($kurum->kontenjanDoldu()) {
             throw new RuntimeException('Kurum kontenjanı dolu. Yeni davet için kulüple görüşün.');
@@ -82,24 +85,28 @@ class DavetAkisi
 
         $token = Str::random(48);
 
-        $davet->update([
-            'token_hash' => Davet::tokenHash($token),
-            'gecerlilik_bitis' => now()->addDays((int) Ayar::al('davet_gecerlilik_gun', 7)),
-            'gonderim_sayisi' => $davet->gonderim_sayisi + 1,
-        ]);
+        DB::transaction(function () use ($davet, $token) {
+            $davet->update([
+                'token_hash' => Davet::tokenHash($token),
+                'gecerlilik_bitis' => now()->addDays((int) Ayar::al('davet_gecerlilik_gun', 7)),
+                'gonderim_sayisi' => $davet->gonderim_sayisi + 1,
+            ]);
 
-        $this->denetim->yaz('davet.yeniden_gonderildi', $davet);
+            $this->denetim->yaz('davet.yeniden_gonderildi', $davet);
 
-        Notification::route('mail', $davet->eposta)->notify(new CalisanDaveti($davet, $token));
+            Notification::route('mail', $davet->eposta)->notify(new CalisanDaveti($davet, $token));
+        });
 
         return $token;
     }
 
     public function iptalEt(Davet $davet): void
     {
-        $davet->update(['iptal_at' => now()]);
+        DB::transaction(function () use ($davet) {
+            $davet->update(['iptal_at' => now()]);
 
-        $this->denetim->yaz('davet.iptal', $davet);
+            $this->denetim->yaz('davet.iptal', $davet);
+        });
     }
 
     /** Ham token ile daveti bulur. Geçersizse null. */

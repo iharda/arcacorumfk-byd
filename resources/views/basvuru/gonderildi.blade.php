@@ -10,11 +10,20 @@
     </div>
 
     <h1 class="mt-5 text-2xl font-semibold tracking-tight">Başvurunuz kaydedildi</h1>
-    <p class="mt-3 text-neutral-600">
-        <strong class="font-medium text-koyu">{{ $eposta }}</strong> adresine bir etkinleştirme bağlantısı gönderdik.
-        Bağlantıdan şifrenizi belirledikten sonra evraklarınızı yükleyip başvurunuzu tamamlayabilirsiniz.
-    </p>
-    <p class="mt-2 text-sm text-neutral-500">Bağlantı 48 saat geçerlidir.</p>
+    @if ($aktivasyon)
+        <p class="mt-3 text-neutral-600">
+            <strong class="font-medium text-koyu">{{ $eposta }}</strong> adresine bir etkinleştirme bağlantısı gönderdik.
+            Bağlantıdan şifrenizi belirledikten sonra evraklarınızı yükleyip başvurunuzu tamamlayabilirsiniz.
+        </p>
+        <p class="mt-2 text-sm text-neutral-500">Bağlantı 48 saat geçerlidir.</p>
+    @else
+        {{-- Hesabı zaten etkin: yeniden başvuru. Yeni şifre bağlantısı göndermiyoruz. --}}
+        <p class="mt-3 text-neutral-600">
+            Başvurunuz <strong class="font-medium text-koyu">{{ $eposta }}</strong> adresine kayıtlı mevcut hesabınıza eklendi.
+            Evraklarınızı yükleyip başvurunuzu göndermek için giriş yapın.
+        </p>
+        <p class="mt-2 text-sm text-neutral-500">Şifrenizi hatırlamıyorsanız giriş ekranındaki “Şifremi unuttum” bağlantısını kullanın.</p>
+    @endif
 
     <a href="{{ route('anasayfa') }}"
        class="mt-8 inline-flex items-center rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition hover:bg-neutral-50">

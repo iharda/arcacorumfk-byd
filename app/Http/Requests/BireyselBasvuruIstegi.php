@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\BasvuruTuru;
+use App\Servisler\BasvuruUygunlugu;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -47,7 +48,9 @@ class BireyselBasvuruIstegi extends FormRequest
         // Davette kimlik bilgisi kurumdan gelir, başvuran değiştiremez.
         if (! $this->davetliMi()) {
             $kurallar['ad_soyad'] = ['required', 'string', 'min:3', 'max:120'];
-            $kurallar['eposta'] = ['required', 'email:rfc', 'max:150', Rule::unique('users', 'email')];
+            // 🔑 `unique` DEĞİL: reddedilen ya da ayrılan kişi aynı e-postayla
+            // yeniden başvurabilmeli. Engel varsa sebebini kural kendisi yazar.
+            $kurallar['eposta'] = ['required', 'email:rfc', 'max:150', BasvuruUygunlugu::kural()];
         }
 
         if ($this->tur() === BasvuruTuru::BasinMensubu) {
@@ -95,7 +98,6 @@ class BireyselBasvuruIstegi extends FormRequest
         return [
             'kurum_ulid.required' => 'Çalıştığınız kurumu seçmelisiniz.',
             'kurum_ulid.exists' => 'Seçilen kurum akredite değil. Kurumunuz önce kendi başvurusunu tamamlamalı.',
-            'eposta.unique' => 'Bu e-posta ile daha önce bir hesap açılmış. Giriş yapabilirsiniz.',
             'kvkk_aydinlatma.accepted' => 'Aydınlatma metnini okuduğunuzu onaylamalısınız.',
             'kvkk_riza.accepted' => 'Başvurunun değerlendirilebilmesi için açık rıza gereklidir.',
         ];

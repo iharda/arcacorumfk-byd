@@ -30,13 +30,27 @@
             @endif
         </div>
 
-        @if ($basvuru->durum === \App\Enums\BasvuruDurumu::Reddedildi && filled($basvuru->karar_gerekcesi))
-            <div style="margin-top:1rem;">
-                <x-filament::section compact>
-                    <x-slot name="heading">Red gerekçesi</x-slot>
-                    {{ $basvuru->karar_gerekcesi }}
-                </x-filament::section>
-            </div>
+        @if ($basvuru->durum === \App\Enums\BasvuruDurumu::Reddedildi)
+            @if (filled($basvuru->karar_gerekcesi))
+                <div style="margin-top:1rem;">
+                    <x-filament::section compact>
+                        <x-slot name="heading">Red gerekçesi</x-slot>
+                        {{ $basvuru->karar_gerekcesi }}
+                    </x-filament::section>
+                </div>
+            @endif
+
+            @php $yeniden = $this->yenidenBasvuru; @endphp
+
+            @if ($yeniden['adres'])
+                <div style="margin-top:1rem;">
+                    <x-filament::button tag="a" :href="$yeniden['adres']" icon="heroicon-m-arrow-path" color="gray">
+                        Yeniden başvur
+                    </x-filament::button>
+                </div>
+            @elseif ($yeniden['engel'])
+                <p style="margin-top:1rem; font-size:.875rem; opacity:.8;">{{ $yeniden['engel'] }}</p>
+            @endif
         @endif
     </x-filament::section>
 
