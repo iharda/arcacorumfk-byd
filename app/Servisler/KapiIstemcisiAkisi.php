@@ -3,6 +3,7 @@
 namespace App\Servisler;
 
 use App\Models\KapiIstemcisi;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -21,19 +22,23 @@ class KapiIstemcisiAkisi
     {
         $anahtar = $this->anahtarUret();
 
-        $istemci = KapiIstemcisi::create([
-            'ad' => $veri['ad'],
-            'kapi_kodu' => $veri['kapi_kodu'],
-            'ip_listesi' => $this->ipListesi($veri['ip_listesi'] ?? null),
-            'bolgeler' => $veri['bolgeler'] ?? null,
-            'aktif' => $veri['aktif'] ?? true,
-            'anahtar_onek' => substr($anahtar, 0, 12),
-            'anahtar_hash' => hash('sha256', $anahtar),
-        ]);
+        $istemci = DB::transaction(function () use ($veri, $anahtar) {
+            $istemci = KapiIstemcisi::create([
+                'ad' => $veri['ad'],
+                'kapi_kodu' => $veri['kapi_kodu'],
+                'ip_listesi' => $this->ipListesi($veri['ip_listesi'] ?? null),
+                'bolgeler' => $veri['bolgeler'] ?? null,
+                'aktif' => $veri['aktif'] ?? true,
+                'anahtar_onek' => substr($anahtar, 0, 12),
+                'anahtar_hash' => hash('sha256', $anahtar),
+            ]);
 
-        $this->denetim->yaz('kapi_istemcisi.olusturuldu', $istemci, yeni: [
-            'ad' => $istemci->ad, 'kapi_kodu' => $istemci->kapi_kodu,
-        ]);
+            $this->denetim->yaz('kapi_istemcisi.olusturuldu', $istemci, yeni: [
+                'ad' => $istemci->ad, 'kapi_kodu' => $istemci->kapi_kodu,
+            ]);
+
+            return $istemci;
+        });
 
         return ['istemci' => $istemci, 'anahtar' => $anahtar];
     }
@@ -42,13 +47,15 @@ class KapiIstemcisiAkisi
     {
         $anahtar = $this->anahtarUret();
 
-        $istemci->update([
-            'anahtar_onek' => substr($anahtar, 0, 12),
-            'anahtar_hash' => hash('sha256', $anahtar),
-        ]);
+        DB::transaction(function () use ($istemci, $anahtar) {
+            $istemci->update([
+                'anahtar_onek' => substr($anahtar, 0, 12),
+                'anahtar_hash' => hash('sha256', $anahtar),
+            ]);
 
-        $this->denetim->yaz('kapi_istemcisi.anahtar_yenilendi', $istemci,
-            not: 'Eski anahtar anında geçersiz oldu.');
+            $this->denetim->yaz('kapi_istemcisi.anahtar_yenilendi', $istemci,
+                not: 'Eski anahtar anında geçersiz oldu.');
+        });
 
         return $anahtar;
     }

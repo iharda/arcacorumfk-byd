@@ -42,11 +42,13 @@ class Basvuru extends Model
         ];
     }
 
+    /** @return BelongsTo<User, $this> */
     public function kullanici(): BelongsTo
     {
         return $this->belongsTo(User::class, 'kullanici_id');
     }
 
+    /** @return BelongsTo<Kurum, $this> */
     public function kurum(): BelongsTo
     {
         return $this->belongsTo(Kurum::class, 'kurum_id');

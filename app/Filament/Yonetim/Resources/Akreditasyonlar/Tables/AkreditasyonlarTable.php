@@ -17,6 +17,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class AkreditasyonlarTable
@@ -149,11 +150,14 @@ class AkreditasyonlarTable
                     ])
                     ->action(function (Akreditasyon $record, array $data) {
                         $eski = $record->bolge_yetkileri;
-                        $record->update(['bolge_yetkileri' => $data['bolgeler'] ?: null]);
 
-                        app(DenetimYazici::class)->yaz('akreditasyon.bolge_degisti', $record,
-                            eski: ['bolge_yetkileri' => $eski],
-                            yeni: ['bolge_yetkileri' => $data['bolgeler'] ?: null]);
+                        DB::transaction(function () use ($record, $data, $eski) {
+                            $record->update(['bolge_yetkileri' => $data['bolgeler'] ?: null]);
+
+                            app(DenetimYazici::class)->yaz('akreditasyon.bolge_degisti', $record,
+                                eski: ['bolge_yetkileri' => $eski],
+                                yeni: ['bolge_yetkileri' => $data['bolgeler'] ?: null]);
+                        });
 
                         // Bölgeler kartın üstünde yazıyor: kart yeniden üretilmeli.
                         KartUret::dispatch($record, bildirimGonder: false)->afterCommit();

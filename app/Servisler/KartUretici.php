@@ -59,6 +59,8 @@ class KartUretici
 
         return DB::transaction(function () use ($akreditasyon, $disk, $surum, $pdfYolu, $gorselYolu) {
             $akreditasyon->kartlar()->update(['arsiv' => true]);
+            // Dosya silme COMMIT SONRASINA bırakılır: işlem geri sararsa
+            // kayıtlar geri gelir ama silinmiş dosya geri gelmez.
             $this->eskiSurumleriTemizle($akreditasyon, $surum);
 
             $kart = $akreditasyon->kartlar()->create([
@@ -96,13 +98,16 @@ class KartUretici
             ->whereNotNull('pdf_yolu')
             ->get()
             ->each(function (Kart $kart) {
-                foreach ([$kart->pdf_yolu, $kart->gorsel_yolu] as $yol) {
-                    if ($yol) {
-                        rescue(fn () => Storage::disk($kart->disk)->delete($yol), report: false);
-                    }
-                }
+                $silinecek = array_filter([$kart->pdf_yolu, $kart->gorsel_yolu]);
+                $disk = $kart->disk;
 
                 $kart->forceFill(['pdf_yolu' => null, 'gorsel_yolu' => null])->saveQuietly();
+
+                DB::afterCommit(function () use ($disk, $silinecek) {
+                    foreach ($silinecek as $yol) {
+                        rescue(fn () => Storage::disk($disk)->delete($yol), report: false);
+                    }
+                });
             });
     }
 

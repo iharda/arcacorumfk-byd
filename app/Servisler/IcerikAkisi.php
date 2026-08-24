@@ -69,8 +69,10 @@ class IcerikAkisi
 
     public function yayindanKaldir(Model $icerik, string $tur): void
     {
-        $icerik->forceFill(['yayinda' => false])->save();
+        DB::transaction(function () use ($icerik, $tur) {
+            $icerik->forceFill(['yayinda' => false])->save();
 
-        $this->denetim->yaz("{$tur}.yayindan_kaldirildi", $icerik, yeni: ['yayinda' => false]);
+            $this->denetim->yaz("{$tur}.yayindan_kaldirildi", $icerik, yeni: ['yayinda' => false]);
+        });
     }
 }

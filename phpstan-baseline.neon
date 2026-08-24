@@ -1,24 +1,6 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:akrediteMi\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: app/Filament/Kurum/Pages/Calisanlar.php
-
-		-
-			message: '#^Method App\\Filament\\Kurum\\Pages\\Calisanlar\:\:kurum\(\) should return App\\Models\\Kurum\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Filament/Kurum/Pages/Calisanlar.php
-
-		-
-			message: '#^Parameter \#1 \$akreditasyon of method App\\Servisler\\AkreditasyonAkisi\:\:iptalEt\(\) expects App\\Models\\Akreditasyon, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Filament/Kurum/Pages/Calisanlar.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>resmi_unvan" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
@@ -37,22 +19,10 @@ parameters:
 			path: app/Models/User.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$resmi_unvan\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/BasvuruOnaylandi.php
-
-		-
 			message: '#^Empty array passed to foreach\.$#'
 			identifier: foreach.emptyArray
 			count: 1
 			path: app/Notifications/EksikEvrakTalebi.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/KurumTeyidiIstendi.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$baslangic_at\.$#'
@@ -79,34 +49,10 @@ parameters:
 			path: app/Notifications/YeniIcerik.php
 
 		-
-			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:syncRoles\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: app/Servisler/AkreditasyonAkisi.php
-
-		-
 			message: '#^Method App\\Servisler\\AkreditasyonAkisi\:\:basvurudanOlustur\(\) should return App\\Models\\Akreditasyon\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
 			identifier: return.type
 			count: 1
 			path: app/Servisler/AkreditasyonAkisi.php
-
-		-
-			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:calisanlar\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: app/Servisler/BasvuruAkisi.php
-
-		-
-			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:notify\(\)\.$#'
-			identifier: method.notFound
-			count: 4
-			path: app/Servisler/BasvuruAkisi.php
-
-		-
-			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:syncRoles\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: app/Servisler/BasvuruAkisi.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$boyut\.$#'
@@ -173,3 +119,4 @@ parameters:
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Servisler/KartUretici.php
+

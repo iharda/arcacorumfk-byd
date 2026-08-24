@@ -49,9 +49,15 @@ class AkreditasyonAkisi
                 ]),
             );
 
-            $basvuru->kullanici->syncRoles([
-                $basvuru->tur === BasvuruTuru::BasinMensubu ? User::ROL_BASIN : User::ROL_ICERIK,
-            ]);
+            // 🪤 syncRoles DEĞİL: kişi aynı zamanda kurum yetkilisi olabilir,
+            // syncRoles o rolü de siler ve kurum panelinden atardı. Yalnızca
+            // diğer bireysel tür rolü kaldırılır.
+            [$rol, $eskiRol] = $basvuru->tur === BasvuruTuru::BasinMensubu
+                ? [User::ROL_BASIN, User::ROL_ICERIK]
+                : [User::ROL_ICERIK, User::ROL_BASIN];
+
+            $basvuru->kullanici->removeRole($eskiRol);
+            $basvuru->kullanici->assignRole($rol);
 
             $this->denetim->yaz('akreditasyon.olusturuldu', $akreditasyon, yeni: [
                 'kart_no' => $akreditasyon->kart_no,
@@ -63,6 +69,39 @@ class AkreditasyonAkisi
             KartUret::dispatch($akreditasyon)->afterCommit();
 
             return $akreditasyon;
+        });
+    }
+
+    /**
+     * Kurumdan ayrılış -- md.5.4. Ayrılış işareti ile akreditasyon iptali TEK
+     * işlemde yürür.
+     *
+     * 💀 Eskiden ikisi ayrı ayrı yazılıyordu: iptal patlarsa kişi "ayrıldı"
+     * görünüp turnikeden GEÇMEYE DEVAM EDİYORDU (Yusuf/IT, 2026-08-23).
+     * 🪤 Ayrıca yalnızca `akreditasyon` ilişkisi iptal ediliyordu; o ilişki
+     * latestOfMany, yani EN YENİ kaydı verir. Yeniden başvuran birinin eski
+     * kaydı aktif kalabiliyordu — burada hepsi kapatılır.
+     */
+    public function kullaniciAyrildi(User $kullanici, ?string $not = null): void
+    {
+        if ($kullanici->ayrildi_at !== null) {
+            throw new RuntimeException('Bu kişi zaten ayrılmış görünüyor.');
+        }
+
+        DB::transaction(function () use ($kullanici, $not) {
+            $ayrilis = now();
+
+            $kullanici->forceFill(['ayrildi_at' => $ayrilis, 'aktif' => false])->save();
+
+            $this->denetim->yaz('calisan.ayrilis_bildirildi', $kullanici,
+                yeni: ['ayrildi_at' => $ayrilis->toIso8601String()], not: $not);
+
+            $neden = 'Kurumdan ayrılış bildirimi'.($not ? ' — '.$not : '');
+
+            $kullanici->akreditasyonlar()
+                ->where('durum', '!=', AkreditasyonDurumu::Iptal->value)
+                ->get()
+                ->each(fn (Akreditasyon $akreditasyon) => $this->iptalEt($akreditasyon, $neden));
         });
     }
 

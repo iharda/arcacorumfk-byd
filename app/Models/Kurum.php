@@ -48,6 +48,7 @@ class Kurum extends Model
         ];
     }
 
+    /** @return HasMany<User, $this> */
     public function calisanlar(): HasMany
     {
         return $this->hasMany(User::class, 'kurum_id');

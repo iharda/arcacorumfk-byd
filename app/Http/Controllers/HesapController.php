@@ -7,6 +7,7 @@ use App\Servisler\DenetimYazici;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
@@ -42,15 +43,17 @@ class HesapController extends Controller
             ['sifre' => 'şifre'],
         );
 
-        $kullanici->forceFill([
-            'password' => Hash::make($istek->string('sifre')->toString()),
-            'email_verified_at' => now(),
-        ])->save();
+        DB::transaction(function () use ($istek, $kullanici) {
+            $kullanici->forceFill([
+                'password' => Hash::make($istek->string('sifre')->toString()),
+                'email_verified_at' => now(),
+            ])->save();
+
+            $this->denetim->yaz('hesap.aktiflestirildi', $kullanici);
+        });
 
         Auth::login($kullanici);
         $istek->session()->regenerate();
-
-        $this->denetim->yaz('hesap.aktiflestirildi', $kullanici);
 
         // Rolüne göre doğru panele: kurum yetkilisi /kurum'a, birey /panel'e.
         return redirect($kullanici->panelYolu());

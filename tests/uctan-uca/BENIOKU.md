@@ -6,6 +6,8 @@ Bu betikler **çalışan siteye** karşı koşar (tarayıcı otomasyonu + API ç
 ```bash
 node tests/uctan-uca/byd-basvuru-akisi-testi.mjs     # kurumsal başvuru → onay
 node tests/uctan-uca/byd-bireysel-akis-testi.mjs     # bireysel + davet + ayrılış
+node tests/uctan-uca/byd-yeniden-basvuru-testi.mjs   # reddedilen/ayrılan yeniden başvurur
+sudo -u byd php tests/uctan-uca/byd-islem-butunlugu.php  # işlem bütünlüğü (PHP, tarayıcısız)
 node tests/uctan-uca/byd-kart-kapi-testi.mjs         # kart, QR, doğrulama API'si
 node tests/uctan-uca/byd-guvenlik-testi.mjs          # yetki sınırları
 node tests/uctan-uca/byd-giris-testi.mjs             # giriş + 2FA + panel sınırı

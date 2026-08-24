@@ -7,6 +7,7 @@ use App\Models\Evrak;
 use App\Models\EvrakTuru;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -48,31 +49,35 @@ class EvrakYukleyici
 
         Storage::disk($disk)->put($yol, $icerik);
 
-        // Aynı türden önceki evrak arşive alınır (tekrar yükleme = düzeltme).
-        // 🪤 ->each SORGU BUILDER'da yok, Collection'da var. Soft delete sorgu
-        // üzerinden de doğru çalışır.
-        $basvuru->evraklar()->where('evrak_turu_id', $tur->id)->delete();
+        // Eskiyi arşivleme + yeni kaydı yazma TEK işlemde: kayıt yazılamazsa
+        // başvuran önceki evrakını da kaybetmesin.
+        return DB::transaction(function () use ($basvuru, $tur, $disk, $yol, $dosya, $mime, $icerik, $sha) {
+            // Aynı türden önceki evrak arşive alınır (tekrar yükleme = düzeltme).
+            // 🪤 ->each SORGU BUILDER'da yok, Collection'da var. Soft delete sorgu
+            // üzerinden de doğru çalışır.
+            $basvuru->evraklar()->where('evrak_turu_id', $tur->id)->delete();
 
-        $evrak = $basvuru->evraklar()->create([
-            'evrak_turu_id' => $tur->id,
-            'disk' => $disk,
-            'yol' => $yol,
-            'orijinal_ad' => $this->temizAd($dosya->getClientOriginalName()),
-            'mime' => $mime,
-            'boyut' => strlen($icerik) ?: filesize($dosya->getRealPath()),
-            'sha256' => $sha,
-            'icerik_dogrulandi' => true,
-            'sifreli' => $tur->hassas,
-            'dogrulama_durumu' => 'bekliyor',
-            'imha_tarihi' => $tur->imha_gun ? now()->addDays($tur->imha_gun)->toDateString() : null,
-        ]);
+            $evrak = $basvuru->evraklar()->create([
+                'evrak_turu_id' => $tur->id,
+                'disk' => $disk,
+                'yol' => $yol,
+                'orijinal_ad' => $this->temizAd($dosya->getClientOriginalName()),
+                'mime' => $mime,
+                'boyut' => strlen($icerik) ?: filesize($dosya->getRealPath()),
+                'sha256' => $sha,
+                'icerik_dogrulandi' => true,
+                'sifreli' => $tur->hassas,
+                'dogrulama_durumu' => 'bekliyor',
+                'imha_tarihi' => $tur->imha_gun ? now()->addDays($tur->imha_gun)->toDateString() : null,
+            ]);
 
-        $this->denetim->yaz('evrak.yuklendi', $evrak, yeni: [
-            'evrak_turu' => $tur->kod,
-            'boyut' => $evrak->boyut,
-        ]);
+            $this->denetim->yaz('evrak.yuklendi', $evrak, yeni: [
+                'evrak_turu' => $tur->kod,
+                'boyut' => $evrak->boyut,
+            ]);
 
-        return $evrak;
+            return $evrak;
+        });
     }
 
     /** Şifreli evrakı okur; şifresizse olduğu gibi döner. */

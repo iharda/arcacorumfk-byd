@@ -2,7 +2,6 @@
 
 namespace App\Filament\Kurum\Pages;
 
-use App\Enums\AkreditasyonDurumu;
 use App\Models\Basvuru;
 use App\Models\Davet;
 use App\Models\Kurum;
@@ -10,7 +9,6 @@ use App\Models\User;
 use App\Servisler\AkreditasyonAkisi;
 use App\Servisler\BasvuruAkisi;
 use App\Servisler\DavetAkisi;
-use App\Servisler\DenetimYazici;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
@@ -220,31 +218,23 @@ class Calisanlar extends Page
             ->success()->send();
     }
 
+    /**
+     * md.5.4: ayrılış → akreditasyon OTOMATİK iptal, onay adımı yok.
+     * İkisi tek işlemde yürüsün diye iş AkreditasyonAkisi'nde; ekran yalnızca
+     * kapsamı doğrular ve sonucu bildirir.
+     */
     private function ayrilisBildir(string $ulid, ?string $not): void
     {
-        $kullanici = User::with('akreditasyon')
-            ->where('ulid', $ulid)
+        $kullanici = User::where('ulid', $ulid)
             ->where('kurum_id', $this->kurum()->id)      // 🔒 kapsam
             ->firstOrFail();
 
-        if ($kullanici->ayrildi_at !== null) {
-            Notification::make()->title('Bu kişi zaten ayrılmış görünüyor.')->warning()->send();
+        try {
+            app(AkreditasyonAkisi::class)->kullaniciAyrildi($kullanici, $not);
+        } catch (Throwable $e) {
+            Notification::make()->title($e->getMessage())->warning()->send();
 
             return;
-        }
-
-        $kullanici->forceFill(['ayrildi_at' => now(), 'aktif' => false])->save();
-
-        app(DenetimYazici::class)->yaz('calisan.ayrilis_bildirildi', $kullanici,
-            yeni: ['ayrildi_at' => now()->toIso8601String()], not: $not);
-
-        // md.5.4: ayrılış → akreditasyon OTOMATİK iptal, onay adımı yok.
-        $akreditasyon = $kullanici->akreditasyon;
-        if ($akreditasyon && $akreditasyon->durum !== AkreditasyonDurumu::Iptal) {
-            app(AkreditasyonAkisi::class)->iptalEt(
-                $akreditasyon,
-                'Kurumdan ayrılış bildirimi'.($not ? ' — '.$not : ''),
-            );
         }
 
         Notification::make()

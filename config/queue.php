@@ -29,6 +29,18 @@ return [
     |
     */
 
+    /*
+     * 🪤 `after_commit` HEPSİNDE true.
+     *
+     * 💀 Sebep: kuyruklu bildirimler işlemin İÇİNDEN gönderiliyor
+     * ($kullanici->notify(new HesapAktivasyonu) bir DB::transaction içinde).
+     * false iken iş Redis'e ANINDA düşüyor; Horizon işçisi kaydı işlem daha
+     * commit edilmeden okumaya kalkıyor, model bulunamıyor ve AKTİVASYON
+     * E-POSTASI HİÇ GİTMİYOR. Yarış her seferinde değil, yük altında görülür —
+     * en kötü hata türü. true olunca iş commit'ten sonra kuyruğa girer;
+     * işlem geri sarılırsa hiç girmez. Zaten var olan ->afterCommit()
+     * çağrıları bozulmaz, sadece gereksizleşir.
+     */
     'connections' => [
 
         'sync' => [
@@ -41,7 +53,7 @@ return [
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
             'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90),
-            'after_commit' => false,
+            'after_commit' => true,
         ],
 
         'beanstalkd' => [
@@ -50,7 +62,7 @@ return [
             'queue' => env('BEANSTALKD_QUEUE', 'default'),
             'retry_after' => (int) env('BEANSTALKD_QUEUE_RETRY_AFTER', 90),
             'block_for' => 0,
-            'after_commit' => false,
+            'after_commit' => true,
         ],
 
         'sqs' => [
@@ -61,7 +73,7 @@ return [
             'queue' => env('SQS_QUEUE', 'default'),
             'suffix' => env('SQS_SUFFIX'),
             'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
-            'after_commit' => false,
+            'after_commit' => true,
         ],
 
         'redis' => [
@@ -70,7 +82,7 @@ return [
             'queue' => env('REDIS_QUEUE', 'default'),
             'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
             'block_for' => null,
-            'after_commit' => false,
+            'after_commit' => true,
         ],
 
         'deferred' => [

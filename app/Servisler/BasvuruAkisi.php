@@ -101,11 +101,17 @@ class BasvuruAkisi
 
             $this->denetim->yaz($onay ? 'basvuru.kurum_teyidi_verildi' : 'basvuru.kurum_teyidi_reddedildi',
                 $basvuru, yeni: ['kurum_teyidi' => $onay], not: $not);
-        });
 
-        if (! $onay) {
-            $this->reddet($basvuru, $not ?: 'Kurum, başvuranın çalışanı olduğunu teyit etmedi.');
-        }
+            /*
+             * 💀 Red AYNI işlemde olmalı. Ayrı yazıldığında teyit "hayır"
+             * olarak kaydedilip red yazılamazsa başvuru `kurum_teyidi`
+             * dolu olduğu için scopeKuyrukta()'ya DÜŞÜYORDU: kurum
+             * reddetmiş ama yetkili kuyruğunda onaylanmış gibi duruyordu.
+             */
+            if (! $onay) {
+                $this->reddet($basvuru, $not ?: 'Kurum, başvuranın çalışanı olduğunu teyit etmedi.');
+            }
+        });
     }
 
     public function incelemeyeAl(Basvuru $basvuru): void
@@ -131,43 +137,57 @@ class BasvuruAkisi
         $basvuru->kullanici->notify(new EksikEvrakTalebi($basvuru));
     }
 
+    /**
+     * Onay -- durum, kurum akreditasyonu / kart kaydı ve roller TEK işlemde.
+     *
+     * 💀 Eskiden durum ayrı, sonuçları ayrı yazılıyordu: kart numarası
+     * üretilemezse başvuru "Onaylandı" kalıyor ama akreditasyon doğmuyordu.
+     * Onaylandı'nın sonraki durumu olmadığı için işlem TEKRARLANAMIYOR,
+     * kayıt elle düzeltilmeden kurtarılamıyordu.
+     */
     public function onayla(Basvuru $basvuru): void
     {
-        $this->gecir($basvuru, BasvuruDurumu::Onaylandi, 'basvuru.onaylandi', [
-            'karar_at' => now(),
-            'karar_veren_id' => Auth::id(),
-        ]);
+        DB::transaction(function () use ($basvuru) {
+            $this->gecir($basvuru, BasvuruDurumu::Onaylandi, 'basvuru.onaylandi', [
+                'karar_at' => now(),
+                'karar_veren_id' => Auth::id(),
+            ]);
 
-        // Kurumsal başvuruda onay = kurumun AKREDİTE olması ve yetkilinin kurum
-        // paneline açılması (Plan v1.0 md.5.1). Bireysel türlerde kart üretimi
-        // devreye girer -- o 04. aşamada eklenecek.
-        if ($basvuru->tur === BasvuruTuru::Kurum && $basvuru->kurum) {
-            $basvuru->kurum->update(['akreditasyon_durumu' => 'akredite']);
-            $basvuru->kullanici->syncRoles([User::ROL_KURUM]);
-        } else {
-            // Bireysel onay: akreditasyon kaydı ve kart numarası burada doğar.
-            // Kartın PDF/QR üretimi 04. aşamada bu kaydın üstüne gelecek.
-            $this->akreditasyon->basvurudanOlustur($basvuru);
-        }
+            // Kurumsal başvuruda onay = kurumun AKREDİTE olması ve yetkilinin
+            // kurum paneline açılması (Plan v1.0 md.5.1).
+            if ($basvuru->tur === BasvuruTuru::Kurum && $basvuru->kurum) {
+                $basvuru->kurum->update(['akreditasyon_durumu' => 'akredite']);
+                // 🪤 syncRoles DEĞİL: kişinin kendi basın kartı da olabilir,
+                // o rolü silmemeli.
+                $basvuru->kullanici->assignRole(User::ROL_KURUM);
+            } else {
+                // Bireysel onay: akreditasyon kaydı ve kart numarası burada doğar.
+                $this->akreditasyon->basvurudanOlustur($basvuru);
+            }
+        });
 
         $basvuru->kullanici->notify(new BasvuruOnaylandi($basvuru));
     }
 
     public function reddet(Basvuru $basvuru, string $gerekce): void
     {
-        // Kurum teyidi reddi başvuruyu doğrudan düşürür; önce incelemeye
-        // alınması beklenmez (md.5.2 "Başvuru düşer").
-        if ($basvuru->durum === BasvuruDurumu::Gonderildi) {
-            $this->gecir($basvuru, BasvuruDurumu::Incelemede, 'basvuru.incelemeye_alindi', [
-                'incelemeye_alindi_at' => now(),
-            ]);
-        }
+        // İki geçiş TEK işlemde: ikincisi patlarsa başvuru "İncelemede" diye
+        // asılı kalmasın.
+        DB::transaction(function () use ($basvuru, $gerekce) {
+            // Kurum teyidi reddi başvuruyu doğrudan düşürür; önce incelemeye
+            // alınması beklenmez (md.5.2 "Başvuru düşer").
+            if ($basvuru->durum === BasvuruDurumu::Gonderildi) {
+                $this->gecir($basvuru, BasvuruDurumu::Incelemede, 'basvuru.incelemeye_alindi', [
+                    'incelemeye_alindi_at' => now(),
+                ]);
+            }
 
-        $this->gecir($basvuru, BasvuruDurumu::Reddedildi, 'basvuru.reddedildi', [
-            'karar_at' => now(),
-            'karar_veren_id' => Auth::id(),
-            'karar_gerekcesi' => $gerekce,
-        ]);
+            $this->gecir($basvuru, BasvuruDurumu::Reddedildi, 'basvuru.reddedildi', [
+                'karar_at' => now(),
+                'karar_veren_id' => Auth::id(),
+                'karar_gerekcesi' => $gerekce,
+            ]);
+        });
 
         $basvuru->kullanici->notify(new BasvuruReddedildi($basvuru));
     }
