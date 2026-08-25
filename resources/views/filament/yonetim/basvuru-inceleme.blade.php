@@ -1,21 +1,3 @@
-@php
-    // Önceki/sonraki değerleri okunur hâle getirir.
-    $degerGoster = function ($deger) {
-        if ($deger === null || $deger === '' || $deger === []) {
-            return '—';
-        }
-        if (is_bool($deger)) {
-            return $deger ? 'Var' : 'Yok';
-        }
-        if (is_array($deger)) {
-            return collect($deger)
-                ->map(fn ($d) => is_array($d) ? implode(' — ', array_filter($d)) : $d)
-                ->filter()
-                ->implode(' · ');
-        }
-        return (string) $deger;
-    };
-@endphp
 {{-- Başvuru inceleme — Plan v1.0 md.8: "yan yana evrak önizlemeli inceleme".
      ⚠️ Panelde kendi Tailwind sınıflarımız derlenmez → yerleşim satır içi stille. --}}
 <x-filament-panels::page>
@@ -243,7 +225,34 @@
                     <x-slot name="heading">Düzeltme geçmişi ({{ $turlar->count() }})</x-slot>
 
                     <div style="display:flex; flex-direction:column; gap:1rem; font-size:.82rem;">
-                        @foreach ($turlar as $tur)
+                        {{-- ⏱️ Zaman çizelgesi BAŞVURUNUN KENDİSİNDEN başlar
+                             (Yusuf revizyonu md.4: "ilk bilgiler · düzeltme
+                             talebi 01 · düzeltme 02"). Ayrı anlık görüntü
+                             saklanmıyor; değerler turların `eski` alanından
+                             geriye doğru çözülüyor. --}}
+                        @php $ilk = $record->ilkDegerler(); @endphp
+
+                        <div style="border-left:2px solid rgb(var(--gray-300)); padding-left:.75rem;">
+                            <p style="font-weight:600;">
+                                İlk bilgiler
+                                <span style="font-weight:400; opacity:.6;">
+                                    · {{ ($record->gonderildi_at ?? $record->created_at)?->timezone('Europe/Istanbul')->format('d.m.Y H:i') }}
+                                    · başvuru alındı
+                                </span>
+                            </p>
+
+                            <ul style="margin-top:.35rem; display:flex; flex-direction:column; gap:.25rem; opacity:.85;">
+                                @foreach ($ilk as $anahtar => $deger)
+                                    @continue($record->duzeltmeDegeriGoster($anahtar, $deger) === '—')
+                                    <li>
+                                        <strong>{{ $record->duzeltmeEtiketi($anahtar) }}</strong>
+                                        — {{ $record->duzeltmeDegeriGoster($anahtar, $deger) }}
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+
+                        @foreach ($turlar->sortBy('sira') as $tur)
                             <div style="border-left:2px solid rgb(var(--gray-200)); padding-left:.75rem;">
                                 <p style="font-weight:600;">
                                     {{ $tur->baslik() }}
@@ -265,9 +274,9 @@
                                             @if (filled($madde['aciklama'])) — {{ $madde['aciklama'] }} @endif
                                             @if ($madde['degisti'])
                                                 <span style="display:block; opacity:.7;">
-                                                    <span style="text-decoration:line-through;">{{ $degerGoster($madde['eski']) }}</span>
+                                                    <span style="text-decoration:line-through;">{{ $record->duzeltmeDegeriGoster($madde['anahtar'], $madde['eski']) }}</span>
                                                     →
-                                                    <strong>{{ $degerGoster($madde['yeni']) }}</strong>
+                                                    <strong>{{ $record->duzeltmeDegeriGoster($madde['anahtar'], $madde['yeni']) }}</strong>
                                                 </span>
                                             @elseif ($tur->yanitlandiMi())
                                                 <span style="display:block; opacity:.6;">değişmedi</span>

@@ -2,24 +2,6 @@
 @section('baslik', 'Başvuru düzeltme')
 
 @section('icerik')
-@php
-    // Önceki/sonraki değerleri okunur hâle getirir; dizi olanlar birleştirilir.
-    $gecmisGoster = function ($deger) {
-        if ($deger === null || $deger === '' || $deger === []) {
-            return '—';
-        }
-        if (is_bool($deger)) {
-            return $deger ? 'Var' : 'Yok';
-        }
-        if (is_array($deger)) {
-            return collect($deger)
-                ->map(fn ($d) => is_array($d) ? implode(' — ', array_filter($d)) : $d)
-                ->filter()
-                ->implode(' · ');
-        }
-        return (string) $deger;
-    };
-@endphp
 <div class="mx-auto max-w-2xl">
     <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">Başvurunuzu düzeltin</h1>
     <p class="mt-2 text-sm text-neutral-600">
@@ -67,15 +49,43 @@
         @endif
     </section>
 
-    {{-- Önceki turlar: "neyi ne zaman gönderdim, öncesi neydi" (Yusuf revizyonu). --}}
-    @if ($gecmisTurlar->isNotEmpty())
-        <details class="mt-4 rounded-lg border border-neutral-200 px-4 py-3">
-            <summary class="cursor-pointer text-sm font-medium">
-                Önceki düzeltmeler ({{ $gecmisTurlar->count() }})
-            </summary>
+    {{-- Başvuru geçmişi: "ilk bilgiler · düzeltme 01 · düzeltme 02"
+         (Yusuf revizyonu md.4).
+
+         🪤 KOŞULSUZ çizilir. Eskiden yalnızca önceki tur VARSA görünüyordu,
+         yani ilk turda "İlk bilgiler" hiç çıkmıyordu -- oysa çizelgenin
+         başlangıç noktası tam da o. --}}
+    <details class="mt-4 rounded-lg border border-neutral-200 px-4 py-3">
+        <summary class="cursor-pointer text-sm font-medium">
+            Başvuru geçmişi
+            @if ($gecmisTurlar->isNotEmpty())
+                ({{ $gecmisTurlar->count() }} düzeltme)
+            @endif
+        </summary>
 
             <div class="mt-4 space-y-5">
-                @foreach ($gecmisTurlar as $gecmis)
+                {{-- ⏱️ Çizelge başvurunun kendisinden başlar (Yusuf md.4). --}}
+                <div class="border-l-2 border-neutral-200 pl-4">
+                    <p class="text-sm font-medium">
+                        İlk bilgiler
+                        <span class="ml-1 text-xs font-normal text-neutral-500">
+                            {{ ($basvuru->gonderildi_at ?? $basvuru->created_at)?->timezone('Europe/Istanbul')->format('d.m.Y H:i') }}
+                            · başvurunuz alındı
+                        </span>
+                    </p>
+
+                    <ul class="mt-2 space-y-1 text-sm text-neutral-600">
+                        @foreach ($basvuru->ilkDegerler() as $anahtar => $deger)
+                            @continue($basvuru->duzeltmeDegeriGoster($anahtar, $deger) === '—')
+                            <li>
+                                <span class="font-medium text-koyu">{{ $basvuru->duzeltmeEtiketi($anahtar) }}</span>
+                                — {{ $basvuru->duzeltmeDegeriGoster($anahtar, $deger) }}
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+
+                @foreach ($gecmisTurlar->sortBy('sira') as $gecmis)
                     <div class="border-l-2 border-neutral-200 pl-4">
                         <p class="text-sm font-medium">
                             {{ $gecmis->baslik() }}
@@ -94,9 +104,9 @@
                                     @endif
                                     @if ($madde['degisti'])
                                         <span class="mt-0.5 block text-xs text-neutral-500">
-                                            <span class="line-through">{{ $gecmisGoster($madde['eski']) }}</span>
+                                            <span class="line-through">{{ $basvuru->duzeltmeDegeriGoster($madde['anahtar'], $madde['eski']) }}</span>
                                             <span class="mx-1">→</span>
-                                            <span class="text-koyu">{{ $gecmisGoster($madde['yeni']) }}</span>
+                                            <span class="text-koyu">{{ $basvuru->duzeltmeDegeriGoster($madde['anahtar'], $madde['yeni']) }}</span>
                                         </span>
                                     @endif
                                 </li>
@@ -110,9 +120,8 @@
                         @endif
                     </div>
                 @endforeach
-            </div>
-        </details>
-    @endif
+        </div>
+    </details>
 
     <form method="POST" action="{{ route('basvuru.duzelt.kaydet', ['token' => $token]) }}"
           enctype="multipart/form-data" class="mt-8 space-y-8">

@@ -71,17 +71,44 @@ class DuzeltmeUygulayici
             return '—';
         }
 
+        /*
+         * 💥 ENUM'U ÖNCE DÜZLEŞTİR. `Kurum::calisan_araligi` modelde
+         * `CalisanAraligi` enum'una cast ediliyor; `(string) $deger` bir
+         * nesne üzerinde ÖLÜMCÜL hata verir ("could not be converted to
+         * string") ve düzeltme sayfası komple 500 döner.
+         *
+         * 💀 Bu ancak "İlk bilgiler" TÜM alanları okumaya başlayınca ortaya
+         * çıktı: daha önce yalnızca yetkilinin işaretlediği alanlar
+         * basılıyordu ve kimse çalışan aralığını işaretlememişti. Ders:
+         * bir okuyucuyu "her alan" üzerinde çalıştırmak yeni yollar açar.
+         */
+        if ($deger instanceof \BackedEnum) {
+            return method_exists($deger, 'etiket')
+                ? (string) $deger->etiket()
+                : (string) $deger->value;
+        }
+
         return match ($tanim['tip'] ?? 'metin') {
             'telefon' => Telefon::goster(is_string($deger) ? $deger : null),
-            'il-ilce' => is_array($deger) ? implode(' / ', array_filter($deger)) : (string) $deger,
+            'il-ilce' => is_array($deger) ? implode(' / ', array_filter($deger)) : $this->metne($deger),
             'evet-hayir' => $deger ? 'Var' : 'Yok',
-            'aralik' => CalisanAraligi::tryFrom((string) $deger)?->etiket() ?? (string) $deger,
-            'sosyal' => is_array($deger) ? implode(' · ', array_filter($deger)) : (string) $deger,
+            'aralik' => is_string($deger)
+                ? (CalisanAraligi::tryFrom($deger)?->etiket() ?? $deger)
+                : (string) json_encode($deger, JSON_UNESCAPED_UNICODE),
+            'sosyal' => is_array($deger) ? implode(' · ', array_filter($deger)) : $this->metne($deger),
             'platformlar' => is_array($deger)
                 ? collect($deger)->map(fn ($p) => trim(($p['ad'] ?? '').' — '.($p['url'] ?? ''), ' —'))->implode(' · ')
-                : (string) $deger,
-            default => is_scalar($deger) ? (string) $deger : json_encode($deger, JSON_UNESCAPED_UNICODE),
+                : $this->metne($deger),
+            default => $this->metne($deger),
         };
+    }
+
+    /** 🔒 Her tipte GÜVENLİ metin: nesne/dizi asla `(string)` cast'ine girmez. */
+    private function metne(mixed $deger): string
+    {
+        return is_scalar($deger)
+            ? (string) $deger
+            : (string) json_encode($deger, JSON_UNESCAPED_UNICODE);
     }
 
     /**

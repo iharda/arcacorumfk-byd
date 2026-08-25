@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\BasvuruDurumu;
 use App\Models\Basvuru;
 use App\Models\BasvuruBileti;
+use App\Models\Evrak;
 use App\Models\EvrakTuru;
 use App\Servisler\BasvuruAkisi;
 use App\Servisler\BasvuruBiletiAkisi;
@@ -66,6 +67,16 @@ class BasvuruDuzeltmeController extends Controller
          * yazılır; gönderim reddedilse bile yüklenen evrak başvuranın üstünde
          * kalır ve eksiği tamamlayınca tekrar denenebilir.
          */
+        /*
+         * 🔑 Yüklenen evrak da TURA KAYDEDİLİR (Yusuf revizyonu md.4:
+         * "kullanıcının neyi yeni eklediğini ... gösteren bir kayıt").
+         * Eskiden yalnızca dosya yazılıyordu; geçmişte "istendi" görünüyor
+         * ama başvuranın gerçekten yükleyip yüklemediği görünmüyordu.
+         */
+        $evrakDegisimleri = [];
+        /** @var Collection<int, Evrak> $oncekiler */
+        $oncekiler = $basvuru->evraklar->keyBy('evrak_turu_id');
+
         foreach ($turler as $tur) {
             $dosya = $istek->file("evraklar.{$tur->id}");
 
@@ -73,13 +84,21 @@ class BasvuruDuzeltmeController extends Controller
                 continue;
             }
 
+            // Eski dosyanın adı yükleme ÖNCESİ okunur: `yukle()` onu arşivler.
+            $onceki = $oncekiler[$tur->id] ?? null;
+
             try {
-                $this->yukleyici->yukle($basvuru, $tur, $dosya);
+                $evrak = $this->yukleyici->yukle($basvuru, $tur, $dosya);
             } catch (Throwable $e) {
                 throw ValidationException::withMessages([
                     "evraklar.{$tur->id}" => $e->getMessage(),
                 ]);
             }
+
+            $evrakDegisimleri[DuzeltmeAlanlari::EVRAK_ONEK.$tur->kod] = [
+                'eski' => $onceki?->orijinal_ad,
+                'yeni' => $evrak->orijinal_ad,
+            ];
         }
 
         // ── Ek talepler: listemizde olmayan belge / yazılı bilgi ──
@@ -109,7 +128,7 @@ class BasvuruDuzeltmeController extends Controller
          * eksiği tamamlayabilir.
          */
         if ($duzeltme !== null) {
-            $this->akis->duzeltmeyiKaydet($duzeltme, $degisimler + $ekDegisimler, $aciklama);
+            $this->akis->duzeltmeyiKaydet($duzeltme, $degisimler + $ekDegisimler + $evrakDegisimleri, $aciklama);
         }
 
         try {

@@ -7,12 +7,14 @@
  */
 import puppeteer from 'puppeteer-core';
 import { execFileSync } from 'node:child_process';
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { totp } from './byd-totp.mjs';
 
-const KOK = '/home/byd.ordolive.com/laravel';
+const KOK_DIZIN = '/home/byd.ordolive.com/laravel';
+const KOK = 'https://byd.ordolive.com';
 const tinker = (php) =>
   execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', php],
-    { cwd: KOK, encoding: 'utf8' }).trim();
+    { cwd: KOK_DIZIN, encoding: 'utf8' }).trim();
 
 const oncesi = tinker(`echo DB::table('basvurular')->count().'|'.DB::table('basvuru_duzeltmeleri')->count();`);
 console.log('oncesi (basvuru|duzeltme):', oncesi);
@@ -35,9 +37,9 @@ $d = app(App\\Servisler\\BasvuruAkisi::class)->eksikEvrakIste($b, [
   'anahtar' => 'ek:1', 'etiket' => 'Yayin sozlesmesi', 'tip' => 'dosya',
   'aciklama' => 'Sozlesmenin ilk sayfasi yeterli',
 ]]);
-echo $b->id.'|'.app(App\\Servisler\\BasvuruBiletiAkisi::class)->uret($b->fresh());
+echo $b->id.'|'.app(App\\Servisler\\BasvuruBiletiAkisi::class)->uret($b->fresh()).'|'.$b->ulid;
 `;
-const [basvuruId, token] = tinker(kur).split('|');
+const [basvuruId, token, ulid] = tinker(kur).split('|');
 console.log('gecici basvuru id:', basvuruId);
 
 // 🪤 Bu sunucuda `puppeteer` YOK, `puppeteer-core` var: Chrome yolu ELLE.
@@ -53,11 +55,13 @@ const tarayici = await puppeteer.launch({
 try {
   const sayfa = await tarayici.newPage();
   await sayfa.setViewport({ width: 1280, height: 1400 });
-  const yanit = await sayfa.goto(`https://byd.ordolive.com/basvuru/duzelt/${token}`,
+  const yanit = await sayfa.goto(`${KOK}/basvuru/duzelt/${token}`,
     { waitUntil: 'networkidle0', timeout: 30000 });
 
   console.log('HTTP:', yanit.status());
 
+  // <details> kapali gelir; goruntude ve metinde gorunsun diye aciyoruz.
+  await sayfa.evaluate(() => document.querySelectorAll('details').forEach((d) => (d.open = true)));
   const metin = await sayfa.evaluate(() => document.body.innerText);
   const kontroller = [
     ['tur basligi', /Düzeltme talebi 01/],
@@ -67,6 +71,8 @@ try {
     ['ek talep bolumu', /Ek talepler/],
     ['ek talep basligi', /Yayin sozlesmesi/],  // fixture ASCII yaziyor
     ['aciklama kutusu', /Açıklamanız/],
+    ['ilk bilgiler girisi', /İlk bilgiler/],
+    ['basvuru gecmisi bolumu', /Başvuru geçmişi/],
     ['duzeltilemeyen alan nota dustu', /E-posta/],
   ];
   let gecen = 0;
@@ -80,11 +86,64 @@ try {
   const girdiler = await sayfa.evaluate(() =>
     [...document.querySelectorAll('[name^="alan["]')].map((e) => e.name));
   console.log('alan girdileri:', girdiler.join(', ') || '(YOK)');
-  console.log(`kontrol: ${gecen}/${kontroller.length}`);
 
   await sayfa.screenshot({ path: '/root/byd-duzeltme-ekrani.png', fullPage: true });
   console.log('goruntu: /root/byd-duzeltme-ekrani.png');
+
+  /*
+   * Aynı başvuruyu YETKİLİNİN gözünden de aç: düzeltme geçmişi bölümü
+   * "İlk bilgiler · Düzeltme talebi 01" diye görünmeli (Yusuf md.4).
+   */
+  const y = await tarayici.newPage();
+  await y.setViewport({ width: 1500, height: 1200 });
+  await y.goto(`${KOK}/yonetim/login`, { waitUntil: 'networkidle2' });
+  await y.type('#form\\.email', 'admin@byd.ordolive.com');
+  await y.type('#form\\.password', readFileSync('/root/.byd-admin-pass', 'utf8').trim());
+  await Promise.all([
+    y.waitForNavigation({ waitUntil: 'networkidle2' }).catch(() => {}),
+    y.click('button[type="submit"]'),
+  ]);
+  await new Promise((r) => setTimeout(r, 1200));
+
+  const kutular = await y.$$('input[inputmode="numeric"]');
+  if (kutular.length >= 6) {
+    await kutular[0].click();
+    await y.keyboard.type(totp(readFileSync('/root/.byd-admin-totp', 'utf8').trim()), { delay: 60 });
+    await new Promise((r) => setTimeout(r, 900));
+    await y.evaluate(() =>
+      [...document.querySelectorAll('button')].find((b) => /Girişi doğrula/i.test(b.innerText))?.click());
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+
+  await y.goto(`${KOK}/yonetim/basvurular/${ulid}/inceleme`, { waitUntil: 'networkidle2' });
+  await new Promise((r) => setTimeout(r, 1500));
+  await y.evaluate(() => document.querySelectorAll('details').forEach((d) => (d.open = true)));
+  await y.evaluate(() => [...document.querySelectorAll('button, [role="button"]')]
+    .filter((b) => /Düzeltme geçmişi/i.test(b.innerText)).forEach((b) => b.click()));
+  await new Promise((r) => setTimeout(r, 800));
+
+  const yMetin = await y.evaluate(() => document.body.innerText);
+  for (const [ad, desen] of [
+    ['yetkili: düzeltme geçmişi', /Düzeltme geçmişi/],
+    ['yetkili: ilk bilgiler', /İlk bilgiler/],
+    ['yetkili: tur başlığı', /Düzeltme talebi 01/],
+    ['yetkili: yanıt bekleniyor', /yanıt bekleniyor/],
+  ]) {
+    const ok = desen.test(yMetin);
+    if (ok) gecen++;
+    console.log(`${ok ? '✓' : '✗'} ${ad}`);
+  }
+
+  await y.screenshot({ path: '/root/byd-inceleme-gecmis.png', fullPage: true });
+  console.log('goruntu: /root/byd-inceleme-gecmis.png');
+
+  console.log(`kontrol: ${gecen}/${kontroller.length + 4}`);
 } finally {
+  /*
+   * 💀 Özet buradaydı ve `gecen` bu kapsamda TANIMLI DEĞİLDİ: `finally`nin
+   * İLK satırında patlayınca tarayıcı kapanmadı ve GEÇİCİ KAYIT SİLİNMEDİ.
+   * `finally` yalnızca temizlik yapar; ölçüm/çıktı try içinde kalır.
+   */
   await tarayici.close();
   // 🧹 TEMIZLIK: olusturdugumuz her sey gider, var olanlara dokunulmaz.
   tinker(`

@@ -4,9 +4,11 @@ namespace Tests\Feature;
 
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
+use App\Enums\CalisanAraligi;
 use App\Models\Basvuru;
 use App\Models\BasvuruDuzeltmesi;
 use App\Models\EvrakTuru;
+use App\Models\Kurum;
 use App\Models\User;
 use App\Servisler\BasvuruAkisi;
 use App\Servisler\BasvuruBiletiAkisi;
@@ -151,7 +153,7 @@ class DuzeltmeAkisiTest extends TestCase
         $this->get(route('basvuru.duzelt', ['token' => $token2]))
             ->assertOk()
             ->assertSee('Düzeltme talebi 02')
-            ->assertSee('Önceki düzeltmeler')
+            ->assertSee('Başvuru geçmişi')
             ->assertSee('İkinci adres');
     }
 
@@ -262,5 +264,133 @@ class DuzeltmeAkisiTest extends TestCase
             ->assertOk()
             ->assertSee('Yayın sözleşmesi')
             ->assertDontSee('ek:1');
+    }
+
+    /**
+     * 🔑 Yusuf md.4: "kullanıcının NEYİ YENİ EKLEDİĞİNİ" göster. Yüklenen
+     * evrak tura kaydedilmiyordu; geçmişte "istendi" görünüyor ama başvuranın
+     * gerçekten yükleyip yüklemediği görünmüyordu.
+     */
+    public function test_yuklenen_evrak_tura_kaydedilir(): void
+    {
+        $basvuru = $this->basvuru();
+        $this->zorunluEvraklariYukle($basvuru);
+
+        $tur = EvrakTuru::turIcin($basvuru->tur)->firstWhere('zorunlu', true);
+        $onceki = $basvuru->fresh()->evraklar->firstWhere('evrak_turu_id', $tur->id);
+
+        $duzeltme = app(BasvuruAkisi::class)->eksikEvrakIste($basvuru, [
+            DuzeltmeAlanlari::EVRAK_ONEK.$tur->kod => 'Okunmuyor, yeniden yükleyin',
+        ]);
+
+        $token = app(BasvuruBiletiAkisi::class)->uret($basvuru->fresh());
+
+        // 🪤 Laravel testinde dosya AYRI bir parametre değil, veri dizisinde.
+        $this->post(route('basvuru.duzelt.kaydet', ['token' => $token]), [
+            'evraklar' => [$tur->id => UploadedFile::fake()->image('yeni-belge.jpg', 400, 400)],
+        ]);
+
+        $degisim = $duzeltme->fresh()->degisiklikler[DuzeltmeAlanlari::EVRAK_ONEK.$tur->kod] ?? null;
+
+        $this->assertNotNull($degisim, 'Yüklenen evrak tura kaydedilmedi.');
+        $this->assertSame('yeni-belge.jpg', $degisim['yeni']);
+        $this->assertSame($onceki->orijinal_ad, $degisim['eski'],
+            'Önceki dosyanın adı yükleme ÖNCESİ okunmalı; yukle() onu arşivliyor.');
+    }
+
+    /**
+     * 🔑 Yusuf md.4: çizelge "ilk bilgiler"den başlar. Ayrı anlık görüntü
+     * saklanmıyor; ilk değerler turların `eski` alanından çözülüyor.
+     */
+    public function test_ilk_bilgiler_turlardan_cozuluyor(): void
+    {
+        $basvuru = $this->basvuru();
+        $this->zorunluEvraklariYukle($basvuru);
+        $akis = app(BasvuruAkisi::class);
+
+        // 1. tur: adres değişti
+        $akis->eksikEvrakIste($basvuru, ['veri:adres' => 'Adres eksik']);
+        $token = app(BasvuruBiletiAkisi::class)->uret($basvuru->fresh());
+        $this->post(route('basvuru.duzelt.kaydet', ['token' => $token]),
+            ['alan' => ['veri_adres' => 'İkinci adres']]);
+
+        // 2. tur: adres TEKRAR değişti
+        $basvuru->refresh()->update(['durum' => BasvuruDurumu::Incelemede]);
+        $akis->eksikEvrakIste($basvuru->fresh(), ['veri:adres' => 'Hâlâ eksik']);
+        $token2 = app(BasvuruBiletiAkisi::class)->uret($basvuru->fresh());
+        $this->post(route('basvuru.duzelt.kaydet', ['token' => $token2]),
+            ['alan' => ['veri_adres' => 'Üçüncü adres']]);
+
+        $ilk = $basvuru->fresh()->ilkDegerler();
+
+        // İlk değer BİRİNCİ turun `eski`si -- ikincinin değil.
+        $this->assertSame('Eski adres 1', $ilk['veri:adres']);
+        // Hiç değişmemiş alan bugünkü hâliyle aynı.
+        $this->assertSame('Aday Kişi', $ilk['veri:ad_soyad']);
+    }
+
+    /** 🪤 "İlk bilgiler" İLK turda da görünmeli; önceki tur şartına bağlı değil. */
+    public function test_ilk_bilgiler_ilk_turda_da_gorunur(): void
+    {
+        $basvuru = $this->basvuru();
+        app(BasvuruAkisi::class)->eksikEvrakIste($basvuru, ['veri:adres' => 'Adres eksik']);
+        $token = app(BasvuruBiletiAkisi::class)->uret($basvuru->fresh());
+
+        $this->get(route('basvuru.duzelt', ['token' => $token]))
+            ->assertOk()
+            ->assertSee('Başvuru geçmişi')
+            ->assertSee('İlk bilgiler')
+            ->assertSee('Eski adres 1');
+    }
+
+    /**
+     * 💥 KURUMSAL yol test edilmiyordu ve orada patlıyordu:
+     * `Kurum::calisan_araligi` modelde ENUM'a cast ediliyor, biçimlendirici
+     * ise `(string) $deger` yapıyordu → "could not be converted to string",
+     * düzeltme sayfası ve inceleme ekranı komple 500.
+     *
+     * 💀 Ancak "İlk bilgiler" TÜM alanları okumaya başlayınca ortaya çıktı.
+     */
+    public function test_kurumsal_basvuruda_tum_alanlar_gosterilebiliyor(): void
+    {
+        $kurum = Kurum::create([
+            'resmi_unvan' => 'Test Gazetesi',
+            'adres' => 'Eski adres 1',
+            'il' => 'Çorum',
+            'ilce' => 'Merkez',
+            'telefon' => '+903642223344',
+            'eposta' => 'kurum@ornek.test',
+            'vergi_dairesi' => 'Çorum',
+            'vergi_no' => '1234567890',
+            'calisan_araligi' => CalisanAraligi::Bes,
+            'yayin_platformlari' => [['ad' => 'Site', 'url' => 'https://ornek.test']],
+            'akreditasyon_durumu' => 'beklemede',
+        ]);
+
+        $basvuru = Basvuru::create([
+            'tur' => BasvuruTuru::Kurum,
+            'durum' => BasvuruDurumu::Incelemede,
+            'kurum_id' => $kurum->id,
+            'basvuran_ad' => 'Yetkili Kişi',
+            'basvuran_eposta' => 'yetkili-kurum@ornek.test',
+            'basvuran_telefon' => '+905321112233',
+        ]);
+
+        // Her alan tek tek gösterilebilmeli -- hiçbiri istisna atmamalı.
+        foreach (array_keys(DuzeltmeAlanlari::veriTanimlari(BasvuruTuru::Kurum)) as $anahtar) {
+            $this->assertIsString($basvuru->duzeltmeDegeriGoster($anahtar, null),
+                "Gösterilemedi: {$anahtar}");
+        }
+
+        $this->assertSame('1-5 kişi', $basvuru->duzeltmeDegeriGoster('veri:calisan_araligi', null));
+
+        // Ve sayfa gerçekten açılmalı.
+        app(BasvuruAkisi::class)->eksikEvrakIste($basvuru, ['veri:vergi_no' => 'Numara hatalı']);
+        $token = app(BasvuruBiletiAkisi::class)->uret($basvuru->fresh());
+
+        $this->get(route('basvuru.duzelt', ['token' => $token]))
+            ->assertOk()
+            ->assertSee('İlk bilgiler')
+            ->assertSee('1-5 kişi');
     }
 }

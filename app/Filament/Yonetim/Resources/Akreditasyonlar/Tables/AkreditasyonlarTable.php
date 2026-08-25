@@ -17,6 +17,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -88,7 +89,14 @@ class AkreditasyonlarTable
              * Süzgeçler -- Yusuf revizyonu 25.08.2026: üye türü, kurum ve
              * tarih aralığı eklendi; durum en üste alındı.
              */
-            ->filtersFormColumns(2)
+            /*
+             * 🔑 Süzgeçler TABLONUN ÜSTÜNDE, açılır kutuda değil (Yusuf
+             * revizyonu md.5: "durum filtresi var ama bu da yukarı taşınır").
+             * Maç haftası bu liste sürekli süzülüyor; her seferinde huniye
+             * tıklamak gereksiz bir adım.
+             */
+            ->filtersLayout(FiltersLayout::AboveContent)
+            ->filtersFormColumns(4)
             ->filters([
                 SelectFilter::make('durum')
                     ->label('Durum')

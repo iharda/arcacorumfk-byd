@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Concerns\UlidAnahtari;
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
+use App\Servisler\DuzeltmeUygulayici;
 use App\Support\DuzeltmeAlanlari;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -200,6 +201,44 @@ class Basvuru extends Model
     }
 
     /**
+     * BAŞVURU ANINDAKİ değerler -- Yusuf revizyonu md.4: zaman çizelgesi
+     * "ilk bilgiler"den başlamalı, tur 01'den değil.
+     *
+     * 🔑 Ayrı bir anlık görüntü SAKLANMAZ: turlar zaten her değişimin `eski`
+     * hâlini tutuyor. Bir alanın ilk değeri, onu DEĞİŞTİREN EN ESKİ turun
+     * `eski` değeridir; hiç değişmemiş alan bugünkü hâliyle aynıdır.
+     * Böylece ikinci bir doğruluk kaynağı doğmuyor.
+     *
+     * @return array<string, mixed> anahtar => ilk değer
+     */
+    public function ilkDegerler(): array
+    {
+        $uygulayici = app(DuzeltmeUygulayici::class);
+        $degerler = [];
+
+        foreach (DuzeltmeAlanlari::veriTanimlari($this->tur) as $anahtar => $tanim) {
+            $degerler[$anahtar] = $uygulayici->deger($this, $anahtar);
+        }
+
+        // Eskiden yeniye: her alanın İLK gördüğü `eski` değer kazanır.
+        $bulunanlar = [];
+
+        foreach ($this->duzeltmeler->sortBy('sira') as $tur) {
+            foreach ($tur->degisiklikler ?? [] as $anahtar => $degisim) {
+                // Evrak ve ek talepler "ilk bilgiler" tablosuna girmez.
+                if (! array_key_exists($anahtar, $degerler) || isset($bulunanlar[$anahtar])) {
+                    continue;
+                }
+
+                $degerler[$anahtar] = $degisim['eski'];
+                $bulunanlar[$anahtar] = true;
+            }
+        }
+
+        return $degerler;
+    }
+
+    /**
      * Düzeltme anahtarının ekranda görünen adı. Anahtarlar `evrak:<kod>` /
      * `veri:<alan>` biçimindedir; etiket hiç saklanmaz, her seferinde
      * üretilir (Düzeltme listesi md.11).
@@ -207,6 +246,33 @@ class Basvuru extends Model
     public function duzeltmeEtiketi(string $anahtar): string
     {
         return DuzeltmeAlanlari::etiket($this, $anahtar);
+    }
+
+    /**
+     * Bir düzeltme değerinin ekranda görünecek hâli.
+     *
+     * 🪤 Biçim ALANIN TİPİNE bağlı: telefon `+90 532 111 22 33` diye
+     * gruplanır, evet/hayır "Var/Yok" olur, il+ilçe birleşir. Görünümde
+     * genel bir yardımcıyla basmak telefonu ham `+905321112233` gösteriyordu.
+     * Evrak ve ek talep değerleri (dosya adı) düz metindir.
+     */
+    public function duzeltmeDegeriGoster(string $anahtar, mixed $deger): string
+    {
+        if (DuzeltmeAlanlari::veriMi($anahtar)) {
+            return app(DuzeltmeUygulayici::class)->goster($this, $anahtar, $deger);
+        }
+
+        if ($deger === null || $deger === '' || $deger === []) {
+            return '—';
+        }
+
+        if (is_bool($deger)) {
+            return $deger ? 'Var' : 'Yok';
+        }
+
+        return is_scalar($deger)
+            ? (string) $deger
+            : (string) json_encode($deger, JSON_UNESCAPED_UNICODE);
     }
 
     public function eksikEvrakBekleniyorMu(): bool
