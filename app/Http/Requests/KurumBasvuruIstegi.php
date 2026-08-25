@@ -64,7 +64,7 @@ class KurumBasvuruIstegi extends FormRequest
             'yetkili_ad' => ['required', 'string', 'min:3', 'max:120'],
             // 🔑 `unique` DEĞİL: başvurusu reddedilen kurum yetkilisi aynı
             // e-postayla yeniden başvurabilmeli (bkz. BasvuruUygunlugu).
-            'yetkili_eposta' => ['required', 'email:rfc', 'max:150', BasvuruUygunlugu::kural()],
+            'yetkili_eposta' => ['required', 'email:rfc', 'max:150', BasvuruUygunlugu::kural(BasvuruTuru::Kurum)],
             'yetkili_telefon_ulke' => ['required', Rule::in(UlkeKodu::kodlar())],
             'yetkili_telefon' => ['required', 'string', 'max:25', new TelefonNumarasi('yetkili_telefon_ulke')],
 

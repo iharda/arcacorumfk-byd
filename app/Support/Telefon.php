@@ -48,6 +48,29 @@ class Telefon
         return ltrim($rakam, '0');
     }
 
+    /**
+     * Ham değeri YALNIZCA Türkiye numarasına çevirir; çeviremiyorsa `null`.
+     *
+     * 💀 `e164()` ülke kodunu HER ZAMAN parametreden alır, girdideki `+49`'u
+     * tanımaz. Ülke kodunun form alanından gelmediği yerlerde (toplu veri
+     * dönüşümü) parametresiz çağırmak yabancı numaraya `+90` yapıştırır:
+     * `+49 170 1234567` → `+90491701234567`. Bu metot o durumda dokunmaz.
+     */
+    public static function trE164(?string $ham): ?string
+    {
+        $bosluksuz = preg_replace('/\s+/', '', (string) $ham) ?? '';
+
+        // Zaten E.164 ve TR DEĞİLSE yabancı numaradır.
+        if (preg_match('/^\+(?!90)\d{6,15}$/', $bosluksuz)) {
+            return null;
+        }
+
+        $yeni = self::e164($bosluksuz);
+
+        // TR numarası +90 + 10 hane olmalı; değilse elde düzeltmeye bırakılır.
+        return $yeni !== null && preg_match('/^\+90\d{10}$/', $yeni) ? $yeni : null;
+    }
+
     /** Ekranda gösterilecek biçim. TR numaraları gruplanır, diğerleri olduğu gibi. */
     public static function goster(?string $e164): string
     {

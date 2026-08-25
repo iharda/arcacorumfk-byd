@@ -4,6 +4,7 @@ namespace App\Servisler;
 
 use App\Enums\AkreditasyonDurumu;
 use App\Enums\BasvuruDurumu;
+use App\Enums\BasvuruTuru;
 use App\Models\Ayar;
 use App\Models\Basvuru;
 use App\Models\User;
@@ -63,7 +64,7 @@ class BasvuruUygunlugu
      * Yeni başvuru alınabilir mi? Alınamıyorsa başvurana gösterilecek SEBEP,
      * alınabiliyorsa null döner.
      */
-    public function engel(?User $kullanici): ?string
+    public function engel(?User $kullanici, ?BasvuruTuru $tur = null): ?string
     {
         if ($kullanici === null) {
             return null;   // hiç hesabı yok: normal ilk başvuru
@@ -81,8 +82,22 @@ class BasvuruUygunlugu
             return 'Bu e-posta ile geçerli bir akreditasyonunuz var; yeniden başvurmanıza gerek yok.';
         }
 
-        if ($kullanici->hasRole(User::ROL_KURUM) && $kullanici->kurum?->akrediteMi()) {
-            return 'Kurumunuz zaten akredite. Çalışan başvuruları kurum panelinden yürütülür.';
+        /*
+         * 🔑 Engel YALNIZCA KURUMSAL başvuruda (Düzeltme listesi md.4).
+         * Gazetenin sahibi hem kurum yetkilisi hem maça giden muhabir
+         * olabilir; kendi basın kartı için bireysel başvurabilmeli.
+         * `HesapAcici` çift rolü zaten destekliyor (syncRoles YERİNE
+         * removeRole/assignRole) — burada engellemek o çift rolün hiç
+         * doğmasına izin vermiyordu.
+         *
+         * 💀 Eskiden hem kamuya açık form hem kurum panelindeki "çalışan
+         * davet et" aynı mesajı veriyordu: kişi kurum panelinde dururken
+         * "kurum panelinden yürütülür" yazısını okuyordu.
+         */
+        if ($tur === BasvuruTuru::Kurum
+            && $kullanici->hasRole(User::ROL_KURUM)
+            && $kullanici->kurum?->akrediteMi()) {
+            return 'Kurumunuz zaten akredite; yeni kurum başvurusu gerekmiyor.';
         }
 
         return $this->beklemeEngeli($kullanici);
@@ -94,9 +109,9 @@ class BasvuruUygunlugu
      * olmayan, süren bir başvuruda. İkincisi olmadan aynı adresle sınırsız
      * başvuru gönderilebilirdi.
      */
-    public function epostaIcinEngel(string $eposta): ?string
+    public function epostaIcinEngel(string $eposta, ?BasvuruTuru $tur = null): ?string
     {
-        if ($engel = $this->engel($this->hesapBul($eposta))) {
+        if ($engel = $this->engel($this->hesapBul($eposta), $tur)) {
             return $engel;
         }
 
@@ -110,9 +125,9 @@ class BasvuruUygunlugu
     }
 
     /** Akış için: uygun değilse durdurur (ekranlar `epostaIcinEngel` kullanır). */
-    public function epostaIcinDogrula(string $eposta): void
+    public function epostaIcinDogrula(string $eposta, ?BasvuruTuru $tur = null): void
     {
-        if ($engel = $this->epostaIcinEngel($eposta)) {
+        if ($engel = $this->epostaIcinEngel($eposta, $tur)) {
             throw new RuntimeException($engel);
         }
     }
@@ -121,10 +136,10 @@ class BasvuruUygunlugu
      * Form doğrulama kuralı. `Rule::unique('users','email')` YERİNE kullanılır:
      * kayıtlı e-posta başlı başına engel değildir, engel olan durumlar burada.
      */
-    public static function kural(): Closure
+    public static function kural(?BasvuruTuru $tur = null): Closure
     {
-        return function (string $alan, mixed $deger, Closure $hata): void {
-            if ($engel = app(self::class)->epostaIcinEngel((string) $deger)) {
+        return function (string $alan, mixed $deger, Closure $hata) use ($tur): void {
+            if ($engel = app(self::class)->epostaIcinEngel((string) $deger, $tur)) {
                 $hata($engel);
             }
         };

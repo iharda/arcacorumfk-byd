@@ -43,7 +43,8 @@ class EksikEvrakTalebi extends Notification implements ShouldQueue
             ->line('Başvurunuz incelendi ve aşağıdaki noktaların düzeltilmesi gerekiyor:');
 
         foreach ($this->basvuru->duzeltme_notlari ?? [] as $alan => $aciklama) {
-            $mesaj->line('• **'.$alan.'** — '.$aciklama);
+            // 🪤 `$alan` bir ANAHTAR (`evrak:kimlik`); etiket üretilir (md.11).
+            $mesaj->line('• **'.$this->basvuru->duzeltmeEtiketi($alan).'** — '.$aciklama);
         }
 
         if (filled($this->basvuru->karar_gerekcesi)) {

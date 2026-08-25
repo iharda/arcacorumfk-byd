@@ -2,6 +2,7 @@
 
 namespace App\Servisler;
 
+use App\Enums\BasvuruTuru;
 use App\Models\Ayar;
 use App\Models\Davet;
 use App\Models\Kurum;
@@ -41,7 +42,9 @@ class DavetAkisi
         // Kayıtlı e-posta tek başına engel DEĞİL: reddedilen ya da eski
         // kurumundan ayrılmış biri yeniden davet edilebilmeli. Engel yalnızca
         // süren başvuru / geçerli akreditasyon hâllerinde (BasvuruUygunlugu).
-        $this->uygunluk->epostaIcinDogrula($eposta);
+        // 🔑 Tür BASIN MENSUBU: kurum yetkilisi KENDİ e-postasını yazarak
+        // kendisi için de basın kartı isteyebilmeli (Düzeltme listesi md.4).
+        $this->uygunluk->epostaIcinDogrula($eposta, BasvuruTuru::BasinMensubu);
 
         if ($kurum->kontenjanDoldu()) {
             throw new RuntimeException('Kurum kontenjanı dolu. Yeni davet için kulüple görüşün.');

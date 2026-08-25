@@ -206,7 +206,7 @@ class BasvuruController extends Controller
     {
         $eposta = $veri['yetkili_eposta'];
 
-        $this->uygunluk->epostaIcinDogrula($eposta);
+        $this->uygunluk->epostaIcinDogrula($eposta, BasvuruTuru::Kurum);
 
         $kurum = $this->kurumuHazirla($eposta, [
             'resmi_unvan' => $veri['resmi_unvan'],
@@ -254,7 +254,7 @@ class BasvuruController extends Controller
      */
     private function bireyselOlustur(BasvuruTuru $tur, ?Kurum $kurum, array $veri, bool $kurumBaslatti): Basvuru
     {
-        $this->uygunluk->epostaIcinDogrula($veri['eposta']);
+        $this->uygunluk->epostaIcinDogrula($veri['eposta'], $tur);
 
         $basvuru = Basvuru::create([
             'tur' => $tur,

@@ -8,6 +8,7 @@ use App\Models\EvrakTuru;
 use App\Servisler\BasvuruAkisi;
 use App\Servisler\BasvuruBiletiAkisi;
 use App\Servisler\EvrakYukleyici;
+use App\Support\DuzeltmeAlanlari;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -129,8 +130,11 @@ class BasvuruDuzeltmeController extends Controller
             'evrakTurleri' => $turler,
             // Evrak olmayan işaretler (Telefon, Vergi no...) yalnızca gösterilir;
             // başvuran açıklama kutusundan yanıt verir.
+            // 🪤 Süzgeç ANAHTARA bakar, görünen ada değil (md.11). Eski
+            // biletlerdeki çıplak ad anahtarları da eleniyor.
             'veriNotlari' => collect($basvuru->duzeltme_notlari ?? [])
-                ->reject(fn ($aciklama, $alan) => $turler->contains('ad', $alan))
+                ->reject(fn ($aciklama, $alan) => DuzeltmeAlanlari::evrakMi($alan)
+                    || $turler->contains('ad', $alan))
                 ->all(),
             'yuklenmisEvraklar' => $basvuru->evraklar->keyBy('evrak_turu_id'),
         ];
@@ -147,7 +151,7 @@ class BasvuruDuzeltmeController extends Controller
         $isaretli = $bilet->basvuru->duzeltilebilirAlanlar();
 
         return EvrakTuru::turIcin($bilet->basvuru->tur)
-            ->filter(fn (EvrakTuru $tur) => in_array($tur->ad, $isaretli, true))
+            ->filter(fn (EvrakTuru $tur) => DuzeltmeAlanlari::evrakIsteniyorMu($tur, $isaretli))
             ->values();
     }
 

@@ -6,10 +6,10 @@ use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
 use App\Filament\Yonetim\Resources\Basvurus\BasvuruResource;
 use App\Models\Basvuru;
-use App\Models\EvrakTuru;
 use App\Notifications\EksikEvrakTalebi;
 use App\Servisler\BasvuruAkisi;
 use App\Servisler\BasvuruBiletiAkisi;
+use App\Support\DuzeltmeAlanlari;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -113,47 +113,15 @@ class Inceleme extends Page
     }
 
     /**
-     * Eksik evrak talebinde işaretlenebilecek alanlar. Liste BAŞVURU TÜRÜNE
-     * göre değişir: bireysel başvuruda "vergi dairesi" diye bir alan yok,
-     * kurumsal başvuruda "basın kartı" yok.
+     * Eksik evrak talebinde işaretlenebilecek alanlar: anahtar => etiket.
+     *
+     * 🔑 Anahtarlar `DuzeltmeAlanlari` şemasından gelir (`evrak:<kod>`,
+     * `veri:<alan>`) -- görünen ad DEĞİL. Evrak türünün adı panelden
+     * değiştiğinde yoldaki biletler bozulmasın (Düzeltme listesi md.11).
      */
     public function isaretlenebilirAlanlar(): array
     {
-        $ortak = [
-            'Ad soyad' => 'Ad soyad',
-            'Adres' => 'Adres',
-            'İl / ilçe' => 'İl / ilçe',
-            'Telefon' => 'Telefon',
-            'E-posta' => 'E-posta',
-            'Sosyal medya' => 'Sosyal medya',
-        ];
-
-        $alanlar = $this->record->tur === BasvuruTuru::Kurum
-            ? [
-                'Resmi ünvan' => 'Resmi ünvan',
-                'Adres' => 'Adres',
-                'İl / ilçe' => 'İl / ilçe',
-                'Telefon' => 'Telefon',
-                'E-posta' => 'E-posta',
-                'Vergi dairesi' => 'Vergi dairesi',
-                'Vergi numarası' => 'Vergi numarası',
-                'Çalışan sayısı' => 'Çalışan sayısı',
-                'Yayın platformları' => 'Yayın platformları',
-                'Sosyal medya' => 'Sosyal medya',
-                'Yetkili bilgileri' => 'Yetkili bilgileri',
-            ]
-            : $ortak + [
-                'Kurum' => 'Kurum',
-                'Basın kartı' => 'Basın kartı',
-                '212 sigortası' => '212 sigortası',
-                'Mesleki deneyim' => 'Mesleki deneyim',
-            ];
-
-        foreach (EvrakTuru::turIcin($this->record->tur) as $tur) {
-            $alanlar[$tur->ad] = $tur->ad;
-        }
-
-        return $alanlar;
+        return DuzeltmeAlanlari::tumu($this->record);
     }
 
     protected function getHeaderActions(): array

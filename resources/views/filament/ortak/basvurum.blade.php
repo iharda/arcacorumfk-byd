@@ -65,7 +65,7 @@
             <ul style="display:flex; flex-direction:column; gap:.5rem;">
                 @foreach ($basvuru->duzeltme_notlari as $alan => $aciklama)
                     <li style="display:flex; gap:.6rem; align-items:flex-start;">
-                        <x-filament::badge color="warning">{{ $alan }}</x-filament::badge>
+                        <x-filament::badge color="warning">{{ $basvuru->duzeltmeEtiketi($alan) }}</x-filament::badge>
                         <span style="font-size:.875rem;">{{ $aciklama }}</span>
                     </li>
                 @endforeach

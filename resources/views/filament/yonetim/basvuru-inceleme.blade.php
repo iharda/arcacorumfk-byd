@@ -209,7 +209,7 @@
                     <x-slot name="heading">İstenen düzeltmeler</x-slot>
                     <ul style="display:flex; flex-direction:column; gap:.4rem; font-size:.82rem;">
                         @foreach ($record->duzeltme_notlari as $alan => $aciklama)
-                            <li><strong>{{ $alan }}</strong> — {{ $aciklama }}</li>
+                            <li><strong>{{ $record->duzeltmeEtiketi($alan) }}</strong> — {{ $aciklama }}</li>
                         @endforeach
                     </ul>
                 </x-filament::section>

@@ -62,7 +62,7 @@ class BireyselBasvuruIstegi extends FormRequest
             $kurallar['ad_soyad'] = ['required', 'string', 'min:3', 'max:120'];
             // 🔑 `unique` DEĞİL: reddedilen ya da ayrılan kişi aynı e-postayla
             // yeniden başvurabilmeli. Engel varsa sebebini kural kendisi yazar.
-            $kurallar['eposta'] = ['required', 'email:rfc', 'max:150', BasvuruUygunlugu::kural()];
+            $kurallar['eposta'] = ['required', 'email:rfc', 'max:150', BasvuruUygunlugu::kural($this->tur())];
         }
 
         if ($this->tur() === BasvuruTuru::BasinMensubu) {

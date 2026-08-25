@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Concerns\UlidAnahtari;
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
+use App\Support\DuzeltmeAlanlari;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -180,6 +181,16 @@ class Basvuru extends Model
     public function duzeltilebilirAlanlar(): array
     {
         return array_keys($this->duzeltme_notlari ?? []);
+    }
+
+    /**
+     * Düzeltme anahtarının ekranda görünen adı. Anahtarlar `evrak:<kod>` /
+     * `veri:<alan>` biçimindedir; etiket hiç saklanmaz, her seferinde
+     * üretilir (Düzeltme listesi md.11).
+     */
+    public function duzeltmeEtiketi(string $anahtar): string
+    {
+        return DuzeltmeAlanlari::etiket($this, $anahtar);
     }
 
     public function eksikEvrakBekleniyorMu(): bool

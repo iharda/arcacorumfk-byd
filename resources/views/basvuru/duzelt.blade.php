@@ -24,7 +24,7 @@
         <ul class="mt-3 space-y-2 text-sm">
             @foreach ($basvuru->duzeltme_notlari ?? [] as $alan => $aciklama)
                 <li>
-                    <span class="font-medium text-koyu">{{ $alan }}</span>
+                    <span class="font-medium text-koyu">{{ $basvuru->duzeltmeEtiketi($alan) }}</span>
                     <span class="text-neutral-600">— {{ $aciklama }}</span>
                 </li>
             @endforeach

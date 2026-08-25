@@ -42,6 +42,19 @@ enum BasvuruTuru: string
         };
     }
 
+    /**
+     * Bu türün kamuya açık başvuru formu. Üç yerde aynı `match` yazılıyordu
+     * (BasvurumSayfasi, red bildirimi); tek yerde dursun.
+     */
+    public function basvuruRotasi(): string
+    {
+        return route(match ($this) {
+            self::Kurum => 'basvuru.kurum',
+            self::BasinMensubu => 'basvuru.basin-mensubu',
+            self::IcerikUreticisi => 'basvuru.icerik-ureticisi',
+        });
+    }
+
     /** Kurum secimi zorunlu mu? */
     public function kurumGerektirir(): bool
     {

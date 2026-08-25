@@ -3,7 +3,6 @@
 namespace App\Filament\Ortak;
 
 use App\Enums\BasvuruDurumu;
-use App\Enums\BasvuruTuru;
 use App\Models\Basvuru;
 use App\Models\EvrakTuru;
 use App\Servisler\BasvuruUygunlugu;
@@ -79,14 +78,10 @@ abstract class BasvurumSayfasi extends Page
             return ['adres' => null, 'engel' => null];
         }
 
-        if ($engel = app(BasvuruUygunlugu::class)->engel(Auth::user())) {
+        if ($engel = app(BasvuruUygunlugu::class)->engel(Auth::user(), $this->basvuru->tur)) {
             return ['adres' => null, 'engel' => $engel];
         }
 
-        return ['adres' => match ($this->basvuru->tur) {
-            BasvuruTuru::Kurum => route('basvuru.kurum'),
-            BasvuruTuru::IcerikUreticisi => route('basvuru.icerik-ureticisi'),
-            BasvuruTuru::BasinMensubu => route('basvuru.basin-mensubu'),
-        }, 'engel' => null];
+        return ['adres' => $this->basvuru->tur->basvuruRotasi(), 'engel' => null];
     }
 }
