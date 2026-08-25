@@ -23,6 +23,11 @@ use Illuminate\Support\Facades\Storage;
  */
 class EvrakController extends Controller
 {
+    /** İçerik diskinden `inline` servis edilebilecek TEK biçimler. */
+    private const ICERIK_MIME = [
+        'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf',
+    ];
+
     public function __construct(
         private EvrakYukleyici $yukleyici,
         private DenetimYazici $denetim,
@@ -61,8 +66,18 @@ class EvrakController extends Controller
         $disk = Storage::disk('icerik');
         abort_unless($disk->exists($yol), 404);
 
+        $mime = $disk->mimeType($yol) ?: 'application/octet-stream';
+
+        /*
+         * 🔒 İKİNCİ KAPI (Düzeltme listesi md.3): yükleme beyaz listesi
+         * sıkılaştırıldı ama diskte ESKİ bir SVG durabilir. Dosya `inline`
+         * servis edildiği için tarayıcı SVG'yi aynı origin'de çalıştırır;
+         * `nosniff` burada işe yaramaz (MIME zaten doğru, sniff yok).
+         */
+        abort_unless(in_array($mime, self::ICERIK_MIME, true), 404);
+
         return response($disk->get($yol), 200, [
-            'Content-Type' => $disk->mimeType($yol) ?: 'application/octet-stream',
+            'Content-Type' => $mime,
             'Content-Disposition' => 'inline',
             'Cache-Control' => 'private, max-age=600',
             'X-Content-Type-Options' => 'nosniff',

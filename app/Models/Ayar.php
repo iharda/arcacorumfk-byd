@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Servisler\GuvenliHtml;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
@@ -32,6 +33,16 @@ class Ayar extends Model
 
     public static function yaz(string $anahtar, mixed $deger): void
     {
+        /*
+         * 🔒 Hukuki metinler zengin metin olarak girilir ve kamuya açık
+         * sayfada `{!! !!}` ile basılır (Düzeltme listesi md.2). Ayar yazımı
+         * TEK KAPI olduğu için saflaştırma burada; panelden mi, komuttan mı
+         * geldiği fark etmez.
+         */
+        if (str_ends_with($anahtar, '_metni') && is_string($deger)) {
+            $deger = GuvenliHtml::temizle($deger);
+        }
+
         static::updateOrCreate(['anahtar' => $anahtar], ['deger' => $deger]);
         Cache::forget('byd.ayarlar');
     }

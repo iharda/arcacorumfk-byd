@@ -34,7 +34,14 @@ class DuyuruFormu
 
             FileUpload::make('gorsel_yolu')
                 ->label('Görsel')
-                ->image()
+                /*
+                 * 🔒 `->image()` DEĞİL: o `image/*` demektir ve buna
+                 * `image/svg+xml` DAHİLDİR (Düzeltme listesi md.3). SVG bir
+                 * belge biçimidir, içine `<script>` konur ve dosya aynı
+                 * origin'de `inline` servis edilir. Bülten ekindeki beyaz
+                 * listenin aynısı.
+                 */
+                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                 ->disk('icerik')
                 ->directory('duyuru')
                 ->maxSize(4096)
