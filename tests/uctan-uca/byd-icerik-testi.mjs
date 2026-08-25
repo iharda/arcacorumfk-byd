@@ -291,6 +291,7 @@ echo 'VIDEO';`);
     v.load();
   }));
   kontrol('Video tarayıcıda gerçekten açılıyor', oynatilabilir.tamam, oynatilabilir.not);
+  await uye.screenshot({ path: '/root/byd-uye-duyuru-video.png', fullPage: true });
 
   /* 🎬 İleri sarma Range'e bağlı: 200 dönerse video baştan sona inmek zorunda. */
   const parca = await uye.evaluate(async yol => {
