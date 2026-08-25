@@ -75,12 +75,4 @@ class Evrak extends Model
     {
         return $this->belongsTo(EvrakTuru::class, 'evrak_turu_id');
     }
-
-    /**
-     * Evrak adresi HER ZAMAN kisa omurlu ve imzali. Public URL YOK (md.11).
-     */
-    public function gecelikBaglanti(int $dakika = 5): string
-    {
-        return Storage::disk($this->disk)->temporaryUrl($this->yol, now()->addMinutes($dakika));
-    }
 }

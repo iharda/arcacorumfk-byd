@@ -74,7 +74,9 @@ class GecisKayitlariTable
 
                 Filter::make('bugun')
                     ->label('Bugün')
-                    ->query(fn (Builder $query) => $query->whereDate('okundu_at', today())),
+                    ->query(fn (Builder $query) => $query->whereBetween('okundu_at', [
+                        today('Europe/Istanbul')->startOfDay(), today('Europe/Istanbul')->endOfDay(),
+                    ])),
             ])
             ->recordActions([])
             ->headerActions([
@@ -96,6 +98,8 @@ class GecisKayitlariTable
                             $k->bolge,
                             $k->sebep,
                         ],
+                        // 🔒 Toplu kişisel veri indirme denetime düşer (Düzeltme listesi md.8).
+                        olay: 'gecis.disa_aktarildi',
                     )),
             ])
             ->toolbarActions([])

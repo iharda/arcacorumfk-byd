@@ -127,6 +127,9 @@ class KapiController extends Controller
         return response()->json([
             'sonuc' => $sonuc['sonuc']->value,
             'izinli' => $sonuc['sonuc']->basarili(),
+            // 🔑 Uyarı ≠ ret: görevli SARI ekran görsün, kırmızı değil
+            // (Düzeltme listesi md.12).
+            'uyari' => $sonuc['sonuc']->uyariMi(),
             'etiket' => $sonuc['sonuc']->etiket(),
             'mesaj' => $sonuc['mesaj'],
             'kisi' => $akreditasyon ? [

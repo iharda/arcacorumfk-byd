@@ -183,7 +183,12 @@ return [
     |
     */
 
-    'memory_limit' => 64,
+    /*
+     * 💣 Laravel varsayilani 64 MB. Hassas evrak yuklemesi
+     * `file_get_contents` -> `base64_encode` (+%33) -> `Crypt::encryptString`
+     * zincirinden geciyor; tek is 30 MB'i asabiliyor (Duzeltme listesi md.7).
+     */
+    'memory_limit' => 256,
 
     /*
     |--------------------------------------------------------------------------
@@ -196,35 +201,73 @@ return [
     |
     */
 
+    /*
+     * 💀 Tek `default` kuyrugu vardi ve ayarlar Laravel varsayilaniydi
+     * (Duzeltme listesi md.7). Uc ayri sorun:
+     *   - Bir bultenin 500 e-postasi, onaylanan basvurunun KARTINI siraya
+     *     sokuyordu: kisi kartini yarim saat bekliyordu.
+     *   - `timeout => 60`: KartUret iki Chrome render'i yapiyor (PDF + PNG) ve
+     *     `waitUntilNetworkIdle` bekliyor; yogun anda 60 sn asilir, is
+     *     oldurulur ve diskte YETIM DOSYA kalir.
+     *   - `tries => 1`: gecici bir SMTP hatasi = KALICI kayip bildirim.
+     * Uc ayri kuyruk: agir is postayi, posta da karti bekletmez.
+     */
     'defaults' => [
-        'supervisor-1' => [
+        'supervisor-kart' => [
+            'connection' => 'redis',
+            'queue' => ['kart'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 2,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            // Bassiz Chrome hem yavas hem hafiza yer.
+            'memory' => 512,
+            'tries' => 3,
+            'timeout' => 300,
+            'nice' => 0,
+        ],
+
+        'supervisor-posta' => [
+            'connection' => 'redis',
+            'queue' => ['posta'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 6,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 3,
+            'timeout' => 60,
+            'nice' => 0,
+        ],
+
+        'supervisor-default' => [
             'connection' => 'redis',
             'queue' => ['default'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
-            'maxProcesses' => 1,
+            'maxProcesses' => 3,
             'maxTime' => 0,
             'maxJobs' => 0,
-            'memory' => 128,
-            'tries' => 1,
-            'timeout' => 60,
+            'memory' => 256,
+            'tries' => 3,
+            'timeout' => 120,
             'nice' => 0,
         ],
     ],
 
     'environments' => [
         'production' => [
-            'supervisor-1' => [
-                'maxProcesses' => 10,
-                'balanceMaxShift' => 1,
-                'balanceCooldown' => 3,
-            ],
+            'supervisor-kart' => ['maxProcesses' => 3, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
+            'supervisor-posta' => ['maxProcesses' => 8, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
+            'supervisor-default' => ['maxProcesses' => 4, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
         ],
 
         'local' => [
-            'supervisor-1' => [
-                'maxProcesses' => 3,
-            ],
+            'supervisor-kart' => ['maxProcesses' => 1],
+            'supervisor-posta' => ['maxProcesses' => 2],
+            'supervisor-default' => ['maxProcesses' => 2],
         ],
     ],
 

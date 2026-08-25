@@ -30,7 +30,15 @@ class KartUretici
         private DenetimYazici $denetim,
     ) {}
 
-    public function uret(Akreditasyon $akreditasyon): Kart
+    /**
+     * @param  ?int  $uretenId  Tetikleyen kullanıcı. 💀 Burada `auth()->id()`
+     *                          okunuyordu ama bu metot YALNIZCA kuyruk işinden
+     *                          çağrılıyor ve işçide oturum YOKTUR:
+     *                          `kartlar.ureten_id` her zaman NULL kalıyordu
+     *                          (Düzeltme listesi md.15). "Kartı yeniden üret"
+     *                          düğmesine basan yetkili iz bırakmıyordu.
+     */
+    public function uret(Akreditasyon $akreditasyon, ?int $uretenId = null): Kart
     {
         $akreditasyon->loadMissing(['kullanici', 'kurum', 'basvuru.evraklar.turu']);
 
@@ -57,7 +65,7 @@ class KartUretici
             ->deviceScaleFactor(3)
             ->screenshot());
 
-        return DB::transaction(function () use ($akreditasyon, $disk, $surum, $pdfYolu, $gorselYolu) {
+        return DB::transaction(function () use ($akreditasyon, $disk, $surum, $pdfYolu, $gorselYolu, $uretenId) {
             $akreditasyon->kartlar()->update(['arsiv' => true]);
             // Dosya silme COMMIT SONRASINA bırakılır: işlem geri sararsa
             // kayıtlar geri gelir ama silinmiş dosya geri gelmez.
@@ -72,7 +80,7 @@ class KartUretici
                 'qr_anahtar_surumu' => (int) config('byd.qr.anahtar_surumu'),
                 'arsiv' => false,
                 'uretildi_at' => now(),
-                'ureten_id' => auth()->id(),
+                'ureten_id' => $uretenId,
             ]);
 
             $this->denetim->yaz('kart.uretildi', $kart, yeni: [

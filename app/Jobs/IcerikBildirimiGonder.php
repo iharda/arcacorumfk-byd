@@ -30,7 +30,10 @@ class IcerikBildirimiGonder implements ShouldQueue
         public string $model,
         public int $kayitId,
         public string $tur,
-    ) {}
+    ) {
+        // Bildirim kuyruğu ayrı: kart üretimi postayı bekletmesin.
+        $this->onQueue('posta');
+    }
 
     public function handle(): void
     {

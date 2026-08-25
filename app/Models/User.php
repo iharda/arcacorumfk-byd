@@ -166,8 +166,18 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
      */
     public function erisebildigiPaneller(): array
     {
+        /*
+         * 🔒 `yonetim` LİSTEDE YOK (Düzeltme listesi md.14). Tek giriş kapısı
+         * kulüp yetkilisini BİLEREK dışlıyor (`GirisController::giris`,
+         * `SifreController`, `HesapController`): yönetim paneline yalnızca
+         * kendi 2FA'lı kapısından girilir. Listeye koymak o kapıyı atlatırdı --
+         * oturumu açıkken `yetkili` rolü verilen biri `/panel-sec`'te
+         * "Yönetim Paneli"ni görüp hiç TOTP girmeden geçebilirdi.
+         *
+         * 🪤 Filament'in MFA ara katmanı yalnızca 2FA'nın KURULU olup
+         * olmadığına bakar, o oturumda DOĞRULANIP doğrulanmadığına değil.
+         */
         $adlar = [
-            'yonetim' => 'Yönetim Paneli',
             'kurum' => 'Kurum Paneli',
             'uye' => 'Basın Paneli',
         ];

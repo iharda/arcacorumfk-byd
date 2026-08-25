@@ -64,8 +64,14 @@ class KapiIstemcisiAkisi
     private function anahtarUret(): string
     {
         do {
-            // Karışan karakter yok (0/O, 1/l): görevli anahtarı elle girecek.
-            $anahtar = 'kapi_'.Str::lower(Str::random(40));
+            /*
+             * 💀 Eski yorum "karışan karakter yok (0/O, 1/l)" diyordu ama
+             * `Str::random()` alfabesi `0-9a-zA-Z`; `Str::lower()` sonrası
+             * `0`, `o`, `1`, `l` HEPSİ duruyordu (Düzeltme listesi md.18.4).
+             * Yorum güvence veriyor, kod vermiyordu. Artık veriyor:
+             * Crockford base32 -- `i`, `l`, `o`, `u` yok.
+             */
+            $anahtar = 'kapi_'.$this->karismayanKod(40);
         } while (KapiIstemcisi::where('anahtar_onek', substr($anahtar, 0, 12))->exists());
 
         return $anahtar;
@@ -81,5 +87,21 @@ class KapiIstemcisiAkisi
             ->all();
 
         return $liste ?: null;
+    }
+
+    /**
+     * Görevli anahtarı ELLE girebilsin diye karışan karakterler yok:
+     * Crockford base32 (`0-9` + `a-z` eksi `i`, `l`, `o`, `u`).
+     */
+    private function karismayanKod(int $uzunluk): string
+    {
+        $alfabe = '0123456789abcdefghjkmnpqrstvwxyz';
+        $kod = '';
+
+        for ($i = 0; $i < $uzunluk; $i++) {
+            $kod .= $alfabe[random_int(0, strlen($alfabe) - 1)];
+        }
+
+        return $kod;
     }
 }

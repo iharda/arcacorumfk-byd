@@ -23,6 +23,21 @@ class EksikEvrakTalebi extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    /**
+     * 🔑 Bildirimler POSTA kuyruğunda: kart üretimi onları bekletmesin
+     * (Düzeltme listesi md.7).
+     *
+     * 💣 `public $queue = 'posta'` YAZILAMAZ: `Illuminate\Bus\Queueable`
+     * trait'i aynı adda bir özellik tanımlıyor ve varsayılan değeri farklı
+     * olduğu için PHP "incompatible" diyip ÖLÜMCÜL hata veriyor.
+     *
+     * @return array<string, string>
+     */
+    public function viaQueues(): array
+    {
+        return ['mail' => 'posta', 'database' => 'posta'];
+    }
+
     private string $sifreliToken;
 
     public function __construct(public Basvuru $basvuru, string $token)

@@ -24,7 +24,14 @@ class AyarSeeder extends Seeder
             ],
             [
                 'anahtar' => 'mukerrer_okutma_saniye', 'deger' => 30, 'grup' => 'kapi',
-                'aciklama' => 'Bu süre içinde aynı kart yeniden okutulursa mükerrer işaretlenir.',
+                'aciklama' => 'AYNI kapıda bu süre içinde yeniden okutma: görevli uyarılır, geçiş engellenmez. 0 = kapalı.',
+            ],
+            [
+                // 🔑 Yinelenen okumadan AYRI bir şey (Düzeltme listesi md.12):
+                // biri aynı kapıdaki tekrarı, bu TÜM kapılardaki kart
+                // paylaşımını yakalar. İkisi de geçişi ENGELLEMEZ.
+                'anahtar' => 'kart_paylasimi_saniye', 'deger' => 120, 'grup' => 'kapi',
+                'aciklama' => 'Aynı kart BAŞKA bir kapıda bu süre içinde okutulduysa görevli uyarılır (yüz kontrolü). 0 = kapalı.',
             ],
             [
                 'anahtar' => 'kart_tur_kodlari', 'grup' => 'kart',

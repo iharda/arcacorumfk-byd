@@ -6,6 +6,7 @@ use App\Enums\AkreditasyonDurumu;
 use App\Enums\BasvuruTuru;
 use App\Jobs\KartUret;
 use App\Models\Akreditasyon;
+use App\Models\Ayar;
 use App\Models\Basvuru;
 use App\Models\User;
 use App\Notifications\AkreditasyonDurumuDegisti;
@@ -45,6 +46,13 @@ class AkreditasyonAkisi
                     'basvuru_id' => $basvuru->id,
                     'kurum_id' => $basvuru->kurum_id,
                     'durum' => AkreditasyonDurumu::Aktif,
+                    /*
+                     * 🔒 Bölge yetkileri onay anında atanır (Düzeltme
+                     * listesi md.9). Boş bırakılırsa `gecerliMi()` HER
+                     * BÖLGEYE izin verir; kısıtlı alanı olan kulüp
+                     * varsayılanı Ayarlar'dan doldurur.
+                     */
+                    'bolge_yetkileri' => (array) Ayar::al('varsayilan_bolgeler', []) ?: null,
                     // Sezon/geçerlilik Faz 2 — alanlar boş bırakılıyor (md.4).
                 ]),
             );
@@ -66,7 +74,8 @@ class AkreditasyonAkisi
             // Kart üretimi kuyrukta: başsız Chrome birkaç saniye sürüyor,
             // yetkili onay düğmesine basınca ekran beklemesin.
             // afterCommit: iş, kayıt gerçekten yazılmadan başlamasın.
-            KartUret::dispatch($akreditasyon)->afterCommit();
+            // 🔑 `Auth::id()` DISPATCH ANINDA okunur; işçide oturum yok.
+            KartUret::dispatch($akreditasyon, tetikleyenId: Auth::id())->afterCommit();
 
             return $akreditasyon;
         });

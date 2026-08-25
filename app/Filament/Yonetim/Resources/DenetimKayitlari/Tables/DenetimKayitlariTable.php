@@ -82,7 +82,9 @@ class DenetimKayitlariTable
 
                 Filter::make('bugun')
                     ->label('Bugün')
-                    ->query(fn (Builder $query) => $query->whereDate('created_at', today())),
+                    ->query(fn (Builder $query) => $query->whereBetween('created_at', [
+                        today('Europe/Istanbul')->startOfDay(), today('Europe/Istanbul')->endOfDay(),
+                    ])),
 
                 Filter::make('guvenlik')
                     ->label('Yalnızca güvenlik olayları')
@@ -125,6 +127,8 @@ class DenetimKayitlariTable
                             $k->not,
                             $k->ip,
                         ],
+                        // 🔒 Toplu kişisel veri indirme denetime düşer (Düzeltme listesi md.8).
+                        olay: 'denetim.disa_aktarildi',
                     )),
             ])
             ->toolbarActions([])

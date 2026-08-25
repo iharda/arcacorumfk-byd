@@ -14,7 +14,7 @@
     /* Kapı ekranı kendi CSS'ini taşır: gürültülü, hızlı, tek amaçlı bir yüzey.
        Panelin ya da kamu yüzünün stil paketiyle ortak yanı yok. */
     :root {
-        --kirmizi: #C11119; --koyu: #16181D; --yesil: #12833C;
+        --kirmizi: #C11119; --koyu: #16181D; --yesil: #12833C; --sari: #B45309;
         --gri: #8b929c; --acik: #f4f5f7;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -92,6 +92,9 @@
     .sonuc { flex: 1; display: flex; flex-direction: column; }
     .sonuc--izinli .bant { background: var(--yesil); }
     .sonuc--ret .bant { background: var(--kirmizi); }
+    /* Uyari: gecis SERBEST ama gorevli yuz kontrolu yapsin. Kirmizi ret
+       ekrani gorevlinin sisteme guvenini bitiriyordu (md.12). */
+    .sonuc--uyari .bant { background: var(--sari); }
     .bant { padding: 1.1rem 1.25rem; }
     .bant .etiket { font-size: 1.9rem; font-weight: 800; line-height: 1.05; letter-spacing: -.01em; }
     .bant .mesaj { font-size: .95rem; margin-top: .3rem; opacity: .95; }

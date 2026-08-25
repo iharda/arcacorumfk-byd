@@ -123,6 +123,8 @@ class BasvurusTable
                             $b->karar_at?->timezone('Europe/Istanbul')->format('d.m.Y H:i'),
                             $b->kararVeren?->name,
                         ],
+                        // 🔒 Toplu kişisel veri indirme denetime düşer (Düzeltme listesi md.8).
+                        olay: 'basvuru.disa_aktarildi',
                     )),
             ])
             ->recordActions([

@@ -12,6 +12,7 @@ enum GecisSonucu: string
     case ImzaGecersiz = 'imza_gecersiz';
     case BolgeYetkisiYok = 'bolge_yetkisi_yok';
     case MukerrerOkutma = 'mukerrer_okutma';
+    case BaskaKapida = 'baska_kapida';
 
     public function etiket(): string
     {
@@ -22,12 +23,28 @@ enum GecisSonucu: string
             self::Bulunamadi => 'Kayıt bulunamadı',
             self::ImzaGecersiz => 'İmza geçersiz',
             self::BolgeYetkisiYok => 'Bölge yetkisi yok',
-            self::MukerrerOkutma => 'Mükerrer okutma',
+            self::MukerrerOkutma => 'Az önce okutuldu',
+            self::BaskaKapida => 'Başka kapıda okutuldu',
         };
+    }
+
+    /**
+     * Geçişi ENGELLEMEYEN, yalnızca görevliyi uyaran sonuçlar.
+     *
+     * 💀 Kodun yorumu "geçişi engellemez" diyordu ama `basarili()` yalnızca
+     * `Izinli`'ye evet dediği için görevli KIRMIZI RET EKRANI ve ret titreşimi
+     * görüyordu (Düzeltme listesi md.12). Turnikeden geçen biri 30 saniye
+     * içinde ikinci kez okuttuğunda -- kamera yakaladı, görevli tekrar
+     * denedi, kişi geri döndü -- kırmızı ekran çıkıyordu. Maç günü
+     * kalabalığında bu, görevlinin sisteme güvenini bitirir.
+     */
+    public function uyariMi(): bool
+    {
+        return in_array($this, [self::MukerrerOkutma, self::BaskaKapida], true);
     }
 
     public function basarili(): bool
     {
-        return $this === self::Izinli;
+        return $this === self::Izinli || $this->uyariMi();
     }
 }

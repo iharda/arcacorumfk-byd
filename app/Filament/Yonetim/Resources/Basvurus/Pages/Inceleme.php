@@ -5,6 +5,7 @@ namespace App\Filament\Yonetim\Resources\Basvurus\Pages;
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
 use App\Filament\Yonetim\Resources\Basvurus\BasvuruResource;
+use App\Models\Ayar;
 use App\Models\Basvuru;
 use App\Notifications\EksikEvrakTalebi;
 use App\Servisler\BasvuruAkisi;
@@ -122,6 +123,23 @@ class Inceleme extends Page
     public function isaretlenebilirAlanlar(): array
     {
         return DuzeltmeAlanlari::tumu($this->record);
+    }
+
+    /** Onay kipinde gösterilen bölge cümlesi. */
+    private function bolgeOzeti(): string
+    {
+        $varsayilan = (array) Ayar::al('varsayilan_bolgeler', []);
+
+        if ($varsayilan === []) {
+            return 'Kart HER KAPIDAN geçerli olacak (Ayarlar\'da varsayılan bölge tanımlı değil).';
+        }
+
+        $adlar = collect((array) Ayar::al('bolgeler', []))
+            ->only($varsayilan)
+            ->values()
+            ->implode(', ');
+
+        return 'Kart şu bölgelere yetkili olacak: '.($adlar ?: implode(', ', $varsayilan)).'.';
     }
 
     protected function getHeaderActions(): array
@@ -258,7 +276,11 @@ class Inceleme extends Page
                 // akredite edilecek" metni yanlıştı.
                 ->modalDescription(fn () => $this->record->tur === BasvuruTuru::Kurum
                     ? 'Kurum akredite edilecek, yetkiliye hesap açılacak ve bildirim gidecek. Bu adım geri alınamaz.'
-                    : 'Başvurana hesap açılacak, akreditasyon ve kart numarası oluşacak. Bu adım geri alınamaz.')
+                    // 🔑 Kartın hangi bölgelere yetkili doğacağı KARAR ANINDA
+                    // görünmeli (Düzeltme listesi md.9): "her kapıdan geçer"
+                    // sessizce verilen bir yetki olmasın.
+                    : 'Başvurana hesap açılacak, akreditasyon ve kart numarası oluşacak. '
+                        .$this->bolgeOzeti().' Bu adım geri alınamaz.')
                 ->modalSubmitActionLabel('Onayla')
                 ->visible(fn () => auth()->user()->can('kararVer', $this->record))
                 ->action(fn () => $this->calistir(

@@ -33,9 +33,25 @@ class OzetSayilar extends StatsOverviewWidget
         $bekleyen = Basvuru::query()->kuyrukta()->count();
         $yeni = Basvuru::query()->kuyrukta()->where('durum', BasvuruDurumu::Gonderildi->value)->count();
 
-        $bugunGecis = GecisKaydi::whereDate('okundu_at', today())->count();
-        $bugunRet = GecisKaydi::whereDate('okundu_at', today())
-            ->where('sonuc', '!=', GecisSonucu::Izinli->value)->count();
+        /*
+         * 🪤 `whereDate()` PostgreSQL'de `CAST(okundu_at AS date) = ?` üretir;
+         * sütuna fonksiyon uygulandığı için B-tree indeksi KULLANILAMAZ ve
+         * seq scan olur (Düzeltme listesi md.17). Tabloda `okundu_at` ve
+         * `(sonuc, okundu_at)` indeksleri var, aralık sorgusu ikisini de
+         * kullanır. Maç günü ~30.000 satır hedefleniyor ve açık her pano
+         * 60 saniyede bir 6 COUNT atıyor.
+         */
+        $bugun = today('Europe/Istanbul');
+        $aralik = [$bugun->copy()->startOfDay(), $bugun->copy()->endOfDay()];
+
+        $bugunGecis = GecisKaydi::whereBetween('okundu_at', $aralik)->count();
+        // 🔑 UYARILAR RET DEĞİL: kişi geçti, yalnızca görevli uyarıldı (md.12).
+        $bugunRet = GecisKaydi::whereBetween('okundu_at', $aralik)
+            ->whereNotIn('sonuc', [
+                GecisSonucu::Izinli->value,
+                GecisSonucu::MukerrerOkutma->value,
+                GecisSonucu::BaskaKapida->value,
+            ])->count();
 
         return [
             Stat::make('Kuyrukta başvuru', (string) $bekleyen)

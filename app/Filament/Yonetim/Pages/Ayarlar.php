@@ -9,6 +9,7 @@ use App\Servisler\DenetimYazici;
 use App\Servisler\KartNoUretici;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\TextInput;
@@ -57,6 +58,7 @@ class Ayarlar extends Page
                 ->map(fn ($ad, $anahtar) => ['anahtar' => $anahtar, 'ad' => $ad])
                 ->values()
                 ->all(),
+            'varsayilan_bolgeler' => (array) Ayar::al('varsayilan_bolgeler', []),
             'kvkk_aydinlatma_metni' => Ayar::al('kvkk_aydinlatma_metni'),
             'kvkk_riza_metni' => Ayar::al('kvkk_riza_metni'),
             'gizlilik_metni' => Ayar::al('gizlilik_metni'),
@@ -141,6 +143,22 @@ class Ayarlar extends Page
                                     ->required()
                                     ->maxLength(60),
                             ])
+                            ->columns(2)
+                            ->columnSpanFull(),
+
+                        /*
+                         * 🔒 Güvenlikte doğru varsayılan KAPALI'dır
+                         * (Düzeltme listesi md.9). `bolge_yetkileri` boş olan
+                         * kart HER KAPIDAN geçer ve `AkreditasyonAkisi` onay
+                         * anında hiç bölge atamıyordu: her yeni akreditasyon
+                         * "her kapıdan geçer" olarak doğuyordu. Kısıtlı alanı
+                         * olan kulüpte biri elle her karta bölge atayana
+                         * kadar hiç kimseye kısıt yoktu.
+                         */
+                        CheckboxList::make('varsayilan_bolgeler')
+                            ->label('Yeni akreditasyonların varsayılan bölgeleri')
+                            ->helperText('Onay anında otomatik atanır. Boş bırakılırsa kart her kapıdan geçer.')
+                            ->options(fn () => (array) Ayar::al('bolgeler', []))
                             ->columns(2)
                             ->columnSpanFull(),
                     ]),

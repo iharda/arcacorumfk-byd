@@ -26,11 +26,22 @@ class KartUret implements ShouldQueue
     public function __construct(
         public Akreditasyon $akreditasyon,
         public bool $bildirimGonder = true,
-    ) {}
+        /**
+         * Kartı ÜRETTİREN kişi -- `KartUretici` içinde `auth()->id()`
+         * okunuyordu ama bu iş KUYRUKTA çalışıyor ve orada oturum YOKTUR:
+         * `kartlar.ureten_id` her zaman NULL kalıyordu (Düzeltme listesi
+         * md.15). Tetikleyen, dispatch ANINDA parametre olarak taşınır.
+         */
+        public ?int $tetikleyenId = null,
+    ) {
+        // 🔑 Ağır iş kendi kuyruğunda: bir bültenin 500 e-postası kartı
+        // bekletmesin (Düzeltme listesi md.7).
+        $this->onQueue('kart');
+    }
 
     public function handle(KartUretici $uretici): void
     {
-        $kart = $uretici->uret($this->akreditasyon);
+        $kart = $uretici->uret($this->akreditasyon, $this->tetikleyenId);
 
         if ($this->bildirimGonder) {
             $this->akreditasyon->kullanici?->notify(new BasinKartiHazir($this->akreditasyon, $kart));

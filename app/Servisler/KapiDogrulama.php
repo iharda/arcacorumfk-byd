@@ -66,6 +66,7 @@ class KapiDogrulama
             ! $akreditasyon->gecerliMi() => GecisSonucu::Iptal,
             $etkinBolge && ! $akreditasyon->gecerliMi($etkinBolge) => GecisSonucu::BolgeYetkisiYok,
             $this->mukerrerMi($akreditasyon, $istemci) => GecisSonucu::MukerrerOkutma,
+            $this->baskaKapidaMi($akreditasyon, $istemci) => GecisSonucu::BaskaKapida,
             default => GecisSonucu::Izinli,
         };
 
@@ -74,10 +75,31 @@ class KapiDogrulama
     }
 
     /**
-     * Aynı kart kısa süre içinde aynı kapıda tekrar okutulduysa işaretle.
-     * Geçişi ENGELLEMEZ — görevliye "bu kart az önce okutuldu" der; kart
-     * paylaşımını yakalamanın en pratik yolu bu.
+     * YİNELENEN OKUMA: aynı kart, AYNI kapıda, kısa süre içinde.
+     *
+     * 💀 Eski yorum bunu "kart paylaşımını yakalamanın en pratik yolu" diye
+     * anlatıyordu ama sorgu yalnızca AYNI kapıya bakıyordu: kartı paylaşan
+     * iki kişi farklı turnikelere giderse hiç yakalanmıyordu. İki ayrı şey
+     * karıştırılmıştı (Düzeltme listesi md.12):
+     *
+     *   | Amaç                    | Kapsam     | Süre  |
+     *   |-------------------------|------------|-------|
+     *   | Yinelenen okuma         | aynı kapı  | ~30 sn|
+     *   | Kart paylaşımı uyarısı  | TÜM kapılar| ~120sn|
+     *
+     * İkisi de ayrıldı; ikisi de geçişi ENGELLEMEZ, görevliyi uyarır.
      */
+    /**
+     * Kişinin GERÇEKTEN geçtiği sayılan sonuçlar. Uyarılar da geçiştir:
+     * yalnızca `Izinli`'ye baksaydık, iki uyarı arka arkaya gelince ikincisi
+     * "ilk geçiş" sayılırdı.
+     */
+    private const GECEN_SONUCLAR = [
+        GecisSonucu::Izinli->value,
+        GecisSonucu::MukerrerOkutma->value,
+        GecisSonucu::BaskaKapida->value,
+    ];
+
     private function mukerrerMi(Akreditasyon $akreditasyon, KapiIstemcisi $istemci): bool
     {
         $saniye = (int) Ayar::al('mukerrer_okutma_saniye', 30);
@@ -89,7 +111,29 @@ class KapiDogrulama
         return GecisKaydi::query()
             ->where('akreditasyon_id', $akreditasyon->id)
             ->where('kapi_istemcisi_id', $istemci->id)
-            ->where('sonuc', GecisSonucu::Izinli->value)
+            ->whereIn('sonuc', self::GECEN_SONUCLAR)
+            ->where('okundu_at', '>=', now()->subSeconds($saniye))
+            ->exists();
+    }
+
+    /**
+     * KART PAYLAŞIMI: aynı kart BAŞKA bir kapıda az önce okutulmuş.
+     * Bir kişi iki turnikede aynı anda olamaz; görevli yüz kontrolü yapsın.
+     *
+     * Ayar 0 ise kapalı.
+     */
+    private function baskaKapidaMi(Akreditasyon $akreditasyon, KapiIstemcisi $istemci): bool
+    {
+        $saniye = (int) Ayar::al('kart_paylasimi_saniye', 120);
+
+        if ($saniye <= 0) {
+            return false;
+        }
+
+        return GecisKaydi::query()
+            ->where('akreditasyon_id', $akreditasyon->id)
+            ->where('kapi_istemcisi_id', '!=', $istemci->id)
+            ->whereIn('sonuc', self::GECEN_SONUCLAR)
             ->where('okundu_at', '>=', now()->subSeconds($saniye))
             ->exists();
     }
@@ -111,7 +155,9 @@ class KapiDogrulama
             'yon' => $yon,
             'sonuc' => $sonuc,
             'bolge' => $bolge,
-            'sebep' => $sonuc->basarili() ? null : $mesaj,
+            // 🪤 Uyarıda da sebep yazılır (görevli sonradan bakabilsin) ama
+            // izinli geçişte gürültü olmasın.
+            'sebep' => $sonuc === GecisSonucu::Izinli ? null : $mesaj,
             // Ham QR yükü DEĞİL yalnızca referansı: kişisel veri log'a düşmesin.
             'okunan_referans' => $referans,
             'ip' => $ip,
@@ -131,7 +177,8 @@ class KapiDogrulama
             GecisSonucu::Askida => 'Akreditasyon askıda.',
             GecisSonucu::Iptal => 'Akreditasyon geçerli değil.',
             GecisSonucu::BolgeYetkisiYok => 'Bu bölge için yetkisi yok.',
-            GecisSonucu::MukerrerOkutma => 'Bu kart az önce okutuldu.',
+            GecisSonucu::MukerrerOkutma => 'Bu kart az önce bu kapıda okutuldu.',
+            GecisSonucu::BaskaKapida => 'Bu kart az önce BAŞKA bir kapıda okutuldu. Yüz kontrolü yapın.',
             default => 'Geçiş reddedildi.',
         };
     }

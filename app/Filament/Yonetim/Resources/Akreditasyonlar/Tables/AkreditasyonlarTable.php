@@ -161,6 +161,8 @@ class AkreditasyonlarTable
                             implode(', ', $a->bolge_yetkileri ?? []),
                             $a->created_at?->timezone('Europe/Istanbul')->format('d.m.Y'),
                         ],
+                        // 🔒 Toplu kişisel veri indirme denetime düşer (Düzeltme listesi md.8).
+                        olay: 'akreditasyon.disa_aktarildi',
                     )),
             ])
             ->recordActions([
@@ -216,7 +218,7 @@ class AkreditasyonlarTable
                         });
 
                         // Bölgeler kartın üstünde yazıyor: kart yeniden üretilmeli.
-                        KartUret::dispatch($record, bildirimGonder: false)->afterCommit();
+                        KartUret::dispatch($record, bildirimGonder: false, tetikleyenId: auth()->id())->afterCommit();
 
                         Notification::make()
                             ->title('Bölge yetkisi güncellendi, kart yeniden üretiliyor.')
@@ -231,7 +233,7 @@ class AkreditasyonlarTable
                     ->visible(fn (Akreditasyon $record) => $record->durum !== AkreditasyonDurumu::Iptal
                         && auth()->user()->can('kart.uret'))
                     ->action(function (Akreditasyon $record) {
-                        KartUret::dispatch($record, bildirimGonder: false);
+                        KartUret::dispatch($record, bildirimGonder: false, tetikleyenId: auth()->id());
 
                         Notification::make()->title('Kart üretimi kuyruğa alındı.')->success()->send();
                     }),

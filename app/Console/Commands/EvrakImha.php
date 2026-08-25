@@ -27,40 +27,49 @@ class EvrakImha extends Command
     {
         $kuru = (bool) $this->option('kuru');
 
-        $adaylar = Evrak::withTrashed()
+        $sorgu = Evrak::withTrashed()
             ->whereNotNull('imha_tarihi')
-            ->whereDate('imha_tarihi', '<=', now())
-            ->whereNotNull('yol')
-            ->get();
+            // `imha_tarihi` zaten `date` sütunu: karşılaştırma doğrudan indeksten (md.17).
+            ->where('imha_tarihi', '<=', today())
+            ->whereNotNull('yol');
 
-        if ($adaylar->isEmpty()) {
+        $aday = 0;
+        $sayac = 0;
+
+        /*
+         * 🪤 `->get()` TÜM adayları belleğe alıyordu (Düzeltme listesi md.17).
+         * Bir sezonun sonunda binlerce hassas evrak birikir; gece çalışan
+         * komut bellek sınırına çarpıp hiç imha yapmadan ölürdü.
+         */
+        $sorgu->chunkById(200, function ($adaylar) use (&$aday, &$sayac, $kuru, $denetim) {
+            foreach ($adaylar as $evrak) {
+                $aday++;
+                $this->line(($kuru ? '[kuru] ' : '').$evrak->ulid.' · '.$evrak->orijinal_ad);
+
+                if ($kuru) {
+                    continue;
+                }
+
+                rescue(fn () => Storage::disk($evrak->disk)->delete($evrak->yol), report: false);
+
+                $evrak->forceFill(['yol' => null, 'imha_tarihi' => null])->saveQuietly();
+
+                $denetim->yaz('evrak.imha_edildi', $evrak,
+                    yeni: ['orijinal_ad' => $evrak->orijinal_ad],
+                    not: 'Saklama süresi doldu',
+                    aktorTip: 'sistem');
+
+                $sayac++;
+            }
+        });
+
+        if ($aday === 0) {
             $this->info('İmha edilecek evrak yok.');
 
             return self::SUCCESS;
         }
 
-        $sayac = 0;
-
-        foreach ($adaylar as $evrak) {
-            $this->line(($kuru ? '[kuru] ' : '').$evrak->ulid.' · '.$evrak->orijinal_ad);
-
-            if ($kuru) {
-                continue;
-            }
-
-            rescue(fn () => Storage::disk($evrak->disk)->delete($evrak->yol), report: false);
-
-            $evrak->forceFill(['yol' => null, 'imha_tarihi' => null])->saveQuietly();
-
-            $denetim->yaz('evrak.imha_edildi', $evrak,
-                yeni: ['orijinal_ad' => $evrak->orijinal_ad],
-                not: 'Saklama süresi doldu',
-                aktorTip: 'sistem');
-
-            $sayac++;
-        }
-
-        $this->info($kuru ? "{$adaylar->count()} evrak imha edilecekti." : "{$sayac} evrak imha edildi.");
+        $this->info($kuru ? "{$aday} evrak imha edilecekti." : "{$sayac} evrak imha edildi.");
 
         return self::SUCCESS;
     }

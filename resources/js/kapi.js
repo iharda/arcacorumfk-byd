@@ -54,8 +54,11 @@ function ekranGoster(ad) {
 function sonucGoster(v) {
   const kutu = $('#sonuc');
   const izinli = v.izinli === true;
+  // Uyari: gecis SERBEST ama gorevli baksin (ayni kapida yinelenen okuma ya
+  // da kart baska kapida okutulmus). Kirmizi ret ekrani DEGIL.
+  const uyari = v.uyari === true;
 
-  kutu.className = 'sonuc ' + (izinli ? 'sonuc--izinli' : 'sonuc--ret');
+  kutu.className = 'sonuc ' + (uyari ? 'sonuc--uyari' : izinli ? 'sonuc--izinli' : 'sonuc--ret');
   $('#sonuc-etiket').textContent = v.etiket ?? 'Sonuç';
   $('#sonuc-mesaj').textContent = v.mesaj ?? '';
   $('#sonuc-zaman').textContent = v.zaman ?? '';
@@ -73,7 +76,7 @@ function sonucGoster(v) {
 
   ekranGoster('sonuc');
   // Titreşim, gürültülü stadyumda sesten daha güvenilir bir geri bildirim.
-  navigator.vibrate?.(izinli ? 60 : [80, 60, 80]);
+  navigator.vibrate?.(uyari ? [40, 40, 40] : izinli ? 60 : [80, 60, 80]);
 }
 
 function hataGoster(baslik, mesaj) {
