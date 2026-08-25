@@ -131,8 +131,9 @@ return [
     'temporary_file_upload' => [
         'disk' => env('LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK'), // Example: 'local', 's3'             | Default: 'default'
         /*
-         * 💣 VARSAYILAN 12 MB VE SESSİZCE REDDEDER. Bülten videosu için
-         * yükseltildi. Zincirin TAMAMI uyumlu olmalı, en düşüğü kazanır:
+         * 💣 VARSAYILAN 12 MB VE SESSİZCE REDDEDER. Bülten eki ve duyuru
+         * videosu için yükseltildi. Zincirin TAMAMI uyumlu olmalı, en
+         * düşüğü kazanır:
          *   nginx client_max_body_size  96M  (sites-available/byd.ordolive.com)
          *   php-fpm post_max_size       80M  (pool.d/byd.conf)
          *   php-fpm upload_max_filesize 64M  (pool.d/byd.conf)
