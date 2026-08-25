@@ -3,7 +3,8 @@
  *
  * Kapsam: duyuru / antrenman / bülten yayını · akredite kullanıcıya bildirim ·
  *         üye panelinde görünürlük · taslak sızmıyor · akredite olmayan giremez ·
- *         bülten eki erişimi · ikinci yayında tekrar e-posta gitmemesi.
+ *         bülten eki erişimi · ikinci yayında tekrar e-posta gitmemesi ·
+ *         duyuru videosu (oynatma + Range + yetkisiz erişim).
  *
  * ⚠️ ÜRETİME YAZAR. Kendi kayıtlarını ve dosyalarını siler.
  * node tests/uctan-uca/byd-icerik-testi.mjs
@@ -97,6 +98,7 @@ async function girisYap(sayfa, yol, eposta) {
 }
 
 const ek = `/tmp/byd-bulten-eki-${damga}.pdf`;
+const videoDosya = `/tmp/byd-duyuru-video-${damga}.mp4`;
 const b = await puppeteer.launch({ executablePath: CHROME, headless: 'new',
   args: ['--no-sandbox', '--disable-dev-shm-usage', `--host-resolver-rules=MAP ${ALAN} 127.0.0.1`, '--ignore-certificate-errors'] });
 
@@ -258,6 +260,50 @@ echo 'EKLENDI';`);
   kontrol('Dizin dışına çıkma denemesi engelleniyor',
     !sizma || sizma.status() === 404 || sizma.status() === 403, sizma ? String(sizma.status()) : 'reddedildi');
 
+  /* ═════ 7) Duyuru videosu ═════ */
+  /* 🎬 `+faststart`: moov atomu dosyanın BAŞINA taşınır. Olmazsa tarayıcı
+        süreyi öğrenmek için dosyanın sonunu ister; `preload="metadata"`
+        60 MB'lık bir indirmeye dönüşür. */
+  execFileSync('ffmpeg', ['-y', '-f', 'lavfi',
+    '-i', 'testsrc=size=320x240:rate=15:duration=2',
+    '-pix_fmt', 'yuv420p', '-movflags', '+faststart', videoDosya], { stdio: 'ignore' });
+
+  artisan(`
+Illuminate\\Support\\Facades\\Storage::disk('icerik')->put('duyuru/test-${damga}.mp4', file_get_contents('${videoDosya}'));
+App\\Models\\Duyuru::where('baslik', '${DUYURU_BASLIK}')->update(['video_yolu' => 'duyuru/test-${damga}.mp4']);
+echo 'VIDEO';`);
+
+  const videoYol = `/icerik/duyuru/test-${damga}.mp4`;
+  await uye.goto(`${KOK}/panel/duyurular`, { waitUntil: 'networkidle2' });
+
+  const videoSrc = await uye.$eval('video source', el => el.getAttribute('src')).catch(() => null);
+  kontrol('Duyuruda <video> etiketi var', videoSrc?.includes(`duyuru/test-${damga}.mp4`), videoSrc ?? 'yok');
+
+  /* 💀 Etiketin varlığı yetmez: kaynak 404 dönse de <video> sayfada DURUR.
+        Tarayıcı gerçekten çözebildi mi diye metadata'yı bekle. */
+  const oynatilabilir = await uye.evaluate(() => new Promise(cozum => {
+    const v = document.querySelector('video');
+    if (! v) return cozum({ tamam: false, not: 'video yok' });
+    if (v.readyState >= 1) return cozum({ tamam: true, not: `sure=${v.duration}` });
+    const zaman = setTimeout(() => cozum({ tamam: false, not: `readyState=${v.readyState} hata=${v.error?.code ?? '-'}` }), 15000);
+    v.addEventListener('loadedmetadata', () => { clearTimeout(zaman); cozum({ tamam: true, not: `sure=${v.duration}` }); }, { once: true });
+    v.addEventListener('error', () => { clearTimeout(zaman); cozum({ tamam: false, not: `hata=${v.error?.code}` }); }, { once: true });
+    v.load();
+  }));
+  kontrol('Video tarayıcıda gerçekten açılıyor', oynatilabilir.tamam, oynatilabilir.not);
+
+  /* 🎬 İleri sarma Range'e bağlı: 200 dönerse video baştan sona inmek zorunda. */
+  const parca = await uye.evaluate(async yol => {
+    const y = await fetch(yol, { headers: { Range: 'bytes=0-1023' } });
+    return { durum: y.status, aralik: y.headers.get('content-range') };
+  }, videoYol);
+  kontrol('Video Range isteğine 206 dönüyor', parca.durum === 206, `${parca.durum} · ${parca.aralik ?? '—'}`);
+
+  const videoBekleyen = await bekleyen.goto(KOK + videoYol, { waitUntil: 'domcontentloaded' }).catch(() => null);
+  kontrol('Akredite olmayan duyuru videosuna ERİŞEMİYOR',
+    ! bekleyen.url().endsWith(videoYol),
+    `${videoBekleyen?.status() ?? '—'} · ${bekleyen.url().replace(KOK, '')}`);
+
   await b.close();
 } catch (e) {
   console.log('💥 ' + e.message);
@@ -265,9 +311,10 @@ echo 'EKLENDI';`);
   try { await b.close(); } catch {}
 } finally {
   try { unlinkSync(ek); } catch {}
+  try { unlinkSync(videoDosya); } catch {}
   try {
     const t = artisan(`
-Illuminate\\Support\\Facades\\Storage::disk('icerik')->delete('bulten/test-${damga}.pdf');
+Illuminate\\Support\\Facades\\Storage::disk('icerik')->delete(['bulten/test-${damga}.pdf', 'duyuru/test-${damga}.mp4']);
 App\\Models\\Duyuru::where('baslik', '${DUYURU_BASLIK}')->forceDelete();
 App\\Models\\Bulten::where('baslik', '${BULTEN_BASLIK}')->forceDelete();
 App\\Models\\Antrenman::where('baslik', 'Test antrenmanı ${damga}')->forceDelete();

@@ -13,12 +13,16 @@ sudo -u byd php tests/uctan-uca/byd-duzeltme-bileti-testi.php # panelsiz eksik e
 sudo -u byd php tests/uctan-uca/byd-formda-evrak-testi.php # evrak başvuru formunda + yetim dosya (PHP)
 node tests/uctan-uca/byd-form-alanlari-testi.mjs     # il/ilçe · telefon · vergi no · çalışan aralığı
 node tests/uctan-uca/byd-kart-kapi-testi.mjs         # kart, QR, doğrulama API'si
+node tests/uctan-uca/byd-icerik-testi.mjs            # duyuru/bülten/takvim yayını · bildirim · duyuru videosu
+node tests/uctan-uca/byd-duyuru-video-testi.mjs      # duyuru videosu yönetim formundan yükleniyor mu
+node tests/uctan-uca/byd-insan-senaryosu.mjs         # altı perdelik uçtan uca senaryo (ekran görüntülü)
+node tests/uctan-uca/byd-panel-yonlendirme-testi.mjs # üç panel arası yönlendirme, yasak panel
 node tests/uctan-uca/byd-guvenlik-testi.mjs          # yetki sınırları
 node tests/uctan-uca/byd-giris-testi.mjs             # yetkili girişi + 2FA + panel sınırı
 node tests/uctan-uca/byd-tek-giris-testi.mjs         # tek giriş kapısı · kilit · panel seçimi · şifre sıfırlama
 node tests/uctan-uca/byd-sertlestirme-denetimi.mjs   # canlıya hazırlık denetimi (salt okunur)
 node tests/uctan-uca/byd-yuk-testi.mjs 15 24        # turnike ucu yük ölçümü
-node tests/uctan-uca/byd-yetim-temizle.mjs --kuru   # yetim dosya taraması
+node tests/uctan-uca/byd-yetim-temizle.mjs --kuru    # yetim evrak/kart/içerik dosyası taraması
 ```
 
 Birim testleri (tarayıcısız, veritabanısız — `tests/Unit`):

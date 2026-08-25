@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property ?string $ozet
  * @property ?string $icerik
  * @property ?string $gorsel_yolu
+ * @property ?string $video_yolu
  * @property bool $yayinda
  * @property ?Carbon $yayin_at
  * @property bool $bildirim_gonderildi

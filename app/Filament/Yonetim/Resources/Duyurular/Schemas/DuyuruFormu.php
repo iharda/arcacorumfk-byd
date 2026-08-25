@@ -47,6 +47,22 @@ class DuyuruFormu
                 ->maxSize(4096)
                 ->columnSpanFull(),
 
+            FileUpload::make('video_yolu')
+                ->label('Video')
+                /*
+                 * 🔒 Bültendeki beyaz listenin aynısı: yalnızca mp4 ve webm.
+                 * İkisi de her tarayıcıda oynar ve `EvrakController` bu iki
+                 * MIME'ı `inline` servis edebilenler arasında sayıyor --
+                 * listeye girmeyen bir biçim yüklenirse dosya 404 döner.
+                 */
+                ->acceptedFileTypes(['video/mp4', 'video/webm'])
+                ->disk('icerik')
+                ->directory('duyuru')
+                // 💣 Zincirin en düşüğü kazanır: Livewire 64 MB, php-fpm
+                // upload_max_filesize 64 MB. Bkz. config/livewire.php.
+                ->maxSize(61440)
+                ->columnSpanFull(),
+
             DateTimePicker::make('yayin_at')
                 ->label('Yayın zamanı')
                 ->helperText('Boş bırakılırsa yayına aldığınız an kullanılır.')
