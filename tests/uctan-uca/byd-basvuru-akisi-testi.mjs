@@ -192,7 +192,15 @@ echo 'DURUM:' . ($b?->durum->value ?? 'yok')
   const secim = await y.$('select');
   kontrol('Eksik evrak kipi açıldı', !!secim);
   if (secim) {
-    await y.select('select', 'Vergi levhası');
+    /*
+     * 🪤 DEĞER DEĞİL GÖRÜNEN AD ile seç. Alan anahtarları artık görünen ad
+     * değil sabit kod (`evrak:vergi_levhasi`) -- yetkili evrak türünün adını
+     * değiştirince yoldaki biletler bozuluyordu (Düzeltme listesi md.11).
+     */
+    const deger = await y.$$eval('select option', (ops) =>
+      ops.find((o) => o.textContent.trim() === 'Vergi levhası')?.value ?? null);
+    if (!deger) throw new Error('Açılır listede "Vergi levhası" yok');
+    await y.select('select', deger);
     const metinAlani = await y.$('input[type="text"]:not([inputmode="numeric"])');
     if (metinAlani) await metinAlani.type('Levha okunmuyor, yeniden yükleyin.');
     await bekle(400);
