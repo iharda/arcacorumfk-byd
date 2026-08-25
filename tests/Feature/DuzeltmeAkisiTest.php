@@ -240,4 +240,27 @@ class DuzeltmeAkisiTest extends TestCase
             ->assertOk()
             ->assertSee('Düzeltme talebi 01');
     }
+
+    /** 🪤 Ek talebin etiketi ŞEMADA yok, TURDA duruyor: ham "ek:1" gösterilmesin. */
+    public function test_ek_talep_etiketi_ham_anahtar_gostermez(): void
+    {
+        $basvuru = $this->basvuru();
+
+        app(BasvuruAkisi::class)->eksikEvrakIste($basvuru, [], null, [[
+            'anahtar' => DuzeltmeAlanlari::EK_ONEK.'1',
+            'etiket' => 'Yayın sözleşmesi',
+            'tip' => 'dosya',
+            'aciklama' => 'İlk sayfa yeterli',
+        ]]);
+
+        $this->assertSame('Yayın sözleşmesi',
+            $basvuru->fresh()->duzeltmeEtiketi('ek:1'));
+
+        $token = app(BasvuruBiletiAkisi::class)->uret($basvuru->fresh());
+
+        $this->get(route('basvuru.duzelt', ['token' => $token]))
+            ->assertOk()
+            ->assertSee('Yayın sözleşmesi')
+            ->assertDontSee('ek:1');
+    }
 }

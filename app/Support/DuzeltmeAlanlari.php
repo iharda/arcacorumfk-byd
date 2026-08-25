@@ -159,9 +159,25 @@ class DuzeltmeAlanlari
     /**
      * Anahtarın ekranda görünecek adı. Tanınmayan anahtar (eski bilet)
      * olduğu gibi döner -- yolda olan düzeltme boş etiketle gösterilmesin.
+     *
+     * 🪤 `ek:` anahtarlarının etiketi ŞEMADA YOK: yetkili onları elle
+     * yazıyor ve etiket turun `ek_talepler` alanında duruyor. Buraya
+     * bakmadan ekranda ham anahtar ("ek:1") görünüyordu.
      */
     public static function etiket(Basvuru $basvuru, string $anahtar): string
     {
+        if (self::ekMi($anahtar)) {
+            foreach ($basvuru->duzeltmeler as $tur) {
+                foreach ($tur->ek_talepler ?? [] as $ek) {
+                    if (($ek['anahtar'] ?? null) === $anahtar) {
+                        return $ek['etiket'];
+                    }
+                }
+            }
+
+            return $anahtar;
+        }
+
         return self::tumu($basvuru)[$anahtar] ?? $anahtar;
     }
 
