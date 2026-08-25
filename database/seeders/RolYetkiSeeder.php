@@ -39,7 +39,6 @@ class RolYetkiSeeder extends Seeder
 
         'icerik.yonet' => 'Duyuru, antrenman takvimi, bülten yönetimi',
 
-        'rapor.gor' => 'Raporları görüntüleme',
         'rapor.disaaktar' => 'Rapor dışa aktarma (CSV/Excel)',
 
         'kullanici.yonet' => 'Kullanıcı ve rol yönetimi',
@@ -49,6 +48,13 @@ class RolYetkiSeeder extends Seeder
 
     public function run(): void
     {
+        /*
+         * 🧹 Listeden ÇIKARILAN yetkiler veritabanında kalmasın: rol formunda
+         * görünmeye devam eder ve olmayan bir modülü vaat ederdi
+         * (Düzeltme listesi md.18.3 -- `rapor.gor` böyleydi).
+         */
+        Permission::whereNotIn('name', array_keys(self::YETKILER))->delete();
+
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         foreach (array_keys(self::YETKILER) as $yetki) {
@@ -68,7 +74,7 @@ class RolYetkiSeeder extends Seeder
             'kart.uret', 'kart.indir',
             'gecis.gor',
             'icerik.yonet',
-            'rapor.gor', 'rapor.disaaktar',
+            'rapor.disaaktar',
         ]);
 
         // Kurum hesabi: YALNIZCA kendi calisanlari. Kapsam policy'de kurum_id
