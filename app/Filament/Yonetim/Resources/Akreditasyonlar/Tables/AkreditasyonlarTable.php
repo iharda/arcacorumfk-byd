@@ -3,6 +3,7 @@
 namespace App\Filament\Yonetim\Resources\Akreditasyonlar\Tables;
 
 use App\Enums\AkreditasyonDurumu;
+use App\Enums\BasvuruTuru;
 use App\Jobs\KartUret;
 use App\Models\Akreditasyon;
 use App\Models\Ayar;
@@ -12,12 +13,15 @@ use App\Servisler\DenetimYazici;
 use App\Support\Telefon;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -80,12 +84,63 @@ class AkreditasyonlarTable
                     ->wrap()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            /*
+             * Süzgeçler -- Yusuf revizyonu 25.08.2026: üye türü, kurum ve
+             * tarih aralığı eklendi; durum en üste alındı.
+             */
+            ->filtersFormColumns(2)
             ->filters([
                 SelectFilter::make('durum')
                     ->label('Durum')
                     ->multiple()
                     ->options(fn () => collect(AkreditasyonDurumu::cases())
                         ->mapWithKeys(fn ($d) => [$d->value => $d->etiket()])->all()),
+
+                /*
+                 * 🪤 Üye türü akreditasyonda SÜTUN DEĞİL: kart numarasındaki
+                 * tür harfi (`tur_kodu`) ayardan geliyor ve değişebilir.
+                 * Süzgeç başvurunun türü üzerinden kurulur -- kalıcı olan o.
+                 */
+                SelectFilter::make('uye_turu')
+                    ->label('Üye türü')
+                    ->multiple()
+                    ->options(fn () => collect(BasvuruTuru::cases())
+                        ->reject(fn (BasvuruTuru $t) => $t === BasvuruTuru::Kurum)
+                        ->mapWithKeys(fn (BasvuruTuru $t) => [$t->value => $t->etiket()])->all())
+                    ->query(fn (Builder $query, array $data) => $query->when(
+                        filled($data['values'] ?? []),
+                        fn (Builder $q) => $q->whereHas('basvuru',
+                            fn (Builder $b) => $b->whereIn('tur', $data['values'])),
+                    )),
+
+                SelectFilter::make('kurum_id')
+                    ->label('Kurum')
+                    ->relationship('kurum', 'resmi_unvan')
+                    ->searchable()
+                    ->preload(),
+
+                Filter::make('tarih')
+                    ->label('Tarih aralığı')
+                    ->schema([
+                        DatePicker::make('baslangic')->label('Başlangıç')->native(false),
+                        DatePicker::make('bitis')->label('Bitiş')->native(false),
+                    ])
+                    ->columns(2)
+                    ->query(fn (Builder $query, array $data) => $query
+                        // 🪤 `whereDate` sütuna fonksiyon uygular ve indeksi
+                        // kullanamaz (Düzeltme listesi md.17); aralık kullanıyoruz.
+                        ->when($data['baslangic'] ?? null,
+                            fn (Builder $q, $t) => $q->where('created_at', '>=', Carbon::parse($t)->startOfDay()))
+                        ->when($data['bitis'] ?? null,
+                            fn (Builder $q, $t) => $q->where('created_at', '<=', Carbon::parse($t)->endOfDay())))
+                    ->indicateUsing(function (array $data): ?string {
+                        $parcalar = array_filter([
+                            filled($data['baslangic'] ?? null) ? Carbon::parse($data['baslangic'])->format('d.m.Y') : null,
+                            filled($data['bitis'] ?? null) ? Carbon::parse($data['bitis'])->format('d.m.Y') : null,
+                        ]);
+
+                        return $parcalar === [] ? null : 'Tarih: '.implode(' — ', $parcalar);
+                    }),
             ])
             ->headerActions([
                 Action::make('disaAktar')

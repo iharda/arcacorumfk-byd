@@ -8,19 +8,25 @@
     'deger' => null,
     'ipucu' => null,
     'sutun' => 2,
+    'yol' => null,
 ])
 
-@php $hata = $errors->first($ad); @endphp
+@php $yol = $yol ?? $ad; @endphp
+
+{{-- 🪤 `yol`: `old()` ve `$errors` NOKTA yolu ister. Girdi adı
+     `alan[veri_telefon]` gibi köşeli parantezliyse `old('alan[veri_telefon]')`
+     hiçbir zaman eşleşmez ve doğrulama hatasından sonra kutu BOŞALIR. --}}
+@php $hata = $errors->first($yol); @endphp
 
 <div @class(['sm:col-span-2' => $sutun === 2])>
-    <label for="{{ $ad }}" @class(['block text-sm font-medium text-neutral-800', 'zorunlu' => $zorunlu])>
+    <label for="{{ $yol }}" @class(['block text-sm font-medium text-neutral-800', 'zorunlu' => $zorunlu])>
         {{ $etiket }}
     </label>
     <input
         type="{{ $tur }}"
-        id="{{ $ad }}"
+        id="{{ $yol }}"
         name="{{ $ad }}"
-        value="{{ old($ad, $deger) }}"
+        value="{{ old($yol, $deger) }}"
         @if($zorunlu) required @endif
         @if($ipucu) placeholder="{{ $ipucu }}" @endif
         {{ $attributes->class([

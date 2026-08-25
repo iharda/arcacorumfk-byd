@@ -6,6 +6,7 @@ use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
 use App\Models\Ayar;
 use App\Models\Basvuru;
+use App\Models\BasvuruDuzeltmesi;
 use App\Models\EvrakTuru;
 use App\Models\User;
 use App\Notifications\BasvuruAlindi;
@@ -124,22 +125,94 @@ class BasvuruAkisi
         ]);
     }
 
-    /** @param array<string, string> $notlar alan adı => açıklama */
-    public function eksikEvrakIste(Basvuru $basvuru, array $notlar, ?string $mesaj = null): void
+    /**
+     * Eksik/hatalı bilgi talebi. Her çağrı YENİ BİR TUR açar.
+     *
+     * 💀 Eskiden yalnızca `duzeltme_notlari` üzerine yazılıyordu: ikinci tur
+     * birincinin üstünü siliyor, "ne istenmişti, ne değişti" sorusunun cevabı
+     * hiçbir yerde kalmıyordu (Yusuf revizyonu 25.08.2026).
+     *
+     * @param  array<string, string>  $notlar  alan anahtarı => açıklama
+     * @param  array<int, array<string, string>>  $ekTalepler  listemizde olmayan istekler
+     */
+    public function eksikEvrakIste(Basvuru $basvuru, array $notlar, ?string $mesaj = null, array $ekTalepler = []): BasvuruDuzeltmesi
     {
-        if ($notlar === []) {
+        if ($notlar === [] && $ekTalepler === []) {
             throw new RuntimeException('En az bir alan işaretlenmeli.');
         }
 
-        $this->gecir($basvuru, BasvuruDurumu::EksikEvrak, 'basvuru.eksik_evrak', [
-            'duzeltme_notlari' => $notlar,
-            'karar_gerekcesi' => $mesaj,
-        ]);
+        // Ek talepler de işaretli alan sayılır: başvuran onları da doldurmalı.
+        foreach ($ekTalepler as $ek) {
+            $notlar[$ek['anahtar']] = $ek['aciklama'] ?? '';
+        }
+
+        $duzeltme = DB::transaction(function () use ($basvuru, $notlar, $mesaj, $ekTalepler) {
+            $this->gecir($basvuru, BasvuruDurumu::EksikEvrak, 'basvuru.eksik_evrak', [
+                'duzeltme_notlari' => $notlar,
+                'karar_gerekcesi' => $mesaj,
+            ]);
+
+            return BasvuruDuzeltmesi::create([
+                'basvuru_id' => $basvuru->id,
+                'sira' => (int) $basvuru->duzeltmeler()->max('sira') + 1,
+                'talep_notlari' => $notlar,
+                'ek_talepler' => $ekTalepler ?: null,
+                'talep_gerekcesi' => $mesaj,
+                'talep_eden_id' => Auth::id(),
+                'talep_at' => now(),
+            ]);
+        });
 
         // Panelsiz düzeltme bağlantısı: başvuranın hesabı olmayabilir.
         $token = $this->bilet->uret($basvuru);
 
         $basvuru->bildirimHedefi()->notify(new EksikEvrakTalebi($basvuru, $token));
+
+        return $duzeltme;
+    }
+
+    /**
+     * Başvuranın bu turda yaptıklarını KAYDEDER; turu KAPATMAZ.
+     *
+     * 💀 İkisi tek adımdı ve bu bir tuzaktı: zorunlu evrak hâlâ eksikse
+     * `gonder()` patlıyor, başvuran aynı bağlantıya geri dönüyor ama tur
+     * "yanıtlandı" işaretlendiği için `acikDuzeltme()` null oluyordu --
+     * sayfadan tur başlığı ve EK TALEPLER kayboluyordu.
+     *
+     * Değişiklikler BİRİKİR: kişi iki denemede iki alanı düzeltebilir.
+     *
+     * @param  array<string, array{eski: mixed, yeni: mixed}>  $degisiklikler
+     */
+    public function duzeltmeyiKaydet(BasvuruDuzeltmesi $duzeltme, array $degisiklikler, ?string $aciklama): void
+    {
+        // 🪤 Birikimde ESKİ değer korunur: aynı alan ikinci kez düzeltilirse
+        // "öncesi" ilk hâli olmalı, bir önceki denemenin hâli değil.
+        $birikmis = $duzeltme->degisiklikler ?? [];
+
+        foreach ($degisiklikler as $anahtar => $degisim) {
+            $birikmis[$anahtar] = [
+                'eski' => $birikmis[$anahtar]['eski'] ?? $degisim['eski'],
+                'yeni' => $degisim['yeni'],
+            ];
+        }
+
+        $duzeltme->forceFill([
+            'degisiklikler' => $birikmis ?: null,
+            'yanit_aciklama' => $aciklama ?: $duzeltme->yanit_aciklama,
+        ])->save();
+    }
+
+    /** Tur kapanır: başvuru yeniden gönderildi. */
+    public function duzeltmeyiKapat(BasvuruDuzeltmesi $duzeltme): void
+    {
+        $duzeltme->forceFill(['yanit_at' => now()])->save();
+
+        $this->denetim->yaz('basvuru.duzeltme_yanitlandi', $duzeltme->basvuru,
+            yeni: [
+                'tur' => $duzeltme->sira,
+                'degisen_alanlar' => array_keys($duzeltme->degisiklikler ?? []),
+            ],
+            aktorTip: 'sistem');
     }
 
     /**

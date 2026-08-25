@@ -177,6 +177,22 @@ class Basvuru extends Model
         $this->durum = $hedef;
     }
 
+    /**
+     * Düzeltme turları -- en yeni en üstte (Yusuf revizyonu 25.08.2026).
+     *
+     * @return HasMany<BasvuruDuzeltmesi, $this>
+     */
+    public function duzeltmeler(): HasMany
+    {
+        return $this->hasMany(BasvuruDuzeltmesi::class, 'basvuru_id')->orderByDesc('sira');
+    }
+
+    /** Yanıtlanmamış açık tur -- başvuranın şu an doldurduğu. */
+    public function acikDuzeltme(): ?BasvuruDuzeltmesi
+    {
+        return $this->duzeltmeler()->whereNull('yanit_at')->first();
+    }
+
     /** Basvuran yalnizca isaretli alanlari duzeltebilir (Plan v1.0 md.4). */
     public function duzeltilebilirAlanlar(): array
     {

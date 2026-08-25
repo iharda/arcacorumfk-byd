@@ -11,6 +11,8 @@ use App\Servisler\IcerikAkisi;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 /**
  * Evrak görüntüleme -- Plan v1.0 md.11.
@@ -26,6 +28,7 @@ class EvrakController extends Controller
     /** İçerik diskinden `inline` servis edilebilecek TEK biçimler. */
     private const ICERIK_MIME = [
         'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf',
+        'video/mp4', 'video/webm',
     ];
 
     public function __construct(
@@ -56,7 +59,9 @@ class EvrakController extends Controller
      * Evrak kadar hassas değil ama HERKESE AÇIK DA DEĞİL: yalnızca oturum
      * açmış akredite kullanıcılar ve içerik yetkilileri görür.
      */
-    public function icerikDosyasi(Request $istek, string $yol): Response
+    // 🪤 Dönüş tipi Symfony'nin Response'u: video yolunda `BinaryFileResponse`
+    // dönüyoruz ve o `Illuminate\Http\Response`'un alt sınıfı DEĞİL.
+    public function icerikDosyasi(Request $istek, string $yol): SymfonyResponse
     {
         abort_unless($this->icerigeErisebilirMi($istek->user()), 403);
 
@@ -75,6 +80,25 @@ class EvrakController extends Controller
          * `nosniff` burada işe yaramaz (MIME zaten doğru, sniff yok).
          */
         abort_unless(in_array($mime, self::ICERIK_MIME, true), 404);
+
+        /*
+         * 🎬 Video parça parça istenir: `<video>` etiketi ilerlemek için
+         * Range başlığı gönderir. Tüm dosyayı belleğe alıp 200 dönmek hem
+         * ileri sarmayı bozar hem 60 MB'lık bir dosyayı PHP belleğine
+         * yükler. `BinaryFileResponse` Range'i kendisi karşılar ve dosyayı
+         * akıtır.
+         */
+        if (str_starts_with($mime, 'video/')) {
+            $yanit = new BinaryFileResponse($disk->path($yol), 200, [
+                'Content-Type' => $mime,
+                'Cache-Control' => 'private, max-age=600',
+                'X-Content-Type-Options' => 'nosniff',
+            ]);
+
+            $yanit->setContentDisposition('inline');
+
+            return $yanit->prepare(request());
+        }
 
         return response($disk->get($yol), 200, [
             'Content-Type' => $mime,

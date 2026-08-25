@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Enums\BasvuruDurumu;
+use App\Models\Basvuru;
 use App\Models\BasvuruBileti;
 use App\Models\EvrakTuru;
 use App\Servisler\BasvuruAkisi;
 use App\Servisler\BasvuruBiletiAkisi;
+use App\Servisler\DuzeltmeUygulayici;
 use App\Servisler\EvrakYukleyici;
 use App\Support\DuzeltmeAlanlari;
 use Illuminate\Http\RedirectResponse;
@@ -28,6 +30,7 @@ class BasvuruDuzeltmeController extends Controller
         private BasvuruBiletiAkisi $biletAkisi,
         private BasvuruAkisi $akis,
         private EvrakYukleyici $yukleyici,
+        private DuzeltmeUygulayici $uygulayici,
     ) {}
 
     public function form(string $token): View
@@ -42,14 +45,18 @@ class BasvuruDuzeltmeController extends Controller
         $bilet = $this->bileti($token);
         $basvuru = $bilet->basvuru;
         $turler = $this->istenenEvrakTurleri($bilet);
+        $duzeltme = $basvuru->acikDuzeltme();
+        $izinli = $basvuru->duzeltilebilirAlanlar();
+        $ekTalepler = $duzeltme !== null ? ($duzeltme->ek_talepler ?? []) : [];
 
-        $istek->validate(
-            $this->kurallar($turler),
+        $veri = $istek->validate(
+            $this->kurallar($turler, $basvuru, $izinli, $ekTalepler),
             [
                 'evraklar.*.max' => 'Dosya çok büyük.',
                 'evraklar.*.file' => 'Geçerli bir dosya seçin.',
+                'ek.*.max' => 'Dosya çok büyük.',
             ],
-            $turler->mapWithKeys(fn (EvrakTuru $tur) => ["evraklar.{$tur->id}" => $tur->ad])->all(),
+            $this->alanAdlari($turler, $basvuru, $izinli, $ekTalepler),
         );
 
         /*
@@ -75,12 +82,34 @@ class BasvuruDuzeltmeController extends Controller
             }
         }
 
-        if (filled($aciklama = $istek->string('aciklama')->trim()->toString())) {
+        // ── Ek talepler: listemizde olmayan belge / yazılı bilgi ──
+        $ekDegisimler = $this->ekTalepleriIsle($istek, $basvuru, $ekTalepler);
+
+        // ── Veri alanları: yalnızca İŞARETLİ olanlar, öncesi/sonrası kayda geçer ──
+        try {
+            $degisimler = $this->uygulayici->yaz($basvuru, $veri['alan'] ?? [], $izinli);
+        } catch (Throwable $e) {
+            throw ValidationException::withMessages(['genel' => $e->getMessage()]);
+        }
+
+        $aciklama = $istek->string('aciklama')->trim()->toString() ?: null;
+
+        if (filled($aciklama)) {
             $basvuru->update([
                 'form_verisi' => ($basvuru->form_verisi ?? []) + [
                     'duzeltme_aciklamasi' => mb_substr($aciklama, 0, 2000),
                 ],
             ]);
+        }
+
+        /*
+         * 🔑 Değişiklikler ÖNCE kaydedilir, tur SONRA kapanır. `gonder()`
+         * başarısız olursa (zorunlu evrak hâlâ eksik) başvuranın düzelttiği
+         * alanlar kayıtlı kalır, tur da AÇIK kalır: aynı bağlantıya dönüp
+         * eksiği tamamlayabilir.
+         */
+        if ($duzeltme !== null) {
+            $this->akis->duzeltmeyiKaydet($duzeltme, $degisimler + $ekDegisimler, $aciklama);
         }
 
         try {
@@ -89,6 +118,10 @@ class BasvuruDuzeltmeController extends Controller
             // En sık sebep: zorunlu evrak hâlâ eksik. Alan bazlı hata göster,
             // 500 sayfası değil.
             throw ValidationException::withMessages(['genel' => $e->getMessage()]);
+        }
+
+        if ($duzeltme !== null) {
+            $this->akis->duzeltmeyiKapat($duzeltme);
         }
 
         $this->biletAkisi->tuket($bilet);
@@ -122,21 +155,59 @@ class BasvuruDuzeltmeController extends Controller
     {
         $basvuru = $bilet->basvuru;
         $turler = $this->istenenEvrakTurleri($bilet);
+        $notlar = $basvuru->duzeltme_notlari ?? [];
+        $duzeltme = $basvuru->acikDuzeltme();
+
+        /*
+         * 💀 ESKİDEN: işaretli veri alanları yalnızca LİSTELENİYORDU ve
+         * başvurana tek bir serbest açıklama kutusu açılıyordu. Kişi doğrusunu
+         * yazıyor, başvuru yeniden gönderiliyor, YANLIŞ VERİ HÂLÂ YANLIŞ
+         * kalıyordu (Yusuf revizyonu 25.08.2026). Artık her işaretli alanın
+         * kendi girdisi var ve önceki değeri yanında görünüyor.
+         */
+        $duzeltilebilir = [];
+        $notOlanlar = [];
+
+        foreach ($notlar as $anahtar => $aciklama) {
+            if (DuzeltmeAlanlari::evrakMi($anahtar) || DuzeltmeAlanlari::ekMi($anahtar)) {
+                continue;
+            }
+
+            $tanim = DuzeltmeAlanlari::tanim($basvuru->tur, $anahtar);
+
+            // Tanımsız (eski çıplak ad) ya da düzeltilemez alan: yalnızca not.
+            if ($tanim === null || ! $tanim['duzeltilebilir']) {
+                $notOlanlar[$anahtar] = $aciklama;
+
+                continue;
+            }
+
+            $duzeltilebilir[] = [
+                'anahtar' => $anahtar,
+                'girdi' => DuzeltmeUygulayici::girdiAdi($anahtar),
+                'etiket' => $tanim['etiket'],
+                'tip' => $tanim['tip'],
+                'aciklama' => $aciklama,
+                'deger' => $this->uygulayici->deger($basvuru, $anahtar),
+                'gosterim' => $this->uygulayici->goster($basvuru, $anahtar),
+            ];
+        }
 
         return [
             'bilet' => $bilet,
             'basvuru' => $basvuru,
             'token' => $token,
+            'duzeltme' => $duzeltme,
             'evrakTurleri' => $turler,
-            // Evrak olmayan işaretler (Telefon, Vergi no...) yalnızca gösterilir;
+            'duzeltilebilirAlanlar' => $duzeltilebilir,
+            // Düzeltilemeyen işaretler (E-posta, Kurum) yalnızca gösterilir;
             // başvuran açıklama kutusundan yanıt verir.
-            // 🪤 Süzgeç ANAHTARA bakar, görünen ada değil (md.11). Eski
-            // biletlerdeki çıplak ad anahtarları da eleniyor.
-            'veriNotlari' => collect($basvuru->duzeltme_notlari ?? [])
-                ->reject(fn ($aciklama, $alan) => DuzeltmeAlanlari::evrakMi($alan)
-                    || $turler->contains('ad', $alan))
-                ->all(),
+            'veriNotlari' => $notOlanlar,
+            'ekTalepler' => $duzeltme !== null ? ($duzeltme->ek_talepler ?? []) : [],
             'yuklenmisEvraklar' => $basvuru->evraklar->keyBy('evrak_turu_id'),
+            'ekYuklenmisler' => $basvuru->evraklar->whereNotNull('ek_etiket')->keyBy('ek_etiket'),
+            // Yanıtlanmış önceki turlar: "neyi yeni ekledim, öncesi neydi".
+            'gecmisTurlar' => $basvuru->duzeltmeler()->whereNotNull('yanit_at')->get(),
         ];
     }
 
@@ -157,9 +228,11 @@ class BasvuruDuzeltmeController extends Controller
 
     /**
      * @param  Collection<int, EvrakTuru>  $turler
+     * @param  array<int, string>  $izinli
+     * @param  array<int, array<string, string>>  $ekTalepler
      * @return array<string, mixed>
      */
-    private function kurallar(Collection $turler): array
+    private function kurallar(Collection $turler, Basvuru $basvuru, array $izinli, array $ekTalepler): array
     {
         $kurallar = [
             'evraklar' => ['array'],
@@ -171,6 +244,98 @@ class BasvuruDuzeltmeController extends Controller
             $kurallar["evraklar.{$tur->id}"] = ['nullable', 'file', 'max:'.$tur->maks_boyut_kb];
         }
 
-        return $kurallar;
+        foreach ($ekTalepler as $ek) {
+            $ad = 'ek.'.str_replace(':', '_', $ek['anahtar']);
+
+            $kurallar[$ad] = ($ek['tip'] ?? 'dosya') === 'dosya'
+                ? ['nullable', 'file', 'max:8192']
+                : ['nullable', 'string', 'max:1000'];
+        }
+
+        return $kurallar + $this->uygulayici->kurallar($basvuru, $izinli);
+    }
+
+    /**
+     * Hata mesajlarında ham girdi adı ("alan.veri_telefon") değil, insanca
+     * etiket görünsün.
+     *
+     * @param  Collection<int, EvrakTuru>  $turler
+     * @param  array<int, string>  $izinli
+     * @param  array<int, array<string, string>>  $ekTalepler
+     * @return array<string, string>
+     */
+    private function alanAdlari(Collection $turler, Basvuru $basvuru, array $izinli, array $ekTalepler): array
+    {
+        $adlar = $turler->mapWithKeys(fn (EvrakTuru $tur) => ["evraklar.{$tur->id}" => $tur->ad])->all();
+
+        foreach ($ekTalepler as $ek) {
+            $adlar['ek.'.str_replace(':', '_', $ek['anahtar'])] = $ek['etiket'];
+        }
+
+        foreach ($izinli as $anahtar) {
+            $tanim = DuzeltmeAlanlari::tanim($basvuru->tur, $anahtar);
+
+            if ($tanim === null) {
+                continue;
+            }
+
+            $ad = 'alan.'.DuzeltmeUygulayici::girdiAdi($anahtar);
+
+            $adlar[$ad] = $tanim['etiket'];
+            $adlar[$ad.'_il'] = 'il';
+            $adlar[$ad.'_ilce'] = 'ilçe';
+            $adlar[$ad.'_ulke'] = $tanim['etiket'].' ülke kodu';
+        }
+
+        return $adlar;
+    }
+
+    /**
+     * Ek talepleri işler. Dosya olanlar `ek_belge` türüne, yazılı olanlar
+     * doğrudan tur kaydına yazılır.
+     *
+     * @param  array<int, array<string, string>>  $ekTalepler
+     * @return array<string, array{eski: mixed, yeni: mixed}>
+     */
+    private function ekTalepleriIsle(Request $istek, Basvuru $basvuru, array $ekTalepler): array
+    {
+        if ($ekTalepler === []) {
+            return [];
+        }
+
+        $degisimler = [];
+        $ekTuru = EvrakTuru::where('kod', 'ek_belge')->first();
+
+        foreach ($ekTalepler as $ek) {
+            $ad = 'ek.'.str_replace(':', '_', $ek['anahtar']);
+
+            if (($ek['tip'] ?? 'dosya') === 'metin') {
+                if (filled($metin = $istek->string($ad)->trim()->toString())) {
+                    $degisimler[$ek['anahtar']] = ['eski' => null, 'yeni' => $metin];
+                }
+
+                continue;
+            }
+
+            if (($dosya = $istek->file($ad)) === null) {
+                continue;
+            }
+
+            if ($ekTuru === null) {
+                throw ValidationException::withMessages([
+                    'genel' => 'Ek belge türü tanımlı değil. Kulüple iletişime geçin.',
+                ]);
+            }
+
+            try {
+                $evrak = $this->yukleyici->yukle($basvuru, $ekTuru, $dosya, $ek['etiket']);
+            } catch (Throwable $e) {
+                throw ValidationException::withMessages([$ad => $e->getMessage()]);
+            }
+
+            $degisimler[$ek['anahtar']] = ['eski' => null, 'yeni' => $evrak->orijinal_ad];
+        }
+
+        return $degisimler;
     }
 }

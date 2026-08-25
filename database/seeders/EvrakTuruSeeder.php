@@ -52,6 +52,23 @@ class EvrakTuruSeeder extends Seeder
                 'izinli_formatlar' => ['pdf', 'jpg', 'jpeg', 'png'], 'maks_boyut_kb' => 8192,
                 'hassas' => true, 'imha_gun' => 180, 'sira' => 50,
             ],
+            /*
+             * Ek talep kabi -- Yusuf revizyonu 25.08.2026. Yetkilinin alan
+             * listemizde OLMAYAN bir belge istemesi bu tur uzerinden yurur.
+             *
+             * 🔑 `basvuru_turleri` BOS ve `aktif` FALSE: `EvrakTuru::turIcin()`
+             * bunu hicbir zaman dondurmez, yani normal basvuru formunda ve
+             * isaretlenebilir alanlar listesinde GORUNMEZ. Yalnizca
+             * BasvuruDuzeltmeController ek talep yuklerken koda gore bulur.
+             * Hangi belge oldugu `evraklar.ek_etiket` sutununda durur.
+             */
+            [
+                'kod' => 'ek_belge', 'ad' => 'Ek talep belgesi',
+                'aciklama' => 'Yetkilinin duzeltme talebinde elle istedigi belge.',
+                'basvuru_turleri' => [], 'zorunlu' => false,
+                'izinli_formatlar' => ['pdf', 'jpg', 'jpeg', 'png'], 'maks_boyut_kb' => 8192,
+                'hassas' => false, 'sira' => 900, 'aktif' => false,
+            ],
         ];
 
         foreach ($turler as $t) {

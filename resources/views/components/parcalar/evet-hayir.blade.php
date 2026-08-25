@@ -1,16 +1,21 @@
 {{-- İki seçenekli radyo. Varsayılan SEÇİLİ DEĞİL: kullanıcı bilerek işaretlesin,
      "hayır" sessizce varsayılmasın. --}}
-@props(['ad', 'etiket', 'zorunlu' => false])
+@props(['ad', 'etiket', 'zorunlu' => false, 'deger' => null, 'yol' => null])
 
-@php $hata = $errors->first($ad); @endphp
+{{-- 🪤 `yol`: `old()` ve `$errors` NOKTA yolu ister. Girdi adı
+     `alan[veri_telefon]` gibi köşeli parantezliyse `old('alan[veri_telefon]')`
+     hiçbir zaman eşleşmez ve doğrulama hatasından sonra kutu BOŞALIR. --}}
+@php $yol = $yol ?? $ad; @endphp
+
+@php $hata = $errors->first($yol); @endphp
 
 <div>
     <span @class(['block text-sm font-medium text-neutral-800', 'zorunlu' => $zorunlu])>{{ $etiket }}</span>
     <div class="mt-2 flex gap-4">
-        @foreach ([1 => 'Var', 0 => 'Yok'] as $deger => $metin)
+        @foreach ([1 => 'Var', 0 => 'Yok'] as $secenek => $metin)
             <label class="flex items-center gap-2 text-sm">
-                <input type="radio" name="{{ $ad }}" value="{{ $deger }}"
-                       @checked((string) old($ad) === (string) $deger)
+                <input type="radio" name="{{ $ad }}" value="{{ $secenek }}"
+                       @checked((string) old($yol, $deger === null ? '' : (int) $deger) === (string) $secenek)
                        @if($zorunlu) required @endif
                        class="h-4 w-4 border-neutral-300 text-kulup-600 focus:ring-kulup-600/30">
                 <span>{{ $metin }}</span>

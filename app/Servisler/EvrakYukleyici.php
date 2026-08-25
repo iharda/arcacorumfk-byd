@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 
 /**
  * Evrak yükleme -- Plan v1.0 md.11.
@@ -26,7 +27,12 @@ class EvrakYukleyici
 {
     public function __construct(private DenetimYazici $denetim) {}
 
-    public function yukle(Basvuru $basvuru, EvrakTuru $tur, UploadedFile $dosya): Evrak
+    /**
+     * @param  ?string  $ekEtiket  Alan listemizde olmayan "ek talep" belgesinin
+     *                             başlığı. Aynı `ek_belge` türünden birden çok
+     *                             belge bunun sayesinde birbirini ezmez.
+     */
+    public function yukle(Basvuru $basvuru, EvrakTuru $tur, UploadedFile $dosya, ?string $ekEtiket = null): Evrak
     {
         // 🔑 Türü DOSYANIN KENDİSİNDEN oku. Ne uzantıya ne de tarayıcının
         // gönderdiği Content-Type'a güvenilir; Livewire'ın TemporaryUploadedFile
@@ -41,6 +47,12 @@ class EvrakYukleyici
 
         $icerik = file_get_contents($dosya->getRealPath());
         $sha = hash('sha256', $icerik);
+        /*
+         * 💣 BOYUT ŞİFRELEMEDEN ÖNCE ölçülür (Düzeltme listesi md.16).
+         * Sonra ölçülünce `Crypt` + base64 şişmesi kayda geçiyordu: ekranda
+         * "2,3 MB" yazan bir kimlik fotoğrafı aslında 1,3 MB'tı.
+         */
+        $boyut = strlen($icerik);
 
         if ($tur->hassas) {
             $icerik = Crypt::encryptString(base64_encode($icerik));
@@ -51,33 +63,50 @@ class EvrakYukleyici
 
         // Eskiyi arşivleme + yeni kaydı yazma TEK işlemde: kayıt yazılamazsa
         // başvuran önceki evrakını da kaybetmesin.
-        return DB::transaction(function () use ($basvuru, $tur, $disk, $yol, $dosya, $mime, $icerik, $sha) {
-            // Aynı türden önceki evrak arşive alınır (tekrar yükleme = düzeltme).
-            // 🪤 ->each SORGU BUILDER'da yok, Collection'da var. Soft delete sorgu
-            // üzerinden de doğru çalışır.
-            $basvuru->evraklar()->where('evrak_turu_id', $tur->id)->delete();
+        try {
+            return DB::transaction(function () use ($basvuru, $tur, $disk, $yol, $dosya, $mime, $boyut, $sha, $ekEtiket) {
+                // Aynı türden önceki evrak arşive alınır (tekrar yükleme = düzeltme).
+                // 🪤 ->each SORGU BUILDER'da yok, Collection'da var. Soft delete sorgu
+                // üzerinden de doğru çalışır.
+                // 🪤 Ek talep belgeleri AYNI türü paylaşır: etiket de eşleşmezse
+                // ikinci ek belge birincisini arşivler.
+                $basvuru->evraklar()
+                    ->where('evrak_turu_id', $tur->id)
+                    ->where('ek_etiket', $ekEtiket)
+                    ->delete();
 
-            $evrak = $basvuru->evraklar()->create([
-                'evrak_turu_id' => $tur->id,
-                'disk' => $disk,
-                'yol' => $yol,
-                'orijinal_ad' => $this->temizAd($dosya->getClientOriginalName()),
-                'mime' => $mime,
-                'boyut' => strlen($icerik) ?: filesize($dosya->getRealPath()),
-                'sha256' => $sha,
-                'icerik_dogrulandi' => true,
-                'sifreli' => $tur->hassas,
-                'dogrulama_durumu' => 'bekliyor',
-                'imha_tarihi' => $tur->imha_gun ? now()->addDays($tur->imha_gun)->toDateString() : null,
-            ]);
+                $evrak = $basvuru->evraklar()->create([
+                    'evrak_turu_id' => $tur->id,
+                    'ek_etiket' => $ekEtiket,
+                    'disk' => $disk,
+                    'yol' => $yol,
+                    'orijinal_ad' => $this->temizAd($dosya->getClientOriginalName()),
+                    'mime' => $mime,
+                    'boyut' => $boyut ?: filesize($dosya->getRealPath()),
+                    'sha256' => $sha,
+                    'icerik_dogrulandi' => true,
+                    'sifreli' => $tur->hassas,
+                    'dogrulama_durumu' => 'bekliyor',
+                    'imha_tarihi' => $tur->imha_gun ? now()->addDays($tur->imha_gun)->toDateString() : null,
+                ]);
 
-            $this->denetim->yaz('evrak.yuklendi', $evrak, yeni: [
-                'evrak_turu' => $tur->kod,
-                'boyut' => $evrak->boyut,
-            ]);
+                $this->denetim->yaz('evrak.yuklendi', $evrak, yeni: [
+                    'evrak_turu' => $tur->kod,
+                    'boyut' => $evrak->boyut,
+                ]);
 
-            return $evrak;
-        });
+                return $evrak;
+            });
+        } catch (Throwable $e) {
+            /*
+             * 💣 Dosya işlemden ÖNCE diske yazıldı; geri sarma diski
+             * temizlemez (Düzeltme listesi md.13). Kayıt yazılamadıysa dosya
+             * da kalmasın -- dar bir pencere ama gerçek.
+             */
+            rescue(fn () => Storage::disk($disk)->delete($yol), report: false);
+
+            throw $e;
+        }
     }
 
     /** Şifreli evrakı okur; şifresizse olduğu gibi döner. */

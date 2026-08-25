@@ -163,6 +163,35 @@ class Inceleme extends Page
                                 ->maxLength(300),
                         ])
                         ->columns(2),
+                    /*
+                     * Listemizde OLMAYAN talep (Yusuf revizyonu 25.08.2026):
+                     * "bizim alanlarımızda yok ama şu belgeyi de isteyelim".
+                     * Başvurana kendi başlığıyla bir yükleme ya da metin
+                     * kutusu açılır.
+                     */
+                    Repeater::make('ek_talepler')
+                        ->label('Listede olmayan ek talep')
+                        ->addActionLabel('Ek talep ekle')
+                        ->defaultItems(0)
+                        ->schema([
+                            TextInput::make('etiket')
+                                ->label('Başlık')
+                                ->placeholder('Örn. Yayın sözleşmesi')
+                                ->required()
+                                ->maxLength(120),
+                            Select::make('tip')
+                                ->label('İstenen')
+                                ->options(['dosya' => 'Dosya yüklemesi', 'metin' => 'Yazılı bilgi'])
+                                ->default('dosya')
+                                ->native()
+                                ->required(),
+                            TextInput::make('aciklama')
+                                ->label('Açıklama')
+                                ->required()
+                                ->maxLength(300)
+                                ->columnSpanFull(),
+                        ])
+                        ->columns(2),
                     Textarea::make('mesaj')
                         ->label('Ek not (isteğe bağlı)')
                         ->rows(3)
@@ -174,8 +203,26 @@ class Inceleme extends Page
                         ->mapWithKeys(fn ($s) => [$s['alan'] => $s['aciklama']])
                         ->all();
 
+                    /*
+                     * 🔑 Ek talebin anahtarı BAŞLIKTAN DEĞİL sıradan üretilir
+                     * (`ek:1`): başlık serbest metin, sonradan düzeltilse bile
+                     * bağ kopmamalı -- md.11'de tam bu hataya düşülmüştü.
+                     */
+                    $ekTalepler = collect($data['ek_talepler'] ?? [])
+                        ->filter(fn ($e) => filled($e['etiket'] ?? null))
+                        ->values()
+                        ->map(fn ($e, $i) => [
+                            'anahtar' => DuzeltmeAlanlari::EK_ONEK.($i + 1),
+                            'etiket' => $e['etiket'],
+                            'tip' => $e['tip'] ?? 'dosya',
+                            'aciklama' => $e['aciklama'] ?? '',
+                        ])
+                        ->all();
+
                     $this->calistir(
-                        fn () => app(BasvuruAkisi::class)->eksikEvrakIste($this->record, $notlar, $data['mesaj'] ?? null),
+                        fn () => app(BasvuruAkisi::class)->eksikEvrakIste(
+                            $this->record, $notlar, $data['mesaj'] ?? null, $ekTalepler,
+                        ),
                         'Düzeltme talebi gönderildi.',
                     );
                 }),

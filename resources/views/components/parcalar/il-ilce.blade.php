@@ -5,11 +5,17 @@
 
      🪤 İstemci seçimi bağlayıcı DEĞİL: ilçenin gerçekten o ile ait olduğu
      sunucuda `IlIlce::gecerliMi()` ile ayrıca doğrulanır. --}}
-@props(['ilAd' => 'il', 'ilceAd' => 'ilce'])
+{{-- `il`/`ilce`: mevcut deger (duzeltme ekraninda dolu gelir). --}}
+@props(['ilAd' => 'il', 'ilceAd' => 'ilce', 'il' => null, 'ilce' => null, 'ilYolu' => null, 'ilceYolu' => null])
+
+{{-- 🪤 `yol`: `old()` ve `$errors` NOKTA yolu ister. Girdi adı
+     `alan[veri_telefon]` gibi köşeli parantezliyse `old('alan[veri_telefon]')`
+     hiçbir zaman eşleşmez ve doğrulama hatasından sonra kutu BOŞALIR. --}}
+@php $ilYolu = $ilYolu ?? $ilAd; $ilceYolu = $ilceYolu ?? $ilceAd; @endphp
 
 @php
-    $ilHata = $errors->first($ilAd);
-    $ilceHata = $errors->first($ilceAd);
+    $ilHata = $errors->first($ilYolu);
+    $ilceHata = $errors->first($ilceYolu);
     $kutuSinifi = fn (bool $hata) => implode(' ', [
         'mt-1.5 block w-full rounded-lg border px-3 py-2 text-sm shadow-xs transition',
         'focus:border-kulup-600 focus:ring-2 focus:ring-kulup-600/20 focus:outline-none',
@@ -21,8 +27,8 @@
 {{-- `contents`: sarmalayıcı ızgara hücresi yemesin, iki alan yan yana kalsın. --}}
 <div class="contents" x-data="{
         ilceler: @js(App\Support\IlIlce::tumu()),
-        il: @js(old($ilAd, '')),
-        ilce: @js(old($ilceAd, '')),
+        il: @js(old($ilYolu, $il ?? '')),
+        ilce: @js(old($ilceYolu, $ilce ?? '')),
      }">
     <div>
         <label for="{{ $ilAd }}" class="zorunlu block text-sm font-medium text-neutral-800">İl</label>
@@ -31,7 +37,7 @@
                 class="{{ $kutuSinifi((bool) $ilHata) }}">
             <option value="">Seçiniz…</option>
             @foreach (App\Support\IlIlce::iller() as $ad)
-                <option value="{{ $ad }}" @selected(old($ilAd) === $ad)>{{ $ad }}</option>
+                <option value="{{ $ad }}" @selected(old($ilYolu, $il) === $ad)>{{ $ad }}</option>
             @endforeach
         </select>
         @if ($ilHata)<p class="mt-1 text-xs text-kulup-700">{{ $ilHata }}</p>@endif

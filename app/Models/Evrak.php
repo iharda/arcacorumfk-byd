@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Storage;
  * @property string $ulid
  * @property int $basvuru_id
  * @property int $evrak_turu_id
+ * @property ?string $ek_etiket
  * @property string $disk
  * @property ?string $yol
  * @property string $orijinal_ad

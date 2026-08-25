@@ -1,3 +1,21 @@
+@php
+    // Önceki/sonraki değerleri okunur hâle getirir.
+    $degerGoster = function ($deger) {
+        if ($deger === null || $deger === '' || $deger === []) {
+            return '—';
+        }
+        if (is_bool($deger)) {
+            return $deger ? 'Var' : 'Yok';
+        }
+        if (is_array($deger)) {
+            return collect($deger)
+                ->map(fn ($d) => is_array($d) ? implode(' — ', array_filter($d)) : $d)
+                ->filter()
+                ->implode(' · ');
+        }
+        return (string) $deger;
+    };
+@endphp
 {{-- Başvuru inceleme — Plan v1.0 md.8: "yan yana evrak önizlemeli inceleme".
      ⚠️ Panelde kendi Tailwind sınıflarımız derlenmez → yerleşim satır içi stille. --}}
 <x-filament-panels::page>
@@ -212,6 +230,60 @@
                             <li><strong>{{ $record->duzeltmeEtiketi($alan) }}</strong> — {{ $aciklama }}</li>
                         @endforeach
                     </ul>
+                </x-filament::section>
+            @endif
+
+            {{-- Düzeltme geçmişi: hangi turda ne istendi, başvuran neyi neyle
+                 değiştirdi. Yetkili "önceki değer neydi" sorusunu ekrandan
+                 cevaplayabilmeli (Yusuf revizyonu 25.08.2026). --}}
+            @php $turlar = $record->duzeltmeler()->with('talepEden')->get(); @endphp
+
+            @if ($turlar->isNotEmpty())
+                <x-filament::section compact collapsible>
+                    <x-slot name="heading">Düzeltme geçmişi ({{ $turlar->count() }})</x-slot>
+
+                    <div style="display:flex; flex-direction:column; gap:1rem; font-size:.82rem;">
+                        @foreach ($turlar as $tur)
+                            <div style="border-left:2px solid rgb(var(--gray-200)); padding-left:.75rem;">
+                                <p style="font-weight:600;">
+                                    {{ $tur->baslik() }}
+                                    <span style="font-weight:400; opacity:.6;">
+                                        · {{ $tur->talep_at->timezone('Europe/Istanbul')->format('d.m.Y H:i') }}
+                                        @if ($tur->talepEden) · {{ $tur->talepEden->name }} @endif
+                                        @if ($tur->yanitlandiMi())
+                                            · yanıtlandı {{ $tur->yanit_at->timezone('Europe/Istanbul')->format('d.m.Y H:i') }}
+                                        @else
+                                            · <span style="color:rgb(var(--warning-600));">yanıt bekleniyor</span>
+                                        @endif
+                                    </span>
+                                </p>
+
+                                <ul style="margin-top:.35rem; display:flex; flex-direction:column; gap:.3rem;">
+                                    @foreach ($tur->maddeler() as $madde)
+                                        <li>
+                                            <strong>{{ $madde['etiket'] }}</strong>
+                                            @if (filled($madde['aciklama'])) — {{ $madde['aciklama'] }} @endif
+                                            @if ($madde['degisti'])
+                                                <span style="display:block; opacity:.7;">
+                                                    <span style="text-decoration:line-through;">{{ $degerGoster($madde['eski']) }}</span>
+                                                    →
+                                                    <strong>{{ $degerGoster($madde['yeni']) }}</strong>
+                                                </span>
+                                            @elseif ($tur->yanitlandiMi())
+                                                <span style="display:block; opacity:.6;">değişmedi</span>
+                                            @endif
+                                        </li>
+                                    @endforeach
+                                </ul>
+
+                                @if (filled($tur->yanit_aciklama))
+                                    <p style="margin-top:.35rem; opacity:.8;">
+                                        Başvuranın açıklaması: {{ $tur->yanit_aciklama }}
+                                    </p>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
                 </x-filament::section>
             @endif
         </div>
