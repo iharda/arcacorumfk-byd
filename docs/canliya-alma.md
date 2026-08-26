@@ -33,21 +33,21 @@ Sistem canlıya çıkmadan önce buradaki her maddenin **evet** olması gerekir.
 
 ## 4 · Güvenlik
 
-- [ ] ⚠️ **`BYD_2FA_ZORUNLU=true`** — yetkili panelinde iki adımlı doğrulama
+- [ ] ⚠️ **`BYS_2FA_ZORUNLU=true`** — yetkili panelinde iki adımlı doğrulama
       zorunluluğu. Deneme sırasında **kapatıldı** (21.08.2026); canlıya
       çıkmadan geri açılacak (Plan v1.0 md.11 zorunlu sayıyor)
 - [x] `APP_DEBUG=false`, `APP_ENV=production`
 - [x] Oturum çerezi Secure + oturum verisi şifreli
 - [x] Denetim kaydı veritabanı seviyesinde kilitli
 - [x] Güvenlik başlıkları (HSTS, CSP, X-Frame-Options)
-- [ ] `php artisan byd:pilot-verisi --sil` çalıştırıldı, tanıtım hesapları silindi
+- [ ] `php artisan bys:pilot-verisi --sil` çalıştırıldı, tanıtım hesapları silindi
 - [ ] Yönetici parolası değiştirildi ve kurtarma kodları güvenli yere alındı
 - [ ] Kapı anahtarları **yalnızca gerçek cihazlar için** üretildi, IP kısıtı girildi
-- [ ] `node tests/uctan-uca/byd-sertlestirme-denetimi.mjs` → uyarısız geçiyor
+- [ ] `node tests/uctan-uca/bys-sertlestirme-denetimi.mjs` → uyarısız geçiyor
 
 ## 5 · Yedek ve kurtarma
 
-- [x] Günlük yedek kurulu *(`/etc/cron.d/byd-yedek`, 03:40, 14 gün saklama)*
+- [x] Günlük yedek kurulu *(`/etc/cron.d/bys-yedek`, 03:40, 14 gün saklama)*
 - [x] Yedek her gece **geri yüklenerek doğrulanıyor**
 - [ ] ⚠️ **Yedek DIŞARIYA kopyalanıyor** (R2/S3) — şu an yalnızca aynı sunucuda;
       sunucu tamamen giderse yedek de gider
@@ -58,7 +58,7 @@ Sistem canlıya çıkmadan önce buradaki her maddenin **evet** olması gerekir.
 ## 6 · İzleme
 
 - [ ] Site erişilebilirlik izlemesi kuruldu *(Minima CRM'deki Site İzleme'ye eklendi)*
-- [ ] `byd-horizon` servisi düşerse haber veren bir kontrol var
+- [ ] `bys-horizon` servisi düşerse haber veren bir kontrol var
 - [ ] Disk doluluk uyarısı *(kart ve evrak dosyaları birikir)*
 
 ## 7 · Devir (kulübün sunucusuna taşınırsa)
@@ -88,14 +88,14 @@ Sistem canlıya çıkmadan önce buradaki her maddenin **evet** olması gerekir.
 
 ```bash
 # 1) Veritabanı
-gunzip -c /root/backups/byd/db-TARIH.sql.gz \
-  | docker exec -i parabu-postgres psql -U parabu -d byd
+gunzip -c /root/backups/bys/db-TARIH.sql.gz \
+  | docker exec -i parabu-postgres psql -U parabu -d bys
 
 # 2) Dosyalar
-tar xzf /root/backups/byd/dosyalar-TARIH.tar.gz -C <uygulama-dizini>
+tar xzf /root/backups/bys/dosyalar-TARIH.tar.gz -C <uygulama-dizini>
 
 # 3) Ortam dosyası (APP_KEY!)
-cp /root/backups/byd/env-TARIH <uygulama-dizini>/.env
+cp /root/backups/bys/env-TARIH <uygulama-dizini>/.env
 
 # 4) Önbellekleri tazele
 bash <uygulama-dizini>/dagit.sh
@@ -104,11 +104,11 @@ bash <uygulama-dizini>/dagit.sh
 ## Günlük bakım komutları
 
 ```bash
-bash /root/byd-yedekle.sh                                  # elle yedek
-node tests/uctan-uca/byd-sertlestirme-denetimi.mjs         # sağlık denetimi
-node tests/uctan-uca/byd-yetim-temizle.mjs --kuru          # yetim dosya taraması
-php artisan byd:evrak-imha --kuru                          # imha sırası gelenler
-systemctl status byd-horizon                               # kuyruk işleyicisi
+bash /root/bys-yedekle.sh                                  # elle yedek
+node tests/uctan-uca/bys-sertlestirme-denetimi.mjs         # sağlık denetimi
+node tests/uctan-uca/bys-yetim-temizle.mjs --kuru          # yetim dosya taraması
+php artisan bys:evrak-imha --kuru                          # imha sırası gelenler
+systemctl status bys-horizon                               # kuyruk işleyicisi
 ```
 
 *Son güncelleme: 21.08.2026*

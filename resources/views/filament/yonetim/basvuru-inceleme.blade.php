@@ -7,14 +7,14 @@
          gecikiyordu. Satır içi <style> hem çalışıyor hem CSP'ye uygun
          (style-src 'self' 'unsafe-inline'). --}}
     <style>
-        .byd-inceleme { display:grid; gap:1.25rem; grid-template-columns:minmax(0,1fr); align-items:start; }
+        .bys-inceleme { display:grid; gap:1.25rem; grid-template-columns:minmax(0,1fr); align-items:start; }
         @media (min-width: 1280px) {
-            .byd-inceleme { grid-template-columns:minmax(0,23rem) minmax(0,1fr); }
-            .byd-inceleme__onizleme { position:sticky; top:1rem; }
+            .bys-inceleme { grid-template-columns:minmax(0,23rem) minmax(0,1fr); }
+            .bys-inceleme__onizleme { position:sticky; top:1rem; }
         }
     </style>
 
-    <div class="byd-inceleme">
+    <div class="bys-inceleme">
 
         {{-- ── SOL: başvuru verisi + evrak listesi ─────────────── --}}
         <div style="display:flex; flex-direction:column; gap:1.25rem; min-width:0;">
@@ -298,7 +298,7 @@
         </div>
 
         {{-- ── SAĞ: evrak önizleme ─────────────────────────────── --}}
-        <div class="byd-inceleme__onizleme" style="min-width:0;">
+        <div class="bys-inceleme__onizleme" style="min-width:0;">
             <x-filament::section>
                 <x-slot name="heading">
                     {{ $this->seciliEvrakModeli?->turu?->ad ?? 'Evrak önizleme' }}

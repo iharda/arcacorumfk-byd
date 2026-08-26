@@ -72,7 +72,7 @@ class YonetimPanelProvider extends PanelProvider
              */
             ->multiFactorAuthentication([
                 AppAuthentication::make()->recoverable(),
-            ], isRequired: (bool) config('byd.2fa_zorunlu', true))
+            ], isRequired: (bool) config('bys.2fa_zorunlu', true))
             // Avatar YERELDE uretilir; ui-avatars.com'a kullanıcı adı GİTMEZ.
             ->defaultAvatarProvider(YerelAvatar::class)
             ->databaseNotifications()

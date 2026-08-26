@@ -1,10 +1,10 @@
-# BYD — Basın Yönetim Sistemi
+# BYS — Basın Yönetim Sistemi
 
 ARCA Çorum FK'nın basın akreditasyonu ve stadyum girişi sistemi. Basın
 mensuplarının başvurusundan basın kartına, oradan turnikede QR okutulmasına
 kadar olan süreci tek yerden yönetir.
 
-> Adı **Basın Yönetim Sistemi**, kısaltması **BYD**. "Medya Merkezi" değil.
+> Adı **Basın Yönetim Sistemi**, kısaltması **BYS**. "Medya Merkezi" değil.
 
 ## Ne yapar
 
@@ -45,8 +45,8 @@ spatie/laravel-permission (rol/yetki) · endroid/qr-code
 ## Kurulum
 
 ```bash
-git clone git@github.com:iharda/arcacorumfk-byd.git
-cd arcacorumfk-byd
+git clone git@github.com:iharda/arcacorumfk-bys.git
+cd arcacorumfk-bys
 composer setup          # .env oluşturur, key üretir, migrate eder, npm build alır
 ```
 
@@ -59,7 +59,7 @@ Geliştirirken:
 
 ```bash
 composer dev            # sunucu + kuyruk + vite birlikte
-php artisan byd:pilot-verisi        # örnek kurum/başvuru/kart üretir (--sil ile temizler)
+php artisan bys:pilot-verisi        # örnek kurum/başvuru/kart üretir (--sil ile temizler)
 ```
 
 ## Günlük akış
@@ -112,14 +112,14 @@ Vakit kaybettiren, tekrar eden hatalar:
 - **Blade değiştirdiyseniz `npm run build` şart.** Tailwind sınıf adlarını Blade
   dosyalarından tarar; derlemezseniz yeni sınıf sessizce çalışmaz.
 - **artisan'ı root ile çalıştırmayın.** Root'un bıraktığı dosyalar 500 üretir.
-  Sunucuda her komut `sudo -u byd ...` ile.
+  Sunucuda her komut `sudo -u bys ...` ile.
 - **Kendi kaydını görmek için yetki aranmaz.** Policy'lerde önce sahiplik
   kontrolü yapın; `...gor` yetkileri *başkasının* kaydı içindir.
 - **Kuyrukta `uniqueId()` tek başına etkisizdir** — `ShouldBeUnique` gerekir.
   Çakışmayı önlemek için `WithoutOverlapping`.
 - **Evrak ve kart diskleri web kökünün dışındadır**, public URL'leri yoktur.
   Erişim her zaman policy'den geçer.
-- Kişisel veri saklanıyor: kimlik belgeleri gece çalışan `byd:evrak-imha` ile
+- Kişisel veri saklanıyor: kimlik belgeleri gece çalışan `bys:evrak-imha` ile
   süresi dolduğunda silinir. Yeni bir alan eklerken saklama süresini de düşünün.
 
 ## Lisans

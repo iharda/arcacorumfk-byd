@@ -1,4 +1,4 @@
-// BYD -- paneller arasi yonlendirme.  node /root/byd-panel-yonlendirme-testi.mjs
+// BYS -- paneller arasi yonlendirme.  node /root/bys-panel-yonlendirme-testi.mjs
 //
 // Uc panel AYNI `web` oturumunu paylasir. Bu betik, yanlis panele dusen
 // kullanicinin cikissiz bir "403 Yasak" sayfasinda kalmadigini dogrular.
@@ -15,7 +15,7 @@ const CHROME_KOK = '/root/.cache/puppeteer/chrome';
 const surum = readdirSync(CHROME_KOK).sort().pop();
 const CHROME = `${CHROME_KOK}/${surum}/chrome-linux64/chrome`;
 
-const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
+const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
 const SIFRE = 'Pilot-Deneme-2026';
 const KURUM = 'yetkili+pilot@ornek.test';

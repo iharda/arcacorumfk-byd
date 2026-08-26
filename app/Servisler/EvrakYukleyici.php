@@ -40,7 +40,7 @@ class EvrakYukleyici
         $mime = $this->gercekMime($dosya);
         $this->dogrula($tur, $dosya, $mime);
 
-        $disk = config('byd.evrak_disk');
+        $disk = config('bys.evrak_disk');
         $uzanti = $this->uzantiyaCevir($mime);
         // Ad tahmin edilemez ve kullanıcı girdisi içermez.
         $yol = sprintf('basvuru/%s/%s.%s', $basvuru->ulid, Str::ulid(), $uzanti);
@@ -133,7 +133,7 @@ class EvrakYukleyici
             throw new RuntimeException('Dosya boş.');
         }
 
-        if (! in_array($mime, config('byd.yukleme.mime_izin'), true)) {
+        if (! in_array($mime, config('bys.yukleme.mime_izin'), true)) {
             throw new RuntimeException('Dosya türü kabul edilmiyor.');
         }
 

@@ -11,8 +11,10 @@
 /storage/pail
 /vendor
 .env
-.env.backup
-.env.production
+# ⚠️ Yalnizca .env yazmak YETMEZ: .env.yedek / .env.eski gibi kopyalar
+# depoya sizar (2026-08-26da tam olarak bu oldu). Desen genis olmali.
+.env*
+!.env.example
 .phpactor.json
 .phpunit.result.cache
 Homestead.json

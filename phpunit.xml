@@ -43,12 +43,12 @@
         <!--
             SQLite DEGIL AYRI BIR PostgreSQL: gocler jsonb ve ham
             `ALTER TABLE ... DROP NOT NULL` kullaniyor, SQLite'ta gocler
-            calismiyor. `byd_test` ayri bir veritabani; gelistirme verisi
-            `byd`de duruyor ve testler ona ASLA dokunmuyor.
-            Kurulum: CREATE DATABASE byd_test OWNER byd;
+            calismiyor. `bys_test` ayri bir veritabani; gelistirme verisi
+            `bys`de duruyor ve testler ona ASLA dokunmuyor.
+            Kurulum: CREATE DATABASE bys_test OWNER bys;
         -->
         <env name="DB_CONNECTION" value="pgsql" force="true"/>
-        <env name="DB_DATABASE" value="byd_test" force="true"/>
+        <env name="DB_DATABASE" value="bys_test" force="true"/>
         <env name="DB_URL" value="" force="true"/>
         <env name="MAIL_MAILER" value="array" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync" force="true"/>

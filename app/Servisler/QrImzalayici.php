@@ -12,8 +12,8 @@ use RuntimeException;
  * sürümü ve HMAC imzası var. Kimin nereye girebileceği HER OKUTMADA sunucudan
  * sorulur; bu yüzden iptal anında etkilidir ve kart geri toplanmaz.
  *
- * Biçim:  BYD1.<surum>.<ulid>.<imza>
- *   - BYD1  : yük biçimi sürümü (ileride değişirse eski kartlar tanınsın)
+ * Biçim:  BYS1.<surum>.<ulid>.<imza>
+ *   - BYS1  : yük biçimi sürümü (ileride değişirse eski kartlar tanınsın)
  *   - surum : imza ANAHTARI sürümü — rotasyonda eski kartlar doğrulanmaya
  *             devam eder (md.6 "imza versiyonu QR yüküne eklenir")
  *   - imza  : HMAC-SHA256(ulid + surum), base64url, 22 karaktere kısaltılmış
@@ -21,13 +21,13 @@ use RuntimeException;
  */
 class QrImzalayici
 {
-    private const BICIM = 'BYD1';
+    private const BICIM = 'BYS1';
 
     private const IMZA_UZUNLUK = 22;
 
     public function yukUret(Akreditasyon $akreditasyon, ?int $anahtarSurumu = null): string
     {
-        $surum = $anahtarSurumu ?? (int) config('byd.qr.anahtar_surumu');
+        $surum = $anahtarSurumu ?? (int) config('bys.qr.anahtar_surumu');
         $ulid = $akreditasyon->ulid;
 
         return implode('.', [self::BICIM, $surum, $ulid, $this->imzala($ulid, $surum)]);
@@ -65,7 +65,7 @@ class QrImzalayici
 
     private function imzala(string $ulid, int $surum, bool $sessiz = false): ?string
     {
-        $anahtar = config('byd.qr.anahtarlar')[$surum] ?? null;
+        $anahtar = config('bys.qr.anahtarlar')[$surum] ?? null;
 
         if (blank($anahtar)) {
             if ($sessiz) {

@@ -11,12 +11,12 @@ abstract class TestCase extends BaseTestCase
      * Testlerin DOKUNMASINA izin verilen veritabanları. Başka bir ad
      * görülürse test hiç başlamaz.
      */
-    private const IZINLI_VERITABANLARI = ['byd_test', ':memory:'];
+    private const IZINLI_VERITABANLARI = ['bys_test', ':memory:'];
 
     /**
      * 💀 EMNİYET KİLİDİ. `bootstrap/cache/config.php` varken `env()` hiç
      * okunmaz ve `phpunit.xml`'deki DB ayarları YOK SAYILIR; testler sessizce
-     * GELİŞTİRME veritabanına (`byd`) bağlanır. `RefreshDatabase` orada bir
+     * GELİŞTİRME veritabanına (`bys`) bağlanır. `RefreshDatabase` orada bir
      * `migrate:fresh` çalıştırırsa gerçek başvurular, kartlar ve denetim
      * kayıtları gider.
      *

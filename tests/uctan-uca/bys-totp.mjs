@@ -29,5 +29,5 @@ export function totp(gizli, zaman = Date.now()) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const { readFileSync } = await import('node:fs');
-  console.log(totp(readFileSync('/root/.byd-admin-totp', 'utf8').trim()));
+  console.log(totp(readFileSync('/root/.bys-admin-totp', 'utf8').trim()));
 }

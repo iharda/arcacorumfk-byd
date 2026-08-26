@@ -1,5 +1,5 @@
 /**
- * BYD — TEK GİRİŞ KAPISI (Başvuru akışı v2, Revizyon md.4).
+ * BYS — TEK GİRİŞ KAPISI (Başvuru akışı v2, Revizyon md.4).
  *
  * Ölçülenler:
  *   1. `/kurum/login` ve `/panel/login` artık yok, `/giris`'e yönleniyor
@@ -14,7 +14,7 @@
  *
  * ⚠️ ÜRETİME YAZAR. Kendi kullanıcılarını oluşturur, sonunda siler.
  *
- * node /root/byd-tek-giris-testi.mjs
+ * node /root/bys-tek-giris-testi.mjs
  */
 import puppeteer from 'puppeteer-core';
 import { readdirSync } from 'node:fs';
@@ -22,7 +22,7 @@ import { execFileSync } from 'node:child_process';
 
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
+const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
 const SIFRE = 'Kirmizi-Kartal-2026-x9';
 const YENI_SIFRE = 'Yesil-Vadi-2026-q4';
@@ -37,10 +37,10 @@ const UNVAN = `Giriş Testi Ajans ${damga}`;
 const sonuc = [];
 const kontrol = (ad, gecti, ek = '') => { sonuc.push(gecti); console.log(`${gecti ? '✅' : '❌'} ${ad}${ek ? '  → ' + ek : ''}`); };
 const bekle = ms => new Promise(r => setTimeout(r, ms));
-const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 90000 });
-const sinirSifirla = () => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'cache:clear'],
-  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..') });
+const artisan = kod => execFileSync('sudo', ['-u', 'bys', 'php', 'artisan', 'tinker', '--execute', kod],
+  { cwd: (process.env.BYS_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 90000 });
+const sinirSifirla = () => execFileSync('sudo', ['-u', 'bys', 'php', 'artisan', 'cache:clear'],
+  { cwd: (process.env.BYS_KOK ?? import.meta.dirname + '/../..') });
 const cek = (m, e) => (m.match(new RegExp(e + ':(\\S+)')) || [])[1];
 
 const b = await puppeteer.launch({
@@ -142,7 +142,7 @@ echo 'HAZIR';`);
   {
     const { ctx, s } = await yeniSekme();
     await gir(s, 'admin@byd.ordolive.com',
-      execFileSync('cat', ['/root/.byd-admin-pass'], { encoding: 'utf8' }).trim());
+      execFileSync('cat', ['/root/.bys-admin-pass'], { encoding: 'utf8' }).trim());
     kontrol('Yetkili tek kapıdan giremiyor, kendi kapısına yönleniyor',
       yol(s) === '/yonetim/login', yol(s));
 

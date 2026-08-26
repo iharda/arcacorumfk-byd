@@ -59,7 +59,7 @@ class DuzeltmeAkisiTest extends TestCase
      */
     private function zorunluEvraklariYukle(Basvuru $basvuru): void
     {
-        Storage::fake(config('byd.evrak_disk'));
+        Storage::fake(config('bys.evrak_disk'));
 
         foreach (EvrakTuru::turIcin($basvuru->tur)->where('zorunlu', true) as $tur) {
             app(EvrakYukleyici::class)->yukle(

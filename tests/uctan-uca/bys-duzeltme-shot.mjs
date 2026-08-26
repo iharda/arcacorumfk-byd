@@ -8,12 +8,12 @@
 import puppeteer from 'puppeteer-core';
 import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
-import { totp } from './byd-totp.mjs';
+import { totp } from './bys-totp.mjs';
 
-const KOK_DIZIN = (process.env.BYD_KOK ?? import.meta.dirname + '/../..');
-const KOK = 'https://' + (process.env.BYD_ALAN || 'byd.ordolive.com');
+const KOK_DIZIN = (process.env.BYS_KOK ?? import.meta.dirname + '/../..');
+const KOK = 'https://' + (process.env.BYS_ALAN || 'byd.ordolive.com');
 const tinker = (php) =>
-  execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', php],
+  execFileSync('sudo', ['-u', 'bys', 'php', 'artisan', 'tinker', '--execute', php],
     { cwd: KOK_DIZIN, encoding: 'utf8' }).trim();
 
 const oncesi = tinker(`echo DB::table('basvurular')->count().'|'.DB::table('basvuru_duzeltmeleri')->count();`);
@@ -87,8 +87,8 @@ try {
     [...document.querySelectorAll('[name^="alan["]')].map((e) => e.name));
   console.log('alan girdileri:', girdiler.join(', ') || '(YOK)');
 
-  await sayfa.screenshot({ path: '/root/byd-duzeltme-ekrani.png', fullPage: true });
-  console.log('goruntu: /root/byd-duzeltme-ekrani.png');
+  await sayfa.screenshot({ path: '/root/bys-duzeltme-ekrani.png', fullPage: true });
+  console.log('goruntu: /root/bys-duzeltme-ekrani.png');
 
   /*
    * Aynı başvuruyu YETKİLİNİN gözünden de aç: düzeltme geçmişi bölümü
@@ -98,7 +98,7 @@ try {
   await y.setViewport({ width: 1500, height: 1200 });
   await y.goto(`${KOK}/yonetim/login`, { waitUntil: 'networkidle2' });
   await y.type('#form\\.email', 'admin@byd.ordolive.com');
-  await y.type('#form\\.password', readFileSync('/root/.byd-admin-pass', 'utf8').trim());
+  await y.type('#form\\.password', readFileSync('/root/.bys-admin-pass', 'utf8').trim());
   await Promise.all([
     y.waitForNavigation({ waitUntil: 'networkidle2' }).catch(() => {}),
     y.click('button[type="submit"]'),
@@ -108,7 +108,7 @@ try {
   const kutular = await y.$$('input[inputmode="numeric"]');
   if (kutular.length >= 6) {
     await kutular[0].click();
-    await y.keyboard.type(totp(readFileSync('/root/.byd-admin-totp', 'utf8').trim()), { delay: 60 });
+    await y.keyboard.type(totp(readFileSync('/root/.bys-admin-totp', 'utf8').trim()), { delay: 60 });
     await new Promise((r) => setTimeout(r, 900));
     await y.evaluate(() =>
       [...document.querySelectorAll('button')].find((b) => /Girişi doğrula/i.test(b.innerText))?.click());
@@ -134,8 +134,8 @@ try {
     console.log(`${ok ? '✓' : '✗'} ${ad}`);
   }
 
-  await y.screenshot({ path: '/root/byd-inceleme-gecmis.png', fullPage: true });
-  console.log('goruntu: /root/byd-inceleme-gecmis.png');
+  await y.screenshot({ path: '/root/bys-inceleme-gecmis.png', fullPage: true });
+  console.log('goruntu: /root/bys-inceleme-gecmis.png');
 
   console.log(`kontrol: ${gecen}/${kontroller.length + 4}`);
 } finally {

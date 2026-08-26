@@ -26,17 +26,17 @@ return new class extends Migration
         }
 
         DB::unprepared(<<<'SQL'
-            CREATE OR REPLACE FUNCTION byd_denetim_kaydi_kilit() RETURNS trigger AS $$
+            CREATE OR REPLACE FUNCTION bys_denetim_kaydi_kilit() RETURNS trigger AS $$
             BEGIN
-                RAISE EXCEPTION 'Denetim kaydi degistirilemez veya silinemez (BYD)';
+                RAISE EXCEPTION 'Denetim kaydi degistirilemez veya silinemez (BYS)';
             END;
             $$ LANGUAGE plpgsql;
 
-            DROP TRIGGER IF EXISTS byd_denetim_kaydi_kilit_trg ON denetim_kaydi;
+            DROP TRIGGER IF EXISTS bys_denetim_kaydi_kilit_trg ON denetim_kaydi;
 
-            CREATE TRIGGER byd_denetim_kaydi_kilit_trg
+            CREATE TRIGGER bys_denetim_kaydi_kilit_trg
                 BEFORE UPDATE OR DELETE OR TRUNCATE ON denetim_kaydi
-                FOR EACH STATEMENT EXECUTE FUNCTION byd_denetim_kaydi_kilit();
+                FOR EACH STATEMENT EXECUTE FUNCTION bys_denetim_kaydi_kilit();
         SQL);
     }
 
@@ -46,8 +46,8 @@ return new class extends Migration
             return;
         }
 
-        DB::unprepared('DROP TRIGGER IF EXISTS byd_denetim_kaydi_kilit_trg ON denetim_kaydi;');
-        DB::unprepared('DROP FUNCTION IF EXISTS byd_denetim_kaydi_kilit();');
+        DB::unprepared('DROP TRIGGER IF EXISTS bys_denetim_kaydi_kilit_trg ON denetim_kaydi;');
+        DB::unprepared('DROP FUNCTION IF EXISTS bys_denetim_kaydi_kilit();');
     }
 
     private function postgresMi(): bool

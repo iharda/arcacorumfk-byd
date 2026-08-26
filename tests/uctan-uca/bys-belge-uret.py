@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-BYD uctan uca testleri icin GERCEKCI ornek belgeler uretir.
+BYS uctan uca testleri icin GERCEKCI ornek belgeler uretir.
 
 Her belge, gercek bir resmi evrakla karistirilmasin diye capraz
 "ORNEK - TEST BELGESI" filigrani tasir ve uydurma kurum/kisi bilgisi kullanir.
 Amac: yukleme, onizleme, magic byte ve boyut yollarini gercek dosyalarla sinamak.
 
-python3 /root/byd-belge-uret.py
+python3 /root/bys-belge-uret.py
 """
 from PIL import Image, ImageDraw, ImageFont
 import os
 from pathlib import Path
 
-HEDEF = Path(os.environ.get('BYD_TEST_DOSYALARI') or Path(__file__).resolve().parents[3] / 'test-dosyalari')
+HEDEF = Path(os.environ.get('BYS_TEST_DOSYALARI') or Path(__file__).resolve().parents[3] / 'test-dosyalari')
 HEDEF.mkdir(exist_ok=True)
 
 DEJAVU = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'

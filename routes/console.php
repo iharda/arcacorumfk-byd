@@ -4,8 +4,8 @@ use App\Console\Commands\EvrakImha;
 use Illuminate\Support\Facades\Schedule;
 
 /*
- * Zamanlanmış işler. Sunucuda `/etc/cron.d/byd-scheduler` dakikada bir
- * `schedule:run` çağırır (kullanıcı: byd, root DEĞİL).
+ * Zamanlanmış işler. Sunucuda `/etc/cron.d/bys-scheduler` dakikada bir
+ * `schedule:run` çağırır (kullanıcı: bys, root DEĞİL).
  */
 
 // KVKK: saklama süresi dolan kimlik/çalışma belgesi dosyaları silinir.

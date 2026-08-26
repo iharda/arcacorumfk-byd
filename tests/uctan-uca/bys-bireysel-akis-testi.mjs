@@ -1,5 +1,5 @@
 /**
- * BYD — bireysel başvuru akışlarının uçtan uca testi (Başvuru akışı v2).
+ * BYS — bireysel başvuru akışlarının uçtan uca testi (Başvuru akışı v2).
  *
  * Kapsam: içerik üreticisi · basın mensubu "Yol A" + kurum teyidi ·
  *         "Yol B" davet linki · ayrılış → akreditasyon otomatik iptal.
@@ -10,18 +10,18 @@
  * ⚠️ ÜRETİME YAZAR. Kendi oluşturduğu kayıtları siler, `kurum_teyidi_istensin`
  *    ayarının ESKİ DEĞERİNİ saklayıp finally'de aynen geri yazar.
  *
- * node /root/byd-bireysel-akis-testi.mjs
+ * node /root/bys-bireysel-akis-testi.mjs
  */
 import puppeteer from 'puppeteer-core';
 import { readdirSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { totp } from './byd-totp.mjs';
+import { totp } from './bys-totp.mjs';
 
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
+const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
-const D = (process.env.BYD_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
+const D = (process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
 const SIFRE = 'Kirmizi-Kartal-2026-x9';
 
 const damga = Date.now();
@@ -34,8 +34,8 @@ const UNVAN = `B3 Test Ajans ${damga}`;
 const sonuc = [];
 const kontrol = (ad, gecti, ek = '') => { sonuc.push({ ad, gecti, ek }); console.log(`${gecti ? '✅' : '❌'} ${ad}${ek ? '  → ' + ek : ''}`); };
 const bekle = ms => new Promise(r => setTimeout(r, ms));
-const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 90000 });
+const artisan = kod => execFileSync('sudo', ['-u', 'bys', 'php', 'artisan', 'tinker', '--execute', kod],
+  { cwd: (process.env.BYS_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 90000 });
 
 /** Başvurunun durumunu e-postasından okur (hesap YOK, bağ e-posta üzerinden). */
 function basvuruDurumu(eposta) {
@@ -220,7 +220,7 @@ echo 'HAZIR';`);
   await bekle(900);
   const cal = await s3.evaluate(() => document.body.innerText);
   kontrol('Kurum teyit bekleyen başvuruyu ADIYLA görüyor', cal.includes('Muhabir Aday'), '');
-  await s3.screenshot({ path: '/root/byd-calisanlar.png', fullPage: true });
+  await s3.screenshot({ path: '/root/bys-calisanlar.png', fullPage: true });
 
   await s3.evaluate(() => [...document.querySelectorAll('button')].find(b => b.innerText.trim() === 'Teyit et')?.click());
   await bekle(1500);
@@ -293,13 +293,13 @@ echo 'HAZIR';`);
   await y.setViewport({ width: 1600, height: 1000 });
   await y.goto(`${KOK}/yonetim/login`, { waitUntil: 'networkidle2' });
   await y.type('#form\\.email', 'admin@byd.ordolive.com');
-  await y.type('#form\\.password', readFileSync('/root/.byd-admin-pass', 'utf8').trim());
+  await y.type('#form\\.password', readFileSync('/root/.bys-admin-pass', 'utf8').trim());
   await Promise.all([y.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}), y.click('button[type="submit"]')]);
   await bekle(1200);
   const kutular = await y.$$('input[inputmode="numeric"]');
   if (kutular.length >= 6) {
     await kutular[0].click();
-    await y.keyboard.type(totp(readFileSync('/root/.byd-admin-totp', 'utf8').trim()), { delay: 60 });
+    await y.keyboard.type(totp(readFileSync('/root/.bys-admin-totp', 'utf8').trim()), { delay: 60 });
     await bekle(900);
     await y.evaluate(() => [...document.querySelectorAll('button')].find(b => /Girişi doğrula/i.test(b.innerText))?.click());
     await bekle(3000);

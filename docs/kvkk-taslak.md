@@ -69,7 +69,7 @@ Veriler üçüncü kişilerle paylaşılmaz. İstisnalar:
 ### Saklama süreleri
 | Veri | Süre | Sistemdeki karşılığı |
 |---|---|---|
-| Kimlik belgesi görseli, çalışma belgesi | **180 gün** | `evrak_turleri.imha_gun`; her gece `byd:evrak-imha` çalışır |
+| Kimlik belgesi görseli, çalışma belgesi | **180 gün** | `evrak_turleri.imha_gun`; her gece `bys:evrak-imha` çalışır |
 | Biyometrik fotoğraf | Akreditasyon geçerli olduğu sürece | — |
 | Başvuru ve karar geçmişi | Akreditasyon sona erdikten sonra *(süre belirlenecek)* | — |
 | Geçiş kayıtları | *(süre belirlenecek — öneri: 1 yıl)* | `gecis_kayitlari` |

@@ -1,5 +1,5 @@
 /**
- * BYD — kurumsal başvuru akışının uçtan uca testi (Başvuru akışı v2).
+ * BYS — kurumsal başvuru akışının uçtan uca testi (Başvuru akışı v2).
  *
  * Kapsam: kamuya açık form (EVRAK DAHİL, tek adım) → yetkili incelemesi →
  *         eksik evrak → PANELSİZ düzeltme bağlantısı → onay → hesabın onayda
@@ -11,22 +11,22 @@
  * ⚠️ Bu test ÜRETİME YAZAR (kayıt oluşturur). Kendi oluşturduğu kaydı sonunda
  *    temizler; BAŞKA kayda dokunmaz. Süzgeç sayıları sabit yazılmaz.
  *
- * node /root/byd-basvuru-akisi-testi.mjs
+ * node /root/bys-basvuru-akisi-testi.mjs
  */
 import puppeteer from 'puppeteer-core';
 import { readdirSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { totp } from './byd-totp.mjs';
+import { totp } from './bys-totp.mjs';
 
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
+const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
-const DOSYA = (process.env.BYD_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
+const DOSYA = (process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
 
 const damga = Date.now();
-const EPOSTA = `bydtest+${damga}@ornek.test`;
-const UNVAN = `BYD Test Medya A.Ş. ${damga}`;
+const EPOSTA = `bystest+${damga}@ornek.test`;
+const UNVAN = `BYS Test Medya A.Ş. ${damga}`;
 
 const sonuc = [];
 const kontrol = (ad, gecti, ek = '') => {
@@ -36,15 +36,15 @@ const kontrol = (ad, gecti, ek = '') => {
 const bekle = (ms) => new Promise(r => setTimeout(r, ms));
 
 function artisan(kod) {
-  return execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod], {
-    cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 60000,
+  return execFileSync('sudo', ['-u', 'bys', 'php', 'artisan', 'tinker', '--execute', kod], {
+    cwd: (process.env.BYS_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 60000,
   });
 }
 
 /** Kuyruk bildirimi gerçekten işlendi mi? (Horizon günlüğünden) */
 function bildirimIslendiMi(desen, saniye = 30) {
   for (let i = 0; i < saniye; i++) {
-    const log = readFileSync('/var/log/byd-horizon.log', 'utf8').slice(-6000);
+    const log = readFileSync('/var/log/bys-horizon.log', 'utf8').slice(-6000);
     if (desen.test(log)) return true;
     execFileSync('sleep', ['1']);
   }
@@ -123,7 +123,7 @@ echo 'DURUM:' . ($b?->durum->value ?? 'yok')
   await y.setViewport({ width: 1600, height: 1000 });
   await y.goto(`${KOK}/yonetim/login`, { waitUntil: 'networkidle2' });
   await y.type('#form\\.email', 'admin@byd.ordolive.com');
-  await y.type('#form\\.password', readFileSync('/root/.byd-admin-pass', 'utf8').trim());
+  await y.type('#form\\.password', readFileSync('/root/.bys-admin-pass', 'utf8').trim());
   await Promise.all([
     y.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
     y.click('button[type="submit"]'),
@@ -131,7 +131,7 @@ echo 'DURUM:' . ($b?->durum->value ?? 'yok')
   await bekle(1200);
   // 🪤 Filament'in tek kullanımlık kod alanı AYNI SAYFADA açılıyor ve altı ayrı
   //    kutudan oluşuyor; asıl input gizli. Kutulara yazmak gerekiyor.
-  const gizli = readFileSync('/root/.byd-admin-totp', 'utf8').trim();
+  const gizli = readFileSync('/root/.bys-admin-totp', 'utf8').trim();
   const kutular = await y.$$('input[inputmode="numeric"]');
   if (kutular.length >= 6) {
     await kutular[0].click();
@@ -176,7 +176,7 @@ echo 'DURUM:' . ($b?->durum->value ?? 'yok')
   kontrol('Evrak ucu dosyayı döndürüyor',
     !!evrakYanit && evrakYanit.durum === 200 && evrakYanit.boyut > 1000,
     evrakYanit ? `${evrakYanit.durum} · ${evrakYanit.tur} · ${evrakYanit.boyut} B` : 'kaynak yok');
-  await y.screenshot({ path: '/root/byd-inceleme.png', fullPage: true });
+  await y.screenshot({ path: '/root/bys-inceleme.png', fullPage: true });
 
   /* ───────── 6) İncelemeye al ───────── */
   await y.evaluate(() => [...document.querySelectorAll('button, a')]
@@ -254,7 +254,7 @@ echo 'TOKEN:' . app(App\\Servisler\\BasvuruBiletiAkisi::class)->yenidenGonder($b
   const inc4 = await y.evaluate(() => document.body.innerText);
   kontrol('Durum "Onaylandı" oldu', inc4.includes('Onaylandı'),
     (inc4.match(/Taslak|Gönderildi|İncelemede|Eksik evrak|Onaylandı|Reddedildi/) || ['?'])[0]);
-  await y.screenshot({ path: '/root/byd-inceleme.png', fullPage: true });
+  await y.screenshot({ path: '/root/bys-inceleme.png', fullPage: true });
 
   /* ───────── 10) Hesap ONAYDA açıldı, kurum akredite ───────── */
   const sonDurum = artisan(`

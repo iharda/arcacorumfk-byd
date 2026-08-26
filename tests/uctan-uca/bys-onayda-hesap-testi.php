@@ -1,7 +1,7 @@
 <?php
 
 /*
- * BYD — hesap ONAY anında açılıyor mu? (Başvuru akışı v2, Revizyon md.3.2)
+ * BYS — hesap ONAY anında açılıyor mu? (Başvuru akışı v2, Revizyon md.3.2)
  *
  * Yeni akışta başvuran onaya kadar sisteme hiç girmez; başvuru kaydı bir
  * kullanıcıya bağlı OLMADAN yaşar. Bu testin ölçtükleri:
@@ -16,7 +16,7 @@
  * ⚠️ ÜRETİME YAZAR. Kendi kayıtlarını oluşturur, sonunda siler.
  *    Bildirimler Notification::fake() ile yakalanır; gerçek e-posta GİTMEZ.
  *
- * sudo -u byd php tests/uctan-uca/byd-onayda-hesap-testi.php
+ * sudo -u bys php tests/uctan-uca/bys-onayda-hesap-testi.php
  */
 
 use App\Enums\BasvuruDurumu;

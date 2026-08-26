@@ -37,7 +37,7 @@ use Illuminate\Support\Facades\Hash;
  */
 class PilotVerisi extends Command
 {
-    protected $signature = 'byd:pilot-verisi {--sil : Pilot kayıtlarını temizle}';
+    protected $signature = 'bys:pilot-verisi {--sil : Pilot kayıtlarını temizle}';
 
     protected $description = 'Tanıtım/pilot için örnek veri kurar veya siler';
 
@@ -53,7 +53,7 @@ class PilotVerisi extends Command
         }
 
         if (User::where('email', 'like', '%'.self::ETIKET)->exists()) {
-            $this->warn('Pilot verisi zaten kurulu. Önce: php artisan byd:pilot-verisi --sil');
+            $this->warn('Pilot verisi zaten kurulu. Önce: php artisan bys:pilot-verisi --sil');
 
             return self::FAILURE;
         }
@@ -89,7 +89,7 @@ class PilotVerisi extends Command
             ['Üye paneli (bağımsız)', 'bagimsiz'.self::ETIKET.'  ·  '.self::SIFRE],
         ]);
         $this->warn('Kapı anahtarı yukarıda bir kez yazıldı; kaybolursa panelden yenileyin.');
-        $this->warn('Canlıya çıkmadan: php artisan byd:pilot-verisi --sil');
+        $this->warn('Canlıya çıkmadan: php artisan bys:pilot-verisi --sil');
 
         return self::SUCCESS;
     }
@@ -199,7 +199,7 @@ class PilotVerisi extends Command
 
     private function evrak(Basvuru $basvuru, string $kod, string $dosya, string $mime): void
     {
-        $kaynak = '/root/byd-test-dosyalari/'.$dosya;
+        $kaynak = '/root/bys-test-dosyalari/'.$dosya;
 
         if (! is_file($kaynak)) {
             return;   // örnek dosyalar yoksa evraksız devam et

@@ -30,7 +30,7 @@ class KapiController extends Controller
     {
         return response()->json([
             'name' => 'ARCA Çorum FK — Kapı Doğrulama',
-            'short_name' => 'BYD Kapı',
+            'short_name' => 'BYS Kapı',
             'start_url' => '/kapi',
             'scope' => '/kapi',
             'display' => 'standalone',
@@ -53,7 +53,7 @@ class KapiController extends Controller
     public function serviceWorker(): Response
     {
         $js = <<<'JS'
-        const KABUK = 'byd-kapi-v1';
+        const KABUK = 'bys-kapi-v1';
 
         self.addEventListener('install', (e) => {
             e.waitUntil(caches.open(KABUK).then((c) => c.addAll(['/kapi'])).then(() => self.skipWaiting()));

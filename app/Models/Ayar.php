@@ -26,7 +26,7 @@ class Ayar extends Model
 
     public static function al(string $anahtar, mixed $varsayilan = null): mixed
     {
-        $tumu = Cache::rememberForever('byd.ayarlar', fn () => static::pluck('deger', 'anahtar')->all());
+        $tumu = Cache::rememberForever('bys.ayarlar', fn () => static::pluck('deger', 'anahtar')->all());
 
         return $tumu[$anahtar] ?? $varsayilan;
     }
@@ -44,12 +44,12 @@ class Ayar extends Model
         }
 
         static::updateOrCreate(['anahtar' => $anahtar], ['deger' => $deger]);
-        Cache::forget('byd.ayarlar');
+        Cache::forget('bys.ayarlar');
     }
 
     protected static function booted(): void
     {
-        static::saved(fn () => Cache::forget('byd.ayarlar'));
-        static::deleted(fn () => Cache::forget('byd.ayarlar'));
+        static::saved(fn () => Cache::forget('bys.ayarlar'));
+        static::deleted(fn () => Cache::forget('bys.ayarlar'));
     }
 }

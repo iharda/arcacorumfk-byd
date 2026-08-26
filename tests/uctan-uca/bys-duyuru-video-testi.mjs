@@ -1,5 +1,5 @@
 /**
- * BYD — duyuru videosu: yönetim FORMUNDAN yükleme (Yusuf revizyonu md.6, duyuru ayağı).
+ * BYS — duyuru videosu: yönetim FORMUNDAN yükleme (Yusuf revizyonu md.6, duyuru ayağı).
  *
  * Neden ayrı test: alanın kodda durması yetmiyor. Yükleme zinciri nginx →
  * post_max_size → upload_max_filesize → Livewire → disk şeklinde ilerliyor ve
@@ -7,24 +7,24 @@
  * çıktı). Zinciri uçtan uca yürüten tek şey gerçek bir yükleme.
  *
  * ⚠️ ÜRETİME YAZAR; oluşturduğu duyuruyu ve dosyayı finally'de siler.
- * node /root/byd-duyuru-video-testi.mjs
+ * node /root/bys-duyuru-video-testi.mjs
  */
 import puppeteer from 'puppeteer-core';
 import { readdirSync, readFileSync, unlinkSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { totp } from './byd-totp.mjs';
+import { totp } from './bys-totp.mjs';
 
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com', KOK = `https://${ALAN}`;
+const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com', KOK = `https://${ALAN}`;
 const damga = Date.now();
 const BASLIK = `Video form denemesi ${damga}`;
 const VIDEO = `/tmp/duyuru-form-video-${damga}.mp4`;
 const bekle = ms => new Promise(r => setTimeout(r, ms));
 const sonuc = [];
 const kontrol = (ad, gecti, ek = '') => { sonuc.push(gecti); console.log(`${gecti ? '✅' : '❌'} ${ad}${ek ? '  → ' + ek : ''}`); };
-const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 120000 });
+const artisan = kod => execFileSync('sudo', ['-u', 'bys', 'php', 'artisan', 'tinker', '--execute', kod],
+  { cwd: (process.env.BYS_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 120000 });
 
 execFileSync('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'testsrc=size=320x240:rate=15:duration=2',
   '-pix_fmt', 'yuv420p', '-movflags', '+faststart', VIDEO], { stdio: 'ignore' });
@@ -37,13 +37,13 @@ try {
   await s.setViewport({ width: 1500, height: 1100 });
   await s.goto(`${KOK}/yonetim/login`, { waitUntil: 'networkidle2' });
   await s.type('#form\\.email', 'admin@byd.ordolive.com');
-  await s.type('#form\\.password', readFileSync('/root/.byd-admin-pass', 'utf8').trim());
+  await s.type('#form\\.password', readFileSync('/root/.bys-admin-pass', 'utf8').trim());
   await Promise.all([s.waitForNavigation({ waitUntil: 'networkidle2' }).catch(() => {}), s.click('button[type="submit"]')]);
   await bekle(1200);
   const kutular = await s.$$('input[inputmode="numeric"]');
   if (kutular.length >= 6) {
     await kutular[0].click();
-    await s.keyboard.type(totp(readFileSync('/root/.byd-admin-totp', 'utf8').trim()), { delay: 60 });
+    await s.keyboard.type(totp(readFileSync('/root/.bys-admin-totp', 'utf8').trim()), { delay: 60 });
     await bekle(900);
     await s.evaluate(() => [...document.querySelectorAll('button')].find(b => /Girişi doğrula/i.test(b.innerText))?.click());
     await bekle(3000);
@@ -77,7 +77,7 @@ try {
   await hedef.uploadFile(VIDEO);
   await bekle(8000);
 
-  await s.screenshot({ path: '/root/byd-duyuru-video-form.png', fullPage: true });
+  await s.screenshot({ path: '/root/bys-duyuru-video-form.png', fullPage: true });
 
   await s.evaluate(() => [...document.querySelectorAll('button')]
     .find(b => /^(Oluştur|Kaydet)$/i.test(b.innerText.trim()))?.click());

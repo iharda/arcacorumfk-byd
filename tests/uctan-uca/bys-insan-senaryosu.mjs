@@ -1,5 +1,5 @@
 /**
- * BYD — SİSTEM GENELİ İNSAN SENARYOSU
+ * BYS — SİSTEM GENELİ İNSAN SENARYOSU
  *
  * Gerçek bir kullanıcının tarayıcıda yapacağı sırayla, insan hızında:
  *   Perde 1  Kurum başvurusu (Kızılırmak Medya) — evrak formda, yanlış dosya
@@ -14,25 +14,25 @@
  *    ayarının eski değerini geri yazar. Başka kayda dokunmaz.
  *    `--birak` ile veriler panelde incelenmek üzere BIRAKILIR.
  *
- * Ekran görüntüleri: /root/byd-senaryo/NN-*.png
+ * Ekran görüntüleri: /root/bys-senaryo/NN-*.png
  *
  * 🔑 Hesap ONAY anında açılır (Revizyon md.1): başvuran onaya kadar sisteme
  *    hiç girmez, evrakını formda verir, eksiğini geçici bağlantıdan tamamlar.
  *
- * node /root/byd-insan-senaryosu.mjs [--birak]
+ * node /root/bys-insan-senaryosu.mjs [--birak]
  */
 import puppeteer from 'puppeteer-core';
 import { readdirSync, readFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { totp } from './byd-totp.mjs';
+import { totp } from './bys-totp.mjs';
 
 const BIRAK = process.argv.includes('--birak');
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
+const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
-const D = (process.env.BYD_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
-const SHOT = '/root/byd-senaryo';
+const D = (process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
+const SHOT = '/root/bys-senaryo';
 
 const damga = Date.now();
 const SIFRE = 'Cebeci-Kirmizi-2026-x7';
@@ -68,8 +68,8 @@ const perde = ad => console.log(`\n\x1b[1m▶ ${ad}\x1b[0m`);
 const bekle = ms => new Promise(r => setTimeout(r, ms));
 /** İnsan okuma/düşünme molası. */
 const dusun = (az = 500, cok = 1100) => bekle(az + Math.floor(Math.random() * (cok - az)));
-const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 180000 });
+const artisan = kod => execFileSync('sudo', ['-u', 'bys', 'php', 'artisan', 'tinker', '--execute', kod],
+  { cwd: (process.env.BYS_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 180000 });
 const cek = (m, e) => (m.match(new RegExp(e + ':(\\S+)')) || [])[1];
 
 async function foto(sayfa, ad) {
@@ -216,7 +216,7 @@ async function yetkiliGiris() {
   await y.setViewport({ width: 1600, height: 1000 });
   await y.goto(`${KOK}/yonetim/login`, { waitUntil: 'networkidle2' });
   await yaz(y, '#form\\.email', 'admin@byd.ordolive.com', 18);
-  await yaz(y, '#form\\.password', readFileSync('/root/.byd-admin-pass', 'utf8').trim(), 12);
+  await yaz(y, '#form\\.password', readFileSync('/root/.bys-admin-pass', 'utf8').trim(), 12);
   await Promise.all([
     y.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
     y.click('button[type="submit"]'),
@@ -225,7 +225,7 @@ async function yetkiliGiris() {
   const kutular = await y.$$('input[inputmode="numeric"]');
   if (kutular.length >= 6) {
     await kutular[0].click();
-    await y.keyboard.type(totp(readFileSync('/root/.byd-admin-totp', 'utf8').trim()), { delay: 70 });
+    await y.keyboard.type(totp(readFileSync('/root/.bys-admin-totp', 'utf8').trim()), { delay: 70 });
     await bekle(1200);
     await tikla(y, 'Girişi doğrula');
     await bekle(3000);

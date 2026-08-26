@@ -3,14 +3,14 @@ import puppeteer from 'puppeteer-core';
 import { readdirSync } from 'node:fs';
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
+const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const b = await puppeteer.launch({ executablePath: CHROME, headless: 'new',
   args: ['--no-sandbox','--disable-dev-shm-usage',`--host-resolver-rules=MAP ${ALAN} 127.0.0.1`,'--ignore-certificate-errors'] });
 const s = await b.newPage();
 await s.setViewport({ width: 1440, height: 900 });
 await s.goto(`https://${ALAN}/yonetim/login`, { waitUntil: 'networkidle2' });
 const renk = await s.evaluate(() => getComputedStyle(document.querySelector('button[type=submit]')).backgroundColor);
-await s.screenshot({ path: '/root/byd-01-giris.png' });
+await s.screenshot({ path: '/root/bys-01-giris.png' });
 await b.close();
 // 🪤 Chrome hesaplanan degeri oklch() OLARAK dondurur, rgb'ye cevirmez.
 // Kiyaslamak icin sRGB'ye kendimiz cevirmeliyiz.

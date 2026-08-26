@@ -1,5 +1,5 @@
 /**
- * BYD — yeniden başvuru testi.
+ * BYS — yeniden başvuru testi.
  *
  * Yusuf/IT 2026-08-23: "Reddedilen veya ayrılan kullanıcı yeniden
  * başvurabilmeli; şu an e-posta db ve request seviyesinde benzersiz kabul
@@ -16,7 +16,7 @@
  * ⚠️ ÜRETİME YAZAR. Kendi kurum/hesap/başvuru kayıtlarını sonunda siler.
  * ⚠️ Başvuru gönderimi 10 dakikada 5 istek: test başlarken cache temizlenir.
  *
- * node /root/byd-yeniden-basvuru-testi.mjs
+ * node /root/bys-yeniden-basvuru-testi.mjs
  */
 import puppeteer from 'puppeteer-core';
 import { readdirSync } from 'node:fs';
@@ -24,9 +24,9 @@ import { execFileSync } from 'node:child_process';
 
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
+const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
-const D = (process.env.BYD_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
+const D = (process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
 
 const damga = Date.now();
 const ADAY = `yeniden+${damga}@ornek.test`;
@@ -35,11 +35,11 @@ const UNVAN = `Yeniden Test Ajans ${damga}`;
 const sonuc = [];
 const kontrol = (ad, gecti, ek = '') => { sonuc.push(gecti); console.log(`${gecti ? '✅' : '❌'} ${ad}${ek ? '  → ' + ek : ''}`); };
 const bekle = ms => new Promise(r => setTimeout(r, ms));
-const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 90000 });
+const artisan = kod => execFileSync('sudo', ['-u', 'bys', 'php', 'artisan', 'tinker', '--execute', kod],
+  { cwd: (process.env.BYS_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 90000 });
 
 /** Hız sınırı sayacı önbellekte: arka arkaya koşabilmek için sıfırla. */
-execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'cache:clear'], { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..') });
+execFileSync('sudo', ['-u', 'bys', 'php', 'artisan', 'cache:clear'], { cwd: (process.env.BYS_KOK ?? import.meta.dirname + '/../..') });
 
 const b = await puppeteer.launch({
   executablePath: CHROME, headless: 'new',

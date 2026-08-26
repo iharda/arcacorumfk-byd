@@ -2,7 +2,7 @@
  * Veritabaninda karsiligi olmayan evrak/kart/icerik dosyalarini bulur ve siler.
  * (icerik = duyuru gorseli+videosu, bulten ekleri -- 60 MB'lik yetim video pahali.)
  * Testlerden ya da yarim kalmis islerden arta kalanlari toplar.
- * node /root/byd-yetim-temizle.mjs [--kuru]
+ * node /root/bys-yetim-temizle.mjs [--kuru]
  */
 import { execFileSync } from 'node:child_process';
 const kuru = process.argv.includes('--kuru');
@@ -29,6 +29,6 @@ foreach ([['evrak', App\\Models\\Evrak::withTrashed()->whereNotNull('yol')->pluc
     $rapor[] = $disk . '=' . count($yetim) . '/' . count($diskte);
 }
 echo 'YETIM:' . implode(' ', $rapor);`;
-const cikti = execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 120000 });
+const cikti = execFileSync('sudo', ['-u', 'bys', 'php', 'artisan', 'tinker', '--execute', kod],
+  { cwd: (process.env.BYS_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 120000 });
 console.log((cikti.match(/YETIM:.*/) || ['sonuç yok'])[0] + (kuru ? '  (kuru çalışma, silinmedi)' : '  → silindi'));

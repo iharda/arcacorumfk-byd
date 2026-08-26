@@ -15,8 +15,8 @@
 import jsQR from 'jsqr';
 
 const $ = (seç) => document.querySelector(seç);
-const ANAHTAR_KEY = 'byd.kapi.anahtar';
-const YON_KEY = 'byd.kapi.yon';
+const ANAHTAR_KEY = 'bys.kapi.anahtar';
+const YON_KEY = 'bys.kapi.yon';
 
 const durum = {
   anahtar: localStorage.getItem(ANAHTAR_KEY) || '',

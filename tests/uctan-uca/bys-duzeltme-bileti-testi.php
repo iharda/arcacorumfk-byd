@@ -1,7 +1,7 @@
 <?php
 
 /*
- * BYD — panelsiz eksik evrak düzeltmesi (Başvuru akışı v2, Revizyon md.3.3-3.4).
+ * BYS — panelsiz eksik evrak düzeltmesi (Başvuru akışı v2, Revizyon md.3.3-3.4).
  *
  * Ölçülenler:
  *   1. Bağlantı HESAP GEREKTİRMEDEN açılıyor mu?
@@ -15,7 +15,7 @@
  * Gerçek siteye HTTP ile gider (CSRF ve hız sınırı dahil).
  * ⚠️ ÜRETİME YAZAR. Kendi kayıtlarını oluşturur, sonunda siler.
  *
- * sudo -u byd php tests/uctan-uca/byd-duzeltme-bileti-testi.php
+ * sudo -u bys php tests/uctan-uca/bys-duzeltme-bileti-testi.php
  */
 
 use App\Enums\BasvuruDurumu;
@@ -47,8 +47,8 @@ $kok = rtrim((string) config('app.url'), '/');
 $damga = substr((string) Str::ulid(), -10);
 $biletAkisi = app(BasvuruBiletiAkisi::class);
 $temizlik = ['basvuru' => [], 'evrak' => []];
-$ornekDosya = (getenv('BYD_TEST_DOSYALARI') ?: __DIR__.'/../../../test-dosyalari').'/vergi-levhasi.pdf';
-$fotoDosya = (getenv('BYD_TEST_DOSYALARI') ?: __DIR__.'/../../../test-dosyalari').'/foto.jpg';
+$ornekDosya = (getenv('BYS_TEST_DOSYALARI') ?: __DIR__.'/../../../test-dosyalari').'/vergi-levhasi.pdf';
+$fotoDosya = (getenv('BYS_TEST_DOSYALARI') ?: __DIR__.'/../../../test-dosyalari').'/foto.jpg';
 
 /** Evrak türünün kabul ettiği biçime uygun örnek dosya. */
 $ornek = function (EvrakTuru $tur) use ($ornekDosya, $fotoDosya) {
@@ -64,7 +64,7 @@ $istemci = fn (CookieJar $kavanoz) => Http::withOptions([
     'cookies' => $kavanoz,
     'allow_redirects' => false,
     'verify' => false,
-])->withHeaders(['User-Agent' => 'BYD-duzeltme-testi']);
+])->withHeaders(['User-Agent' => 'BYS-duzeltme-testi']);
 
 $tokenBul = fn (string $govde) => preg_match('/name="_token" value="([^"]+)"/', $govde, $e) ? $e[1] : '';
 

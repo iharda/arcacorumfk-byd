@@ -4,8 +4,8 @@ import puppeteer from 'puppeteer-core';
 import { readdirSync, readFileSync } from 'node:fs';
 const K='/root/.cache/puppeteer/chrome';
 const CHROME=`${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN=process.env.BYD_ALAN || 'byd.ordolive.com', KOK=`https://${ALAN}`;
-const foto = 'data:image/jpeg;base64,' + readFileSync('/tmp/byd-portre.jpg').toString('base64');
+const ALAN=process.env.BYS_ALAN || 'byd.ordolive.com', KOK=`https://${ALAN}`;
+const foto = 'data:image/jpeg;base64,' + readFileSync('/tmp/bys-portre.jpg').toString('base64');
 
 const b=await puppeteer.launch({executablePath:CHROME,headless:'new',
   args:['--no-sandbox','--disable-dev-shm-usage',`--host-resolver-rules=MAP ${ALAN} 127.0.0.1`,'--ignore-certificate-errors']});
@@ -36,7 +36,7 @@ for (const [ad, v] of [
     document.querySelector('#kapi-adi').textContent = 'Kuzey turnike 1';
   }, v, foto);
   await new Promise(r=>setTimeout(r,400));
-  await p.screenshot({path:`/root/byd-kapi-${ad}.png`});
-  console.log(`✅ /root/byd-kapi-${ad}.png`);
+  await p.screenshot({path:`/root/bys-kapi-${ad}.png`});
+  console.log(`✅ /root/bys-kapi-${ad}.png`);
 }
 await b.close();

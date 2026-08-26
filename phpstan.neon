@@ -7,7 +7,7 @@ includes:
 
 parameters:
     # 🪤 Önbellek /tmp'de PAYLAŞIMLI: bir kez root ile koşulursa dosyalar root'a
-    # ait kalıyor ve sonraki `sudo -u byd` koşusu "Could not write data to cache
+    # ait kalıyor ve sonraki `sudo -u bys` koşusu "Could not write data to cache
     # file" ile ölüyor. Proje içinde tutmak bu çakışmayı kaynağında bitirir.
     tmpDir: storage/framework/phpstan
 

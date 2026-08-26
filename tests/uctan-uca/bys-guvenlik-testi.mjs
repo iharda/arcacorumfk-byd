@@ -1,19 +1,19 @@
 /**
- * BYD — yetki ve yükleme güvenliği testi (Aşama 02).
+ * BYS — yetki ve yükleme güvenliği testi (Aşama 02).
  *
  * Yetkinin VAR olduğunu değil, OLMAYAN yetkinin GERÇEKTEN kapalı olduğunu ölçer.
  * Kendi oluşturduğu iki kurumu sonunda siler; başka kayda dokunmaz.
  *
- * node /root/byd-guvenlik-testi.mjs
+ * node /root/bys-guvenlik-testi.mjs
  */
 import puppeteer from 'puppeteer-core';
 import { readdirSync, writeFileSync, unlinkSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-const TEST_DOSYALARI = (process.env.BYD_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');   // ornek evraklar; BYD_TEST_DOSYALARI ile degistirilebilir
+const TEST_DOSYALARI = (process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');   // ornek evraklar; BYS_TEST_DOSYALARI ile degistirilebilir
 
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
+const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
 const SIFRE = 'Kirmizi-Kartal-2026-x9';
 const damga = Date.now();
@@ -23,8 +23,8 @@ const B = `guvB+${damga}@ornek.test`;
 const sonuc = [];
 const kontrol = (ad, gecti, ek = '') => { sonuc.push({ ad, gecti, ek }); console.log(`${gecti ? '✅' : '❌'} ${ad}${ek ? '  → ' + ek : ''}`); };
 const bekle = ms => new Promise(r => setTimeout(r, ms));
-const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 60000 });
+const artisan = kod => execFileSync('sudo', ['-u', 'bys', 'php', 'artisan', 'tinker', '--execute', kod],
+  { cwd: (process.env.BYS_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 60000 });
 
 // İki ayrı kurum + başvuru + birer evrak kur
 const kurulum = artisan(`

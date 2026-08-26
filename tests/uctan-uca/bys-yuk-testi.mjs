@@ -1,5 +1,5 @@
 /**
- * BYD — turnike doğrulama ucunun yük testi (Aşama 06).
+ * BYS — turnike doğrulama ucunun yük testi (Aşama 06).
  *
  * Plan v1.0 md.11 "1.000 istek/sn" yazıyor. Bu sayı basın akreditasyonu için
  * fazlasıyla yüksek (bkz. rapor), ama ucun gerçekte ne yaptığını ÖLÇMEDEN
@@ -9,20 +9,20 @@
  * ⚠️ Hız sınırı istemci başına 600/dk. Sınırın kendisini ölçmemek için istekler
  *    birden çok kapıya dağıtılır.
  *
- * node tests/uctan-uca/byd-yuk-testi.mjs [saniye] [eszamanlilik]
+ * node tests/uctan-uca/bys-yuk-testi.mjs [saniye] [eszamanlilik]
  */
 import { execFileSync } from 'node:child_process';
 import https from 'node:https';
-const TEST_DOSYALARI = (process.env.BYD_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');   // ornek evraklar; BYD_TEST_DOSYALARI ile degistirilebilir
+const TEST_DOSYALARI = (process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');   // ornek evraklar; BYS_TEST_DOSYALARI ile degistirilebilir
 
-const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
+const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const SURE = Number(process.argv[2]) || 15;
 const ESZAMAN = Number(process.argv[3]) || 24;
 const KAPI_SAYISI = 8;
 const damga = Date.now();
 
-const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 180000 });
+const artisan = kod => execFileSync('sudo', ['-u', 'bys', 'php', 'artisan', 'tinker', '--execute', kod],
+  { cwd: (process.env.BYS_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 180000 });
 const cek = (m, e) => (m.match(new RegExp(e + ':(\\S+)')) || [])[1];
 
 // Origin'e doğrudan git: Cloudflare'i ölçmüyoruz, kendi sunucumuzu ölçüyoruz.

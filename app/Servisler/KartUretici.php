@@ -43,14 +43,14 @@ class KartUretici
         $akreditasyon->loadMissing(['kullanici', 'kurum', 'basvuru.evraklar.turu']);
 
         $html = $this->html($akreditasyon);
-        $disk = config('byd.kart_disk');
+        $disk = config('bys.kart_disk');
         $surum = ((int) $akreditasyon->kartlar()->max('surum')) + 1;
 
         $temel = sprintf('%s/%s-s%d', $akreditasyon->ulid, $akreditasyon->kart_no, $surum);
         $pdfYolu = $temel.'.pdf';
         $gorselYolu = $temel.'.png';
 
-        [$en, $boy] = [config('byd.kart.genislik_mm'), config('byd.kart.yukseklik_mm')];
+        [$en, $boy] = [config('bys.kart.genislik_mm'), config('bys.kart.yukseklik_mm')];
 
         Storage::disk($disk)->put($pdfYolu, $this->tarayici($html)
             ->paperSize($en, $boy, 'mm')
@@ -77,7 +77,7 @@ class KartUretici
                 'pdf_yolu' => $pdfYolu,
                 'gorsel_yolu' => $gorselYolu,
                 'boyut' => Storage::disk($disk)->size($pdfYolu),
-                'qr_anahtar_surumu' => (int) config('byd.qr.anahtar_surumu'),
+                'qr_anahtar_surumu' => (int) config('bys.qr.anahtar_surumu'),
                 'arsiv' => false,
                 'uretildi_at' => now(),
                 'ureten_id' => $uretenId,
@@ -128,8 +128,8 @@ class KartUretici
             file_get_contents(resource_path('views/kart/basin-karti.blade.php')),
             [
                 'akreditasyon' => $akreditasyon,
-                'en' => config('byd.kart.genislik_mm'),
-                'boy' => config('byd.kart.yukseklik_mm'),
+                'en' => config('bys.kart.genislik_mm'),
+                'boy' => config('bys.kart.yukseklik_mm'),
                 'isim' => $akreditasyon->kullanici?->name ?? '—',
                 'kurum' => $akreditasyon->kurum?->resmi_unvan,
                 'turEtiketi' => $akreditasyon->basvuru?->tur->etiket() ?? 'Basın kartı',
@@ -146,17 +146,17 @@ class KartUretici
 
     private function tarayici(string $html): Browsershot
     {
-        $yol = config('byd.chrome.yol');
+        $yol = config('bys.chrome.yol');
 
         if (blank($yol) || ! is_file($yol)) {
-            throw new RuntimeException('Chrome bulunamadı. .env içindeki BYD_CHROME yolunu kontrol edin.');
+            throw new RuntimeException('Chrome bulunamadı. .env içindeki BYS_CHROME yolunu kontrol edin.');
         }
 
         return Browsershot::html($html)
             ->setChromePath($yol)
-            ->setNodeBinary(config('byd.chrome.node'))
-            ->setNpmBinary(config('byd.chrome.npm'))
-            ->setNodeModulePath(config('byd.chrome.modüller'))
+            ->setNodeBinary(config('bys.chrome.node'))
+            ->setNpmBinary(config('bys.chrome.npm'))
+            ->setNodeModulePath(config('bys.chrome.modüller'))
             // Konteyner/paylaşımlı sunucuda /dev/shm küçük olabiliyor.
             ->addChromiumArguments(['no-sandbox', 'disable-dev-shm-usage'])
             ->waitUntilNetworkIdle();

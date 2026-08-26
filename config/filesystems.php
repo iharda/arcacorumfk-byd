@@ -61,14 +61,14 @@ return [
         ],
 
         /*
-         * BYD evrak deposu -- Plan v1.0 md.11.
+         * BYS evrak deposu -- Plan v1.0 md.11.
          * 🔒 Web root DISINDA, public URL YOK. Erisim TEK yerden:
          * `EvrakController::goster` (yetki + denetim kaydi).
          * 🪤 Burada eskiden "kisa omurlu imzali baglantiyla
          * (Evrak::gecelikBaglanti())" yaziyordu; o metot hic cagrilmiyordu ve
          * `serve => false` oldugu icin CALISMAZDI da (Duzeltme listesi
          * md.18.1). Ikisi de gercegi yanlis anlatiyordu, silindi.
-         * Musterinin sunucusuna tasinirken .env'deki BYD_EVRAK_DISK'i 'evrak_r2'
+         * Musterinin sunucusuna tasinirken .env'deki BYS_EVRAK_DISK'i 'evrak_r2'
          * yapmak yeterli; kod degismez (tasinabilirlik sarti).
          */
         'evrak' => [

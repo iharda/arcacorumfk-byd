@@ -1,7 +1,7 @@
 <?php
 
 /*
- * BYD — işlem (transaction) bütünlüğü testi.
+ * BYS — işlem (transaction) bütünlüğü testi.
  *
  * Yusuf/IT'nin 2026-08-23 tespitlerinin doğrudan kanıtı:
  *   1. Kart numarası çakışmasında yeniden deneme PostgreSQL'de GERÇEKTEN
@@ -16,7 +16,7 @@
  * ⚠️ ÜRETİME YAZAR. Kendi kayıtlarını oluşturur ve sonunda siler; ayar
  *    değiştiren bölüm eski değeri saklayıp aynen geri yazar.
  *
- * sudo -u byd php tests/uctan-uca/byd-islem-butunlugu.php
+ * sudo -u bys php tests/uctan-uca/bys-islem-butunlugu.php
  */
 
 use App\Enums\AkreditasyonDurumu;

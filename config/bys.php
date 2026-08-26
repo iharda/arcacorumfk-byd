@@ -1,12 +1,12 @@
 <?php
 
 /*
- * BYD'ye özel ayarlar. Kod içinde sabit yol/anahtar YOK — taşınabilirlik şartı
+ * BYS'ye özel ayarlar. Kod içinde sabit yol/anahtar YOK — taşınabilirlik şartı
  * (müşterinin sunucusuna devredilecek).
  */
 return [
-    'evrak_disk' => env('BYD_EVRAK_DISK', 'evrak'),
-    'kart_disk' => env('BYD_KART_DISK', 'kart'),
+    'evrak_disk' => env('BYS_EVRAK_DISK', 'evrak'),
+    'kart_disk' => env('BYS_KART_DISK', 'kart'),
 
     /*
      * Yetkili panelinde iki adımlı doğrulama zorunluluğu.
@@ -14,21 +14,21 @@ return [
      * deneme içindir. Kapalıyken 2FA'sını kurmuş kullanıcılardan yine kod
      * istenir — sadece "kurmadan giremezsin" dayatması kalkar.
      */
-    '2fa_zorunlu' => (bool) env('BYD_2FA_ZORUNLU', true),
+    '2fa_zorunlu' => (bool) env('BYS_2FA_ZORUNLU', true),
 
     'qr' => [
-        'anahtar_surumu' => (int) env('BYD_QR_ANAHTAR_SURUMU', 1),
+        'anahtar_surumu' => (int) env('BYS_QR_ANAHTAR_SURUMU', 1),
         'anahtarlar' => array_filter([
-            1 => env('BYD_QR_ANAHTAR_V1'),
-            2 => env('BYD_QR_ANAHTAR_V2'),
+            1 => env('BYS_QR_ANAHTAR_V1'),
+            2 => env('BYS_QR_ANAHTAR_V2'),
         ]),
     ],
 
     // Başsız Chrome — kart PDF/görsel üretimi. Yol .env'den; kodda sabit YOK.
     'chrome' => [
-        'yol' => env('BYD_CHROME'),
-        'node' => env('BYD_NODE', '/usr/bin/node'),
-        'npm' => env('BYD_NPM', '/usr/bin/npm'),
+        'yol' => env('BYS_CHROME'),
+        'node' => env('BYS_NODE', '/usr/bin/node'),
+        'npm' => env('BYS_NPM', '/usr/bin/npm'),
         'modüller' => base_path('node_modules'),
     ],
 

@@ -20,7 +20,7 @@ use Illuminate\Console\Command;
  */
 class MetinleriSaflastir extends Command
 {
-    protected $signature = 'byd:metinleri-saflastir {--kuru : Yalnızca farkı göster, yazma}';
+    protected $signature = 'bys:metinleri-saflastir {--kuru : Yalnızca farkı göster, yazma}';
 
     protected $description = 'Kayıtlı duyuru, bülten ve hukuki metinleri saflaştırır';
 

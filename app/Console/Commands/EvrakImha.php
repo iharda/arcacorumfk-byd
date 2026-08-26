@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Storage;
  */
 class EvrakImha extends Command
 {
-    protected $signature = 'byd:evrak-imha {--kuru : Yalnızca listele, silme}';
+    protected $signature = 'bys:evrak-imha {--kuru : Yalnızca listele, silme}';
 
     protected $description = 'Saklama süresi dolan evrak dosyalarını imha eder';
 

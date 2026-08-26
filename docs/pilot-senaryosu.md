@@ -11,7 +11,7 @@ bulmamak değil, **bulmak** — pilot bunun için var.
 
 ```bash
 cd <uygulama-dizini>
-php artisan byd:pilot-verisi          # örnek kurum, kişi, kart, kapı, içerik
+php artisan bys:pilot-verisi          # örnek kurum, kişi, kart, kapı, içerik
 ```
 
 Komut sonunda ekrana **kapı anahtarı** ve üç giriş bilgisi yazar. Anahtarı
@@ -20,7 +20,7 @@ kopyalayın; bir daha gösterilmez (panelden yenilenebilir).
 Denemeden sonra:
 
 ```bash
-php artisan byd:pilot-verisi --sil
+php artisan bys:pilot-verisi --sil
 ```
 
 > Denetim kaydı bilerek silinmez — değiştirilemez bir kayıttır ve pilotta
@@ -113,7 +113,7 @@ Ekran görevliye yeterince büyük geliyor mu?
 | QR okunmuyor | Kartı büyüt, ekran parlaklığını aç; olmazsa manuel |
 | "Cihaz yetkisiz" | Anahtar yanlış veya iptal edilmiş → panelden yenile |
 | E-posta gelmiyor | Spam'e bak. Davet bağlantısı kurum panelinde de gösteriliyor |
-| Sistem yavaş/açılmıyor | `systemctl status byd-horizon php8.3-fpm nginx` |
+| Sistem yavaş/açılmıyor | `systemctl status bys-horizon php8.3-fpm nginx` |
 
 **Pilot sırasında hiçbir şeyi "sonra bakarız" diye geçmeyin** — o an not alın,
 ekran görüntüsü çekin. Sonradan hatırlanmıyor.
@@ -123,5 +123,5 @@ ekran görüntüsü çekin. Sonradan hatırlanmıyor.
 ## Pilot sonrası
 
 1. Notları topla, düzeltmeleri yap
-2. `php artisan byd:pilot-verisi --sil`
+2. `php artisan bys:pilot-verisi --sil`
 3. **Canlıya alma listesini** işle: `docs/canliya-alma.md`

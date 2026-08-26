@@ -191,7 +191,7 @@ class KapiDogrulama
     public function fotoVeri(Akreditasyon $akreditasyon): ?string
     {
         return Cache::remember(
-            "byd.kapi.foto.{$akreditasyon->ulid}",
+            "bys.kapi.foto.{$akreditasyon->ulid}",
             now()->addHours(12),
             function () use ($akreditasyon) {
                 $akreditasyon->loadMissing('basvuru.evraklar.turu');

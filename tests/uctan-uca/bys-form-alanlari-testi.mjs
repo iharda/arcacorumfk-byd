@@ -1,5 +1,5 @@
 /**
- * BYD — başvuru formu alanları (Başvuru akışı v2, Revizyon md.5).
+ * BYS — başvuru formu alanları (Başvuru akışı v2, Revizyon md.5).
  *
  * Ölçülenler:
  *   1. İl seçilmeden ilçe seçilemiyor; il seçilince ilçeler geliyor
@@ -15,7 +15,7 @@
  * ⚠️ Başvuru gönderimi 10 dakikada 5 istek: her gönderimden önce önbellek
  *    temizlenir (sayaç önbellekte, oturum ayrı veritabanında).
  *
- * node /root/byd-form-alanlari-testi.mjs
+ * node /root/bys-form-alanlari-testi.mjs
  */
 import puppeteer from 'puppeteer-core';
 import { readdirSync } from 'node:fs';
@@ -23,9 +23,9 @@ import { execFileSync } from 'node:child_process';
 
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
+const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
-const D = (process.env.BYD_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
+const D = (process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
 
 const damga = Date.now();
 const EPOSTA = `form5+${damga}@ornek.test`;
@@ -38,10 +38,10 @@ const VKN2 = '5916897887';
 const sonuc = [];
 const kontrol = (ad, gecti, ek = '') => { sonuc.push(gecti); console.log(`${gecti ? '✅' : '❌'} ${ad}${ek ? '  → ' + ek : ''}`); };
 const bekle = ms => new Promise(r => setTimeout(r, ms));
-const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 90000 });
-const sinirSifirla = () => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'cache:clear'],
-  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..') });
+const artisan = kod => execFileSync('sudo', ['-u', 'bys', 'php', 'artisan', 'tinker', '--execute', kod],
+  { cwd: (process.env.BYS_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 90000 });
+const sinirSifirla = () => execFileSync('sudo', ['-u', 'bys', 'php', 'artisan', 'cache:clear'],
+  { cwd: (process.env.BYS_KOK ?? import.meta.dirname + '/../..') });
 
 const b = await puppeteer.launch({
   executablePath: CHROME, headless: 'new',

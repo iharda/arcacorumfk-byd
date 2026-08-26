@@ -26,7 +26,7 @@ class YerelAvatar implements AvatarProvider
         $harfler = $this->basHarfler($ad);
 
         // Ayni kisi her zaman ayni rengi alsin (listede goz alisir).
-        $zemin = self::ZEMINLER[crc32($ad ?: 'byd') % count(self::ZEMINLER)];
+        $zemin = self::ZEMINLER[crc32($ad ?: 'bys') % count(self::ZEMINLER)];
 
         $svg = <<<SVG
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
@@ -45,7 +45,7 @@ class YerelAvatar implements AvatarProvider
         $parcalar = preg_split('/\s+/u', $ad, -1, PREG_SPLIT_NO_EMPTY) ?: [];
 
         if ($parcalar === []) {
-            return 'BYD';
+            return 'BYS';
         }
 
         $ilk = mb_substr($parcalar[0], 0, 1);

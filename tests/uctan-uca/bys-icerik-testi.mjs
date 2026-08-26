@@ -1,5 +1,5 @@
 /**
- * BYD — medya merkezi içerikleri ve bildirimler (Aşama 05).
+ * BYS — medya merkezi içerikleri ve bildirimler (Aşama 05).
  *
  * Kapsam: duyuru / antrenman / bülten yayını · akredite kullanıcıya bildirim ·
  *         üye panelinde görünürlük · taslak sızmıyor · akredite olmayan giremez ·
@@ -7,7 +7,7 @@
  *         duyuru videosu (oynatma + Range + yetkisiz erişim).
  *
  * ⚠️ ÜRETİME YAZAR. Kendi kayıtlarını ve dosyalarını siler.
- * node tests/uctan-uca/byd-icerik-testi.mjs
+ * node tests/uctan-uca/bys-icerik-testi.mjs
  */
 import puppeteer from 'puppeteer-core';
 import { readdirSync, readFileSync, statSync, writeFileSync, unlinkSync } from 'node:fs';
@@ -15,9 +15,9 @@ import { execFileSync } from 'node:child_process';
 
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
+const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
-const LOG = (process.env.BYD_KOK ?? import.meta.dirname + '/../..') + '/storage/logs/laravel.log';
+const LOG = (process.env.BYS_KOK ?? import.meta.dirname + '/../..') + '/storage/logs/laravel.log';
 const SIFRE = 'Kirmizi-Kartal-2026-x9';
 const damga = Date.now();
 const AKREDITE = `ic-akr+${damga}@ornek.test`;
@@ -29,8 +29,8 @@ const BULTEN_BASLIK = `Test bülteni ${damga}`;
 const sonuc = [];
 const kontrol = (ad, gecti, ek = '') => { sonuc.push({ ad, gecti, ek }); console.log(`${gecti ? '✅' : '❌'} ${ad}${ek ? '  → ' + ek : ''}`); };
 const bekle = ms => new Promise(r => setTimeout(r, ms));
-const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 120000 });
+const artisan = kod => execFileSync('sudo', ['-u', 'bys', 'php', 'artisan', 'tinker', '--execute', kod],
+  { cwd: (process.env.BYS_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 120000 });
 const cek = (m, e) => (m.match(new RegExp(e + ':(\\S+)')) || [])[1];
 
 /**
@@ -63,7 +63,7 @@ function kuyrukBosalsin(saniye = 40) {
 
 /** Gönderim kaydı: YeniIcerik işi Horizon'da kaç kez tamamlandı? */
 function icerikBildirimAdedi(isaret) {
-  const log = readFileSync('/var/log/byd-horizon.log', 'utf8').slice(isaret);
+  const log = readFileSync('/var/log/bys-horizon.log', 'utf8').slice(isaret);
   return (log.match(/YeniIcerik[^\n]*DONE/g) || []).length;
 }
 
@@ -76,7 +76,7 @@ function icerikBildirimAdedi(isaret) {
 async function kuyrukSakinlesin(sakinSaniye = 3, enFazla = 40) {
   let sonBoyut = -1, sabit = 0;
   for (let i = 0; i < enFazla; i++) {
-    const boyut = statSync('/var/log/byd-horizon.log').size;
+    const boyut = statSync('/var/log/bys-horizon.log').size;
     sabit = boyut === sonBoyut ? sabit + 1 : 0;
     sonBoyut = boyut;
     if (sabit >= sakinSaniye) return true;
@@ -97,8 +97,8 @@ async function girisYap(sayfa, yol, eposta) {
   await bekle(800);
 }
 
-const ek = `/tmp/byd-bulten-eki-${damga}.pdf`;
-const videoDosya = `/tmp/byd-duyuru-video-${damga}.mp4`;
+const ek = `/tmp/bys-bulten-eki-${damga}.pdf`;
+const videoDosya = `/tmp/bys-duyuru-video-${damga}.mp4`;
 const b = await puppeteer.launch({ executablePath: CHROME, headless: 'new',
   args: ['--no-sandbox', '--disable-dev-shm-usage', `--host-resolver-rules=MAP ${ALAN} 127.0.0.1`, '--ignore-certificate-errors'] });
 
@@ -146,7 +146,7 @@ echo 'TASLAK';`);
   kontrol('TASLAK duyuru üye panelinde GÖRÜNMÜYOR', ! taslakGovde.includes(DUYURU_BASLIK));
 
   /* ═════ 2) Yayına al → bildirim ═════ */
-  const isaret = statSync('/var/log/byd-horizon.log').size;
+  const isaret = statSync('/var/log/bys-horizon.log').size;
   artisan(`
 $s = app(App\\Servisler\\IcerikAkisi::class);
 $s->yayinla(App\\Models\\Duyuru::where('baslik', '${DUYURU_BASLIK}')->first(), 'duyuru');
@@ -176,7 +176,7 @@ echo 'AKREDITE:' . (in_array('${AKREDITE}', $a) ? 'evet' : 'hayir')
   await bekle(500);
   kontrol('Yayındaki duyuru üye panelinde görünüyor',
     (await uye.evaluate(() => document.body.innerText)).includes(DUYURU_BASLIK));
-  await uye.screenshot({ path: '/root/byd-uye-duyurular.png', fullPage: true });
+  await uye.screenshot({ path: '/root/bys-uye-duyurular.png', fullPage: true });
 
   await uye.goto(`${KOK}/panel/takvim`, { waitUntil: 'networkidle2' });
   await bekle(400);
@@ -186,7 +186,7 @@ echo 'AKREDITE:' . (in_array('${AKREDITE}', $a) ? 'evet' : 'hayir')
   //    harfe duyarlı olmamalı.
   const ayDeseni = /\b(Oca|Şub|Mar|Nis|May|Haz|Tem|Ağu|Eyl|Eki|Kas|Ara)\b/i;
   kontrol('Takvimde ay adı Türkçe', ayDeseni.test(takvim), (takvim.match(ayDeseni) || ['?'])[0]);
-  await uye.screenshot({ path: '/root/byd-uye-takvim.png', fullPage: true });
+  await uye.screenshot({ path: '/root/bys-uye-takvim.png', fullPage: true });
 
   await uye.goto(`${KOK}/panel/bultenler`, { waitUntil: 'networkidle2' });
   await bekle(400);
@@ -198,7 +198,7 @@ echo 'AKREDITE:' . (in_array('${AKREDITE}', $a) ? 'evet' : 'hayir')
   //    yazımı durmalı (Horizon çıktısı tamponlu; iş bittikten sonra da yazıyor).
   kuyrukBosalsin();
   await kuyrukSakinlesin();
-  const isaret2 = statSync('/var/log/byd-horizon.log').size;
+  const isaret2 = statSync('/var/log/bys-horizon.log').size;
   artisan(`
 $s = app(App\\Servisler\\IcerikAkisi::class);
 $d = App\\Models\\Duyuru::where('baslik', '${DUYURU_BASLIK}')->first();
@@ -291,7 +291,7 @@ echo 'VIDEO';`);
     v.load();
   }));
   kontrol('Video tarayıcıda gerçekten açılıyor', oynatilabilir.tamam, oynatilabilir.not);
-  await uye.screenshot({ path: '/root/byd-uye-duyuru-video.png', fullPage: true });
+  await uye.screenshot({ path: '/root/bys-uye-duyuru-video.png', fullPage: true });
 
   /* 🎬 İleri sarma Range'e bağlı: 200 dönerse video baştan sona inmek zorunda. */
   const parca = await uye.evaluate(async yol => {

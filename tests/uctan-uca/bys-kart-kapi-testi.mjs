@@ -1,17 +1,17 @@
 /**
- * BYD — kart üretimi, QR imzası, doğrulama API'si ve kapı akışı (Aşama 04).
+ * BYS — kart üretimi, QR imzası, doğrulama API'si ve kapı akışı (Aşama 04).
  *
  * ⚠️ ÜRETİME YAZAR. Kendi oluşturduğu kaydı ve dosyalarını siler.
- * node /root/byd-kart-kapi-testi.mjs
+ * node /root/bys-kart-kapi-testi.mjs
  */
 import puppeteer from 'puppeteer-core';
 import { readdirSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-const TEST_DOSYALARI = (process.env.BYD_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');   // ornek evraklar; BYD_TEST_DOSYALARI ile degistirilebilir
+const TEST_DOSYALARI = (process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');   // ornek evraklar; BYS_TEST_DOSYALARI ile degistirilebilir
 
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
+const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
 const SIFRE = 'Kirmizi-Kartal-2026-x9';
 const damga = Date.now();
@@ -21,8 +21,8 @@ const UNVAN = `Kart Test Ajans ${damga}`;
 const sonuc = [];
 const kontrol = (ad, gecti, ek = '') => { sonuc.push({ ad, gecti, ek }); console.log(`${gecti ? '✅' : '❌'} ${ad}${ek ? '  → ' + ek : ''}`); };
 const bekle = ms => new Promise(r => setTimeout(r, ms));
-const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 180000 });
+const artisan = kod => execFileSync('sudo', ['-u', 'bys', 'php', 'artisan', 'tinker', '--execute', kod],
+  { cwd: (process.env.BYS_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 180000 });
 const cek = (metin, etiket) => (metin.match(new RegExp(etiket + ':(\\S+)')) || [])[1];
 
 /** Doğrulama API'sine istek. --resolve ile origin'e doğrudan gider. */
@@ -82,7 +82,7 @@ echo 'PDF:' . ($kt && Illuminate\\Support\\Facades\\Storage::disk($kt->disk)->ex
 $a = App\\Models\\Akreditasyon::where('ulid', '${akrUlid}')->first();
 echo 'YUK:' . app(App\\Servisler\\QrImzalayici::class)->yukUret($a);`);
   const yuk = cek(qr, 'YUK');
-  kontrol('QR yükü imzalandı', /^BYD1\.\d+\.[0-9A-Z]{26}\.[\w-]{22}$/.test(yuk || ''), yuk);
+  kontrol('QR yükü imzalandı', /^BYS1\.\d+\.[0-9A-Z]{26}\.[\w-]{22}$/.test(yuk || ''), yuk);
 
   /* ═════ 3) Kapı istemcileri ═════ */
   const kapilar = artisan(`
@@ -151,7 +151,7 @@ $k = App\\Models\\GecisKaydi::whereIn('kapi_kodu', ['TESTA${damga}', 'TESTB${dam
 echo 'TOPLAM:' . $k->count()
    . ' IZINLI:' . $k->where('sonuc', App\\Enums\\GecisSonucu::Izinli)->count()
    . ' BASARISIZ:' . $k->where('sonuc', '!=', App\\Enums\\GecisSonucu::Izinli)->count()
-   . ' HAMYUK:' . ($k->contains(fn ($x) => str_contains((string) $x->okunan_referans, 'BYD1.')) ? 'VAR' : 'YOK')
+   . ' HAMYUK:' . ($k->contains(fn ($x) => str_contains((string) $x->okunan_referans, 'BYS1.')) ? 'VAR' : 'YOK')
    . ' PARMAKIZI:' . ($k->contains(fn ($x) => str_starts_with((string) $x->okunan_referans, 'sha256:')) ? 'VAR' : 'YOK');`);
   kontrol('Her okutma loglandı', Number(cek(kayitlar, 'TOPLAM')) >= 6, cek(kayitlar, 'TOPLAM'));
   kontrol('BAŞARISIZ okutmalar da loglandı', Number(cek(kayitlar, 'BASARISIZ')) >= 4, cek(kayitlar, 'BASARISIZ'));
@@ -178,7 +178,7 @@ echo 'TOPLAM:' . $k->count()
   kontrol('Aynı anda tek ekran görünüyor',
     gorunenEkran.length === 1 && gorunenEkran[0] === 'kurulum', gorunenEkran.join(', ') || 'hiçbiri');
   kontrol('Kapı uygulaması dış kaynağa istek atmıyor', dis.length === 0, dis.slice(0, 2).join(' '));
-  await s.screenshot({ path: '/root/byd-kapi-kurulum.png', fullPage: true });
+  await s.screenshot({ path: '/root/bys-kapi-kurulum.png', fullPage: true });
 
   const man = await s.goto(`${KOK}/kapi/manifest.json`, { waitUntil: 'domcontentloaded' });
   kontrol('PWA tanım dosyası geçerli', man.status() === 200 && /"scope":\s*"\\?\/kapi"/.test(await man.text()));

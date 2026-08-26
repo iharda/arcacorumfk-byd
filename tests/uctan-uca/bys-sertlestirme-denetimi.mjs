@@ -1,22 +1,22 @@
 /**
- * BYD — sertleştirme denetimi (Aşama 06).
+ * BYS — sertleştirme denetimi (Aşama 06).
  *
  * Uygulama ve sunucu ayarlarının canlıya uygun olduğunu ölçer.
  * SALT OKUNUR: hiçbir kayıt oluşturmaz, hiçbir ayarı değiştirmez.
  *
- * node tests/uctan-uca/byd-sertlestirme-denetimi.mjs
+ * node tests/uctan-uca/bys-sertlestirme-denetimi.mjs
  */
 import { execFileSync } from 'node:child_process';
 
-const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
+const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
 
 const sonuc = [];
 const kontrol = (ad, gecti, ek = '') => { sonuc.push({ ad, gecti, ek }); console.log(`${gecti ? '✅' : '❌'} ${ad}${ek ? '  → ' + ek : ''}`); };
 const uyari = (ad, ek) => { sonuc.push({ ad, gecti: true, uyari: true, ek }); console.log(`⚠️  ${ad}${ek ? '  → ' + ek : ''}`); };
 
-const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 60000 });
+const artisan = kod => execFileSync('sudo', ['-u', 'bys', 'php', 'artisan', 'tinker', '--execute', kod],
+  { cwd: (process.env.BYS_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 60000 });
 const cek = (m, e) => (m.match(new RegExp(e + ':(\\S*)')) || [])[1];
 
 function istek(yol, ekArgs = []) {
@@ -35,8 +35,8 @@ echo 'ENV:' . config('app.env')
    . ' HTTPONLY:' . json_encode(config('session.http_only'))
    . ' SAMESITE:' . config('session.same_site')
    . ' MAIL:' . config('mail.default')
-   . ' IKIADIMLI:' . json_encode(config('byd.2fa_zorunlu'))
-   . ' QRANAHTAR:' . (filled(config('byd.qr.anahtarlar')[1] ?? null) ? 'var' : 'YOK')
+   . ' IKIADIMLI:' . json_encode(config('bys.2fa_zorunlu'))
+   . ' QRANAHTAR:' . (filled(config('bys.qr.anahtarlar')[1] ?? null) ? 'var' : 'YOK')
    . ' APPKEY:' . (filled(config('app.key')) ? 'var' : 'YOK');`);
 
 kontrol('APP_ENV = production', cek(cfg, 'ENV') === 'production', cek(cfg, 'ENV'));
@@ -64,7 +64,7 @@ kontrol('Gönderilemez adres koruması etkin (.test/.invalid)', cek(posta, 'ENGE
 if (cek(cfg, 'IKIADIMLI') === 'true') {
   kontrol('Yetkili panelinde 2FA zorunlu', true);
 } else {
-  uyari('Yetkili panelinde 2FA ZORUNLU DEĞİL', 'canlıya çıkmadan BYD_2FA_ZORUNLU=true yapılmalı');
+  uyari('Yetkili panelinde 2FA ZORUNLU DEĞİL', 'canlıya çıkmadan BYS_2FA_ZORUNLU=true yapılmalı');
 }
 
 console.log('\n── HTTP başlıkları ──');
@@ -134,11 +134,11 @@ if (cek(yetki, 'KAPIIPSIZ') !== '0') {
 }
 
 console.log('\n── Servisler ──');
-for (const [ad, servis] of [['Kuyruk işleyicisi', 'byd-horizon'], ['PHP-FPM', 'php8.3-fpm'], ['nginx', 'nginx']]) {
+for (const [ad, servis] of [['Kuyruk işleyicisi', 'bys-horizon'], ['PHP-FPM', 'php8.3-fpm'], ['nginx', 'nginx']]) {
   const durum = execFileSync('systemctl', ['is-active', servis], { encoding: 'utf8' }).trim();
   kontrol(`${ad} çalışıyor`, durum === 'active', durum);
 }
-const zamanlayici = execFileSync('bash', ['-c', 'test -f /etc/cron.d/byd-scheduler && echo var || echo yok'], { encoding: 'utf8' }).trim();
+const zamanlayici = execFileSync('bash', ['-c', 'test -f /etc/cron.d/bys-scheduler && echo var || echo yok'], { encoding: 'utf8' }).trim();
 kontrol('Zamanlayıcı kurulu (evrak imhası)', zamanlayici === 'var');
 
 const hata = sonuc.filter(r => !r.gecti).length;

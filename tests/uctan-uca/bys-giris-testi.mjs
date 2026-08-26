@@ -1,16 +1,16 @@
-// BYD kurulum dogrulamasi -- SALT OKUNUR (veri yazmaz, yalnizca giris yapar).
-// node /root/byd-giris-testi.mjs
+// BYS kurulum dogrulamasi -- SALT OKUNUR (veri yazmaz, yalnizca giris yapar).
+// node /root/bys-giris-testi.mjs
 import puppeteer from 'puppeteer-core';
 import { readFileSync, readdirSync } from 'node:fs';
-import { totp } from './byd-totp.mjs';
+import { totp } from './bys-totp.mjs';
 
 const CHROME_KOK = '/root/.cache/puppeteer/chrome';
 const surum = readdirSync(CHROME_KOK).sort().pop();
 const CHROME = `${CHROME_KOK}/${surum}/chrome-linux64/chrome`;
 
-const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
+const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
-const PAROLA = readFileSync('/root/.byd-admin-pass', 'utf8').trim();
+const PAROLA = readFileSync('/root/.bys-admin-pass', 'utf8').trim();
 
 const b = await puppeteer.launch({
   executablePath: CHROME,
@@ -48,7 +48,7 @@ const arma = await s.evaluate(() => {
   return i ? { y: Math.round(i.getBoundingClientRect().height), x: Math.round(i.getBoundingClientRect().width) } : null;
 });
 kontrol('Arma doğru boyutta (36–60px)', !!arma && arma.y >= 36 && arma.y <= 60, arma ? `${arma.x}×${arma.y}px` : 'arma yok');
-await s.screenshot({ path: '/root/byd-01-giris.png' });
+await s.screenshot({ path: '/root/bys-01-giris.png' });
 
 // 3) Gercek giris
 await s.type('#form\\.email', 'admin@byd.ordolive.com');
@@ -69,7 +69,7 @@ kontrol('Parola tek başına yetmiyor (2FA isteniyor)',
 const kutular = await s.$$('input[inputmode="numeric"]');
 if (kutular.length >= 6) {
   await kutular[0].click();
-  await s.keyboard.type(totp(readFileSync('/root/.byd-admin-totp', 'utf8').trim()), { delay: 60 });
+  await s.keyboard.type(totp(readFileSync('/root/.bys-admin-totp', 'utf8').trim()), { delay: 60 });
   await new Promise(r => setTimeout(r, 900));
   await s.evaluate(() => [...document.querySelectorAll('button')]
     .find(b => /Girişi doğrula/i.test(b.innerText))?.click());
@@ -89,12 +89,12 @@ await s.reload({ waitUntil: 'networkidle2' });
 kontrol('Dış kaynağa istek yok (KVKK)', disIstekler.length === 0, disIstekler.slice(0, 2).join(' '));
 kontrol('Avatar yerel data: URI', await s.evaluate(() =>
   [...document.images].every(i => !i.src || i.src.startsWith('data:') || i.src.startsWith(location.origin))));
-await s.screenshot({ path: '/root/byd-02-giris-sonrasi.png', fullPage: true });
+await s.screenshot({ path: '/root/bys-02-giris-sonrasi.png', fullPage: true });
 
 // 4) Yetkisiz panele sizma denemesi (super rolu kurum panelinde OLMAMALI).
 //    2026-08-22'den beri cikissiz 403 yerine KENDI paneline yonlendiriliyor;
 //    onemli olan kurum paneline GIREMEMESI. Ayrintili senaryolar:
-//    node /root/byd-panel-yonlendirme-testi.mjs
+//    node /root/bys-panel-yonlendirme-testi.mjs
 const k = await s.goto(`${KOK}/kurum`, { waitUntil: 'networkidle2' });
 const kYol = s.url().replace(KOK, '');
 kontrol('Yetkisiz panel kapalı (super → /kurum)',

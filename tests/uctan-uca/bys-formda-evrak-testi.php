@@ -1,7 +1,7 @@
 <?php
 
 /*
- * BYD — evrak BAŞVURU FORMUNDA alınıyor mu? (Başvuru akışı v2, Revizyon md.3.1)
+ * BYS — evrak BAŞVURU FORMUNDA alınıyor mu? (Başvuru akışı v2, Revizyon md.3.1)
  *
  * Yeni akışta başvuru tek adım: kurum/kişi bilgileri, evraklar ve KVKK onayları
  * aynı formda gelir; hesap AÇILMAZ, başvuru doğrudan inceleme kuyruğuna düşer.
@@ -17,7 +17,7 @@
  * Gerçek siteye HTTP ile gider (CSRF ve hız sınırı dahil).
  * ⚠️ ÜRETİME YAZAR. Kendi kayıtlarını oluşturur, sonunda siler.
  *
- * sudo -u byd php tests/uctan-uca/byd-formda-evrak-testi.php
+ * sudo -u bys php tests/uctan-uca/bys-formda-evrak-testi.php
  */
 
 use App\Enums\BasvuruDurumu;
@@ -51,15 +51,15 @@ $kontrol = function (string $ad, bool $gecti, string $ek = '') use (&$sonuc) {
 
 $kok = rtrim((string) config('app.url'), '/');
 $damga = substr((string) Str::ulid(), -10);
-$disk = config('byd.evrak_disk');
-$belge = (getenv('BYD_TEST_DOSYALARI') ?: __DIR__.'/../../../test-dosyalari');
+$disk = config('bys.evrak_disk');
+$belge = (getenv('BYS_TEST_DOSYALARI') ?: __DIR__.'/../../../test-dosyalari');
 $temizlik = ['basvuru' => [], 'kurum' => [], 'kullanici' => [], 'akreditasyon' => []];
 
 $istemci = fn (CookieJar $kavanoz) => Http::withOptions([
     'cookies' => $kavanoz,
     'allow_redirects' => false,
     'verify' => false,
-])->withHeaders(['User-Agent' => 'BYD-formda-evrak-testi']);
+])->withHeaders(['User-Agent' => 'BYS-formda-evrak-testi']);
 
 $tokenBul = fn (string $govde) => preg_match('/name="_token" value="([^"]+)"/', $govde, $e) ? $e[1] : '';
 
