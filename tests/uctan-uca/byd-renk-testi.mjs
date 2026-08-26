@@ -3,7 +3,7 @@ import puppeteer from 'puppeteer-core';
 import { readdirSync } from 'node:fs';
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = 'byd.ordolive.com';
+const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
 const b = await puppeteer.launch({ executablePath: CHROME, headless: 'new',
   args: ['--no-sandbox','--disable-dev-shm-usage',`--host-resolver-rules=MAP ${ALAN} 127.0.0.1`,'--ignore-certificate-errors'] });
 const s = await b.newPage();

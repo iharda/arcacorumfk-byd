@@ -10,8 +10,8 @@ import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { totp } from './byd-totp.mjs';
 
-const KOK_DIZIN = '/home/byd.ordolive.com/laravel';
-const KOK = 'https://byd.ordolive.com';
+const KOK_DIZIN = (process.env.BYD_KOK ?? import.meta.dirname + '/../..');
+const KOK = 'https://' + (process.env.BYD_ALAN || 'byd.ordolive.com');
 const tinker = (php) =>
   execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', php],
     { cwd: KOK_DIZIN, encoding: 'utf8' }).trim();

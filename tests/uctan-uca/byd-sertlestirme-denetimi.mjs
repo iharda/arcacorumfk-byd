@@ -8,7 +8,7 @@
  */
 import { execFileSync } from 'node:child_process';
 
-const ALAN = 'byd.ordolive.com';
+const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
 
 const sonuc = [];
@@ -16,7 +16,7 @@ const kontrol = (ad, gecti, ek = '') => { sonuc.push({ ad, gecti, ek }); console
 const uyari = (ad, ek) => { sonuc.push({ ad, gecti: true, uyari: true, ek }); console.log(`⚠️  ${ad}${ek ? '  → ' + ek : ''}`); };
 
 const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: '/home/byd.ordolive.com/laravel', encoding: 'utf8', timeout: 60000 });
+  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 60000 });
 const cek = (m, e) => (m.match(new RegExp(e + ':(\\S*)')) || [])[1];
 
 function istek(yol, ekArgs = []) {

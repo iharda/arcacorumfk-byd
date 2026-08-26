@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { totp } from './byd-totp.mjs';
 const K='/root/.cache/puppeteer/chrome';
 const CHROME=`${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN='byd.ordolive.com', KOK=`https://${ALAN}`;
+const ALAN=process.env.BYD_ALAN || 'byd.ordolive.com', KOK=`https://${ALAN}`;
 const bekle=ms=>new Promise(r=>setTimeout(r,ms));
 const b=await puppeteer.launch({executablePath:CHROME,headless:'new',
   args:['--no-sandbox','--disable-dev-shm-usage',`--host-resolver-rules=MAP ${ALAN} 127.0.0.1`,'--ignore-certificate-errors']});

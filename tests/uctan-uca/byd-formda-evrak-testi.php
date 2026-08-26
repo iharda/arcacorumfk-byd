@@ -52,7 +52,7 @@ $kontrol = function (string $ad, bool $gecti, string $ek = '') use (&$sonuc) {
 $kok = rtrim((string) config('app.url'), '/');
 $damga = substr((string) Str::ulid(), -10);
 $disk = config('byd.evrak_disk');
-$belge = '/root/byd-test-dosyalari';
+$belge = (getenv('BYD_TEST_DOSYALARI') ?: __DIR__.'/../../../test-dosyalari');
 $temizlik = ['basvuru' => [], 'kurum' => [], 'kullanici' => [], 'akreditasyon' => []];
 
 $istemci = fn (CookieJar $kavanoz) => Http::withOptions([

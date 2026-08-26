@@ -19,9 +19,9 @@ import { totp } from './byd-totp.mjs';
 
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = 'byd.ordolive.com';
+const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
-const D = '/root/byd-test-dosyalari';
+const D = (process.env.BYD_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
 const SIFRE = 'Kirmizi-Kartal-2026-x9';
 
 const damga = Date.now();
@@ -35,7 +35,7 @@ const sonuc = [];
 const kontrol = (ad, gecti, ek = '') => { sonuc.push({ ad, gecti, ek }); console.log(`${gecti ? '✅' : '❌'} ${ad}${ek ? '  → ' + ek : ''}`); };
 const bekle = ms => new Promise(r => setTimeout(r, ms));
 const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: '/home/byd.ordolive.com/laravel', encoding: 'utf8', timeout: 90000 });
+  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 90000 });
 
 /** Başvurunun durumunu e-postasından okur (hesap YOK, bağ e-posta üzerinden). */
 function basvuruDurumu(eposta) {

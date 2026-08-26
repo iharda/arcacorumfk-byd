@@ -16,7 +16,7 @@ import { totp } from './byd-totp.mjs';
 
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = 'byd.ordolive.com', KOK = `https://${ALAN}`;
+const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com', KOK = `https://${ALAN}`;
 const damga = Date.now();
 const BASLIK = `Video form denemesi ${damga}`;
 const VIDEO = `/tmp/duyuru-form-video-${damga}.mp4`;
@@ -24,7 +24,7 @@ const bekle = ms => new Promise(r => setTimeout(r, ms));
 const sonuc = [];
 const kontrol = (ad, gecti, ek = '') => { sonuc.push(gecti); console.log(`${gecti ? '✅' : '❌'} ${ad}${ek ? '  → ' + ek : ''}`); };
 const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: '/home/byd.ordolive.com/laravel', encoding: 'utf8', timeout: 120000 });
+  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 120000 });
 
 execFileSync('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'testsrc=size=320x240:rate=15:duration=2',
   '-pix_fmt', 'yuv420p', '-movflags', '+faststart', VIDEO], { stdio: 'ignore' });

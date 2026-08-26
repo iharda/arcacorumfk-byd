@@ -15,7 +15,7 @@ const CHROME_KOK = '/root/.cache/puppeteer/chrome';
 const surum = readdirSync(CHROME_KOK).sort().pop();
 const CHROME = `${CHROME_KOK}/${surum}/chrome-linux64/chrome`;
 
-const ALAN = 'byd.ordolive.com';
+const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
 const SIFRE = 'Pilot-Deneme-2026';
 const KURUM = 'yetkili+pilot@ornek.test';

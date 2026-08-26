@@ -92,13 +92,13 @@ gunzip -c /root/backups/byd/db-TARIH.sql.gz \
   | docker exec -i parabu-postgres psql -U parabu -d byd
 
 # 2) Dosyalar
-tar xzf /root/backups/byd/dosyalar-TARIH.tar.gz -C /home/byd.ordolive.com/laravel
+tar xzf /root/backups/byd/dosyalar-TARIH.tar.gz -C <uygulama-dizini>
 
 # 3) Ortam dosyası (APP_KEY!)
-cp /root/backups/byd/env-TARIH /home/byd.ordolive.com/laravel/.env
+cp /root/backups/byd/env-TARIH <uygulama-dizini>/.env
 
 # 4) Önbellekleri tazele
-bash /home/byd.ordolive.com/laravel/dagit.sh
+bash <uygulama-dizini>/dagit.sh
 ```
 
 ## Günlük bakım komutları

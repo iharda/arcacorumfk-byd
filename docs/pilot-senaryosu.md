@@ -10,7 +10,7 @@ bulmamak değil, **bulmak** — pilot bunun için var.
 ## Önce: ortamı hazırla
 
 ```bash
-cd /home/byd.ordolive.com/laravel
+cd <uygulama-dizini>
 php artisan byd:pilot-verisi          # örnek kurum, kişi, kart, kapı, içerik
 ```
 

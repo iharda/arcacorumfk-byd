@@ -4,7 +4,7 @@ import puppeteer from 'puppeteer-core';
 import { readdirSync } from 'node:fs';
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = 'byd.ordolive.com';
+const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
 const en = Number(process.argv[2]) || 1280;
 
 const b = await puppeteer.launch({ executablePath: CHROME, headless: 'new',

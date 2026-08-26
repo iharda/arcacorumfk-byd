@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# BYD -- kod degisikligi sonrasi calistir.  bash /home/byd.ordolive.com/laravel/dagit.sh
+# BYD -- kod degisikligi sonrasi calistir.  bash <uygulama-dizini>/dagit.sh
 #
 # 🐙 Once GitHub'daki yeni kodu indirir, sonra dagitir.
 #    Indirmeden sadece dagitmak icin:  PULLSUZ=1 bash dagit.sh
@@ -9,7 +9,7 @@
 # ("Disk [evrak] does not have a configured driver" hatasi tam olarak buydu).
 # ⚠️ artisan'i ROOT ile calistirma -- root'un biraktigi dosyalar 500 uretir.
 set -euo pipefail
-cd /home/byd.ordolive.com/laravel
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ----------------------------------------------------- GitHub'dan yeni kodu al
 if [ "${PULLSUZ:-0}" != "1" ]; then
@@ -71,7 +71,7 @@ sudo -u byd php artisan filament:assets
 sudo -u byd php artisan optimize
 sudo -u byd php artisan filament:optimize
 
-chown -R byd:byd /home/byd.ordolive.com/laravel
+chown -R byd:byd "$PWD"
 chmod -R 775 storage bootstrap/cache
 
 # Kuyruk isleyicisi yeni kodu almali

@@ -20,9 +20,9 @@ import { totp } from './byd-totp.mjs';
 
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = 'byd.ordolive.com';
+const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
-const DOSYA = '/root/byd-test-dosyalari';
+const DOSYA = (process.env.BYD_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
 
 const damga = Date.now();
 const EPOSTA = `bydtest+${damga}@ornek.test`;
@@ -37,7 +37,7 @@ const bekle = (ms) => new Promise(r => setTimeout(r, ms));
 
 function artisan(kod) {
   return execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod], {
-    cwd: '/home/byd.ordolive.com/laravel', encoding: 'utf8', timeout: 60000,
+    cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 60000,
   });
 }
 

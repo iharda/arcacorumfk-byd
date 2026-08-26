@@ -15,9 +15,9 @@ import { execFileSync } from 'node:child_process';
 
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = 'byd.ordolive.com';
+const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
-const LOG = '/home/byd.ordolive.com/laravel/storage/logs/laravel.log';
+const LOG = (process.env.BYD_KOK ?? import.meta.dirname + '/../..') + '/storage/logs/laravel.log';
 const SIFRE = 'Kirmizi-Kartal-2026-x9';
 const damga = Date.now();
 const AKREDITE = `ic-akr+${damga}@ornek.test`;
@@ -30,7 +30,7 @@ const sonuc = [];
 const kontrol = (ad, gecti, ek = '') => { sonuc.push({ ad, gecti, ek }); console.log(`${gecti ? '✅' : '❌'} ${ad}${ek ? '  → ' + ek : ''}`); };
 const bekle = ms => new Promise(r => setTimeout(r, ms));
 const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: '/home/byd.ordolive.com/laravel', encoding: 'utf8', timeout: 120000 });
+  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 120000 });
 const cek = (m, e) => (m.match(new RegExp(e + ':(\\S+)')) || [])[1];
 
 /**

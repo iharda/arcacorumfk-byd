@@ -13,15 +13,16 @@
  */
 import { execFileSync } from 'node:child_process';
 import https from 'node:https';
+const TEST_DOSYALARI = (process.env.BYD_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');   // ornek evraklar; BYD_TEST_DOSYALARI ile degistirilebilir
 
-const ALAN = 'byd.ordolive.com';
+const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
 const SURE = Number(process.argv[2]) || 15;
 const ESZAMAN = Number(process.argv[3]) || 24;
 const KAPI_SAYISI = 8;
 const damga = Date.now();
 
 const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: '/home/byd.ordolive.com/laravel', encoding: 'utf8', timeout: 180000 });
+  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 180000 });
 const cek = (m, e) => (m.match(new RegExp(e + ':(\\S+)')) || [])[1];
 
 // Origin'e doğrudan git: Cloudflare'i ölçmüyoruz, kendi sunucumuzu ölçüyoruz.
@@ -62,7 +63,7 @@ $b = App\\Models\\Basvuru::create(['tur' => App\\Enums\\BasvuruTuru::BasinMensub
     'durum' => App\\Enums\\BasvuruDurumu::Onaylandi, 'kullanici_id' => $u->id, 'kurum_id' => $k->id]);
 $t = App\\Models\\EvrakTuru::where('kod','biyometrik_fotograf')->first();
 app(App\\Servisler\\EvrakYukleyici::class)->yukle($b, $t,
-    new Illuminate\\Http\\UploadedFile('/root/byd-test-dosyalari/foto.jpg', 'foto.jpg', 'image/jpeg', null, true));
+    new Illuminate\\Http\\UploadedFile('${TEST_DOSYALARI}/foto.jpg', 'foto.jpg', 'image/jpeg', null, true));
 $a = App\\Models\\Akreditasyon::create(['ulid' => (string) Illuminate\\Support\\Str::ulid(),
     'kart_no' => '2026-K-9500', 'yil' => 2026, 'tur_kodu' => 'K', 'sira' => 9500,
     'kullanici_id' => $u->id, 'basvuru_id' => $b->id, 'kurum_id' => $k->id,

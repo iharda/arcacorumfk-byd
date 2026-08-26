@@ -29,9 +29,9 @@ import { totp } from './byd-totp.mjs';
 const BIRAK = process.argv.includes('--birak');
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = 'byd.ordolive.com';
+const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
-const D = '/root/byd-test-dosyalari';
+const D = (process.env.BYD_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
 const SHOT = '/root/byd-senaryo';
 
 const damga = Date.now();
@@ -69,7 +69,7 @@ const bekle = ms => new Promise(r => setTimeout(r, ms));
 /** İnsan okuma/düşünme molası. */
 const dusun = (az = 500, cok = 1100) => bekle(az + Math.floor(Math.random() * (cok - az)));
 const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: '/home/byd.ordolive.com/laravel', encoding: 'utf8', timeout: 180000 });
+  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 180000 });
 const cek = (m, e) => (m.match(new RegExp(e + ':(\\S+)')) || [])[1];
 
 async function foto(sayfa, ad) {

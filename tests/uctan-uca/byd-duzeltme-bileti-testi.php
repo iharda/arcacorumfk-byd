@@ -47,8 +47,8 @@ $kok = rtrim((string) config('app.url'), '/');
 $damga = substr((string) Str::ulid(), -10);
 $biletAkisi = app(BasvuruBiletiAkisi::class);
 $temizlik = ['basvuru' => [], 'evrak' => []];
-$ornekDosya = '/root/byd-test-dosyalari/vergi-levhasi.pdf';
-$fotoDosya = '/root/byd-test-dosyalari/foto.jpg';
+$ornekDosya = (getenv('BYD_TEST_DOSYALARI') ?: __DIR__.'/../../../test-dosyalari').'/vergi-levhasi.pdf';
+$fotoDosya = (getenv('BYD_TEST_DOSYALARI') ?: __DIR__.'/../../../test-dosyalari').'/foto.jpg';
 
 /** Evrak türünün kabul ettiği biçime uygun örnek dosya. */
 $ornek = function (EvrakTuru $tur) use ($ornekDosya, $fotoDosya) {

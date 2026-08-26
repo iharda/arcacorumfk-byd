@@ -30,5 +30,5 @@ foreach ([['evrak', App\\Models\\Evrak::withTrashed()->whereNotNull('yol')->pluc
 }
 echo 'YETIM:' . implode(' ', $rapor);`;
 const cikti = execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: '/home/byd.ordolive.com/laravel', encoding: 'utf8', timeout: 120000 });
+  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 120000 });
 console.log((cikti.match(/YETIM:.*/) || ['sonuç yok'])[0] + (kuru ? '  (kuru çalışma, silinmedi)' : '  → silindi'));

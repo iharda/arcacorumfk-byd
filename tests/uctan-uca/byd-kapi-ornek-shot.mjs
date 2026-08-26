@@ -4,7 +4,7 @@ import puppeteer from 'puppeteer-core';
 import { readdirSync, readFileSync } from 'node:fs';
 const K='/root/.cache/puppeteer/chrome';
 const CHROME=`${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN='byd.ordolive.com', KOK=`https://${ALAN}`;
+const ALAN=process.env.BYD_ALAN || 'byd.ordolive.com', KOK=`https://${ALAN}`;
 const foto = 'data:image/jpeg;base64,' + readFileSync('/tmp/byd-portre.jpg').toString('base64');
 
 const b=await puppeteer.launch({executablePath:CHROME,headless:'new',

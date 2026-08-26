@@ -9,9 +9,10 @@ Amac: yukleme, onizleme, magic byte ve boyut yollarini gercek dosyalarla sinamak
 python3 /root/byd-belge-uret.py
 """
 from PIL import Image, ImageDraw, ImageFont
+import os
 from pathlib import Path
 
-HEDEF = Path('/root/byd-test-dosyalari')
+HEDEF = Path(os.environ.get('BYD_TEST_DOSYALARI') or Path(__file__).resolve().parents[3] / 'test-dosyalari')
 HEDEF.mkdir(exist_ok=True)
 
 DEJAVU = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'

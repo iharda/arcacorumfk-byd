@@ -9,10 +9,11 @@
 import puppeteer from 'puppeteer-core';
 import { readdirSync, writeFileSync, unlinkSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+const TEST_DOSYALARI = (process.env.BYD_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');   // ornek evraklar; BYD_TEST_DOSYALARI ile degistirilebilir
 
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = 'byd.ordolive.com';
+const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
 const SIFRE = 'Kirmizi-Kartal-2026-x9';
 const damga = Date.now();
@@ -23,7 +24,7 @@ const sonuc = [];
 const kontrol = (ad, gecti, ek = '') => { sonuc.push({ ad, gecti, ek }); console.log(`${gecti ? '✅' : '❌'} ${ad}${ek ? '  → ' + ek : ''}`); };
 const bekle = ms => new Promise(r => setTimeout(r, ms));
 const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: '/home/byd.ordolive.com/laravel', encoding: 'utf8', timeout: 60000 });
+  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 60000 });
 
 // İki ayrı kurum + başvuru + birer evrak kur
 const kurulum = artisan(`
@@ -36,7 +37,7 @@ foreach ([['${A}','A'], ['${B}','B']] as [$mail, $ad]) {
         'durum' => App\\Enums\\BasvuruDurumu::Taslak, 'kullanici_id' => $u->id, 'kurum_id' => $k->id]);
     $t = App\\Models\\EvrakTuru::where('kod','ticaret_sicil_gazetesi')->first();
     app(App\\Servisler\\EvrakYukleyici::class)->yukle($b, $t,
-        new Illuminate\\Http\\UploadedFile('/root/byd-test-dosyalari/ticaret-sicil.pdf', 'ticaret-sicil.pdf', 'application/pdf', null, true));
+        new Illuminate\\Http\\UploadedFile('${TEST_DOSYALARI}/ticaret-sicil.pdf', 'ticaret-sicil.pdf', 'application/pdf', null, true));
     echo strtoupper($ad) . '_EVRAK:' . $b->evraklar()->first()->ulid . ' ' . strtoupper($ad) . '_BASVURU:' . $b->ulid . ' ';
 }`);
 
@@ -208,7 +209,7 @@ catch (Throwable $e) { echo 'ENGELLENDI:' . class_basename($e); }`);
 
 /* 4) Magic byte: uzantısı pdf, içeriği düz metin */
 try {
-  const sahte = '/root/byd-test-dosyalari/sahte.pdf';
+  const sahte = TEST_DOSYALARI + '/sahte.pdf';
   writeFileSync(sahte, 'Bu bir PDF degil, duz metin. '.repeat(80));
   const cikti = artisan(`
 $u = App\\Models\\User::where('email','${A}')->first();

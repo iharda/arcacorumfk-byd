@@ -7,10 +7,11 @@
 import puppeteer from 'puppeteer-core';
 import { readdirSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+const TEST_DOSYALARI = (process.env.BYD_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');   // ornek evraklar; BYD_TEST_DOSYALARI ile degistirilebilir
 
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
-const ALAN = 'byd.ordolive.com';
+const ALAN = process.env.BYD_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
 const SIFRE = 'Kirmizi-Kartal-2026-x9';
 const damga = Date.now();
@@ -21,7 +22,7 @@ const sonuc = [];
 const kontrol = (ad, gecti, ek = '') => { sonuc.push({ ad, gecti, ek }); console.log(`${gecti ? '✅' : '❌'} ${ad}${ek ? '  → ' + ek : ''}`); };
 const bekle = ms => new Promise(r => setTimeout(r, ms));
 const artisan = kod => execFileSync('sudo', ['-u', 'byd', 'php', 'artisan', 'tinker', '--execute', kod],
-  { cwd: '/home/byd.ordolive.com/laravel', encoding: 'utf8', timeout: 180000 });
+  { cwd: (process.env.BYD_KOK ?? import.meta.dirname + '/../..'), encoding: 'utf8', timeout: 180000 });
 const cek = (metin, etiket) => (metin.match(new RegExp(etiket + ':(\\S+)')) || [])[1];
 
 /** Doğrulama API'sine istek. --resolve ile origin'e doğrudan gider. */
@@ -52,7 +53,7 @@ $b = App\\Models\\Basvuru::create(['tur' => App\\Enums\\BasvuruTuru::BasinMensub
     'gonderildi_at' => now(), 'karar_at' => now()]);
 $t = App\\Models\\EvrakTuru::where('kod', 'biyometrik_fotograf')->first();
 app(App\\Servisler\\EvrakYukleyici::class)->yukle($b, $t,
-    new Illuminate\\Http\\UploadedFile('/root/byd-test-dosyalari/foto.jpg', 'foto.jpg', 'image/jpeg', null, true));
+    new Illuminate\\Http\\UploadedFile('${TEST_DOSYALARI}/foto.jpg', 'foto.jpg', 'image/jpeg', null, true));
 $a = app(App\\Servisler\\AkreditasyonAkisi::class)->basvurudanOlustur($b);
 $a->update(['bolge_yetkileri' => ['basin_locasi'], 'sezon' => '2026 / 2027']);
 echo 'KART:' . $a->kart_no . ' ULID:' . $a->ulid;`);

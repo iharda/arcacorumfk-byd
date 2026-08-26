@@ -43,7 +43,7 @@ sudo -u byd php artisan test --testsuite=Unit   # VKN/TCKN sağlaması + telefon
 - **Dış girdiler** (repoda DEĞİL, sunucuda durur):
   - `/root/.byd-admin-pass` — yönetici parolası
   - `/root/.byd-admin-totp` — yöneticinin TOTP gizli anahtarı
-  - `/root/byd-test-dosyalari/` — örnek evrak dosyaları (pdf/jpg)
+  - `<uygulama-dizini>/../test-dosyalari/` — örnek evrak dosyaları (pdf/jpg)
   Devirde bunlar yeni sunucuda yeniden üretilir.
 - **Yük testi** geçiş kaydı yazar ve `mukerrer_okutma_saniye` ayarını geçici
   olarak 0 yapar; sonunda ikisini de geri alır. Yarıda kesersen ayarı elle
