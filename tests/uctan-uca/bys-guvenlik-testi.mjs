@@ -62,11 +62,40 @@ const durumu = async (sayfa, yol) => {
   return { kod: y.status(), url: sayfa.url().replace(KOK, '') };
 };
 
+/*
+ * Yalnızca YANIT KODU sorulan yerler için: gezinme değil, sayfanın içinden
+ * istek. Oturum çerezi aynen gider (`credentials: same-origin`).
+ *
+ * 🪤 Burada `goto` KULLANILAMIYOR: evrak isteği bir İNDİRME olarak dönüyor
+ * (Content-Disposition) ve Chrome indirmeden sonra sayfayı gezinmemiş
+ * sayıyor; bir sonraki `goto` DOM olayını hiç görmeden 30 sn'de zaman
+ * aşımına düşüyordu. Gün içinde üç koşumda yanlış kırmızı verdi -- sunucu
+ * her seferinde doğru kodu döndürmüştü (nginx günlüğünde 403).
+ *
+ * 🔒 Ölçüt ZAYIFLAMIYOR: sorulan soru "bu kullanıcı bu evrakı alabiliyor mu";
+ * cevabı yanıt kodu veriyor ve burada tam olarak o okunuyor.
+ */
+const kodu = async (sayfa, yol) => {
+  // 🪤 İstek AYNI KAYNAKTAN atılmalı: boş sekmenin kaynağı yok, tarayıcı
+  // `Failed to fetch` diyor. Sayfa siteye gezinmemişse önce kamuya açık
+  // ana sayfaya geçiyoruz (oturum durumu değişmez).
+  if (! sayfa.url().startsWith(KOK)) {
+    await sayfa.goto(KOK + '/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+  }
+
+  return sayfa.evaluate(async adres => {
+    const y = await fetch(adres, { credentials: 'same-origin', redirect: 'follow' });
+
+    return y.status;
+  }, KOK + yol);
+};
+
 try {
   /* 1) OTURUMSUZ */
   const anon = await (await b.createBrowserContext()).newPage();
-  let r = await durumu(anon, `/evrak/${aEvrak}`);
-  kontrol('Oturumsuz evrak indirilemiyor', [401, 403].includes(r.kod), `${r.kod} ${r.url}`);
+  let kod = await kodu(anon, `/evrak/${aEvrak}`);
+  kontrol('Oturumsuz evrak indirilemiyor', [401, 403].includes(kod), String(kod));
+  let r;
   r = await durumu(anon, '/yonetim');
   kontrol('Oturumsuz yönetim paneli kapalı', r.url.includes('login'), r.url);
 
@@ -81,12 +110,12 @@ try {
   await bekle(800);
   kontrol('Kurum A giriş yaptı', a.url().includes('/kurum') && !a.url().includes('login'), a.url().replace(KOK, ''));
 
-  r = await durumu(a, `/evrak/${aEvrak}`);
-  kontrol('Kurum A KENDİ evrakını görebiliyor', r.kod === 200, String(r.kod));
+  kod = await kodu(a, `/evrak/${aEvrak}`);
+  kontrol('Kurum A KENDİ evrakını görebiliyor', kod === 200, String(kod));
 
   // 🔑 IDOR: başka kurumun evrakı
-  r = await durumu(a, `/evrak/${bEvrak}`);
-  kontrol('Kurum A BAŞKA kurumun evrakını göremiyor', r.kod === 403, String(r.kod));
+  kod = await kodu(a, `/evrak/${bEvrak}`);
+  kontrol('Kurum A BAŞKA kurumun evrakını göremiyor', kod === 403, String(kod));
 
   /*
    * 🚧 Yasak panel: 2026-08-22'den beri kullanıcı çıkışsız 403 sayfasında

@@ -274,10 +274,22 @@ App\\Models\\Duyuru::where('baslik', '${DUYURU_BASLIK}')->update(['video_yolu' =
 echo 'VIDEO';`);
 
   const videoYol = `/icerik/duyuru/test-${damga}.mp4`;
+
+  /* 🎬 Video artık LİSTEDE DEĞİL, DETAYDA kuruluyor (panel içerik tasarımı,
+        kural 2: ağır medya listeye girmez). Eskiden on duyurunun tamamı tam
+        boy basılıyordu -- tek sayfada on `<video>` elemanı. Liste satırında
+        yalnızca oynat işaretli kapak var. */
   await uye.goto(`${KOK}/panel/duyurular`, { waitUntil: 'networkidle2' });
+  kontrol('Liste sayfasında HİÇ <video> kurulmuyor',
+    await uye.evaluate(() => document.querySelectorAll('video').length === 0));
+
+  const acikUlid = artisan(`echo App\\Models\\Duyuru::where('baslik', '${DUYURU_BASLIK}')->value('ulid');`);
+  await uye.goto(`${KOK}/panel/duyurular?acik=${acikUlid}`, { waitUntil: 'networkidle2' });
 
   const videoSrc = await uye.$eval('video source', el => el.getAttribute('src')).catch(() => null);
-  kontrol('Duyuruda <video> etiketi var', videoSrc?.includes(`duyuru/test-${damga}.mp4`), videoSrc ?? 'yok');
+  kontrol('Duyuru DETAYINDA <video> etiketi var', videoSrc?.includes(`duyuru/test-${damga}.mp4`), videoSrc ?? 'yok');
+  kontrol('Detayda en fazla BİR video var',
+    await uye.evaluate(() => document.querySelectorAll('video').length <= 1));
 
   /* 💀 Etiketin varlığı yetmez: kaynak 404 dönse de <video> sayfada DURUR.
         Tarayıcı gerçekten çözebildi mi diye metadata'yı bekle. */

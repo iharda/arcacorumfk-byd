@@ -29,6 +29,42 @@ abstract class TakvimSayfasi extends MedyaMerkeziSayfasi
             ->get();
     }
 
+    /**
+     * Yaklaşanlar AYA göre gruplanır: elli kayıt düz bir liste olarak
+     * "bu hafta ne var" sorusunu cevaplamıyordu.
+     *
+     * @return Collection<string, Collection<int, Antrenman>>
+     */
+    public function getAylaraGoreProperty(): Collection
+    {
+        return $this->yaklasanlar->groupBy(
+            fn (Antrenman $a) => $a->baslangic_at->timezone('Europe/Istanbul')->translatedFormat('F Y'),
+        );
+    }
+
+    /** Önümüzdeki yedi gündeki basına AÇIK seans sayısı — üstteki özet karo. */
+    public function getBuHaftaAcikProperty(): int
+    {
+        return Antrenman::query()->yayinda()
+            ->where('basina_acik', true)
+            ->whereBetween('baslangic_at', [now(), now()->copy()->addWeek()])
+            ->count();
+    }
+
+    /**
+     * Sıradaki basına açık seans; yoksa null.
+     *
+     * 🪤 `yaklasanlar` GÜN BAŞINDAN itibaren getiriyor -- bugün başlamış bir
+     * seans da listede kalsın diye. Ama "sıradaki" henüz BAŞLAMAMIŞ olan
+     * demek: filtresiz bırakınca üstteki karo "0 seans" derken bu karo
+     * saati geçmiş bir seansı gösteriyordu.
+     */
+    public function getSiradakiProperty(): ?Antrenman
+    {
+        return $this->yaklasanlar
+            ->firstWhere(fn (Antrenman $a) => $a->basina_acik && $a->baslangic_at->isFuture());
+    }
+
     /** @return Collection<int, Antrenman> */
     public function getGecmisProperty(): Collection
     {

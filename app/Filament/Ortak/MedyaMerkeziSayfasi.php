@@ -4,6 +4,7 @@ namespace App\Filament\Ortak;
 
 use App\Servisler\IcerikAkisi;
 use Filament\Pages\Page;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -20,9 +21,48 @@ abstract class MedyaMerkeziSayfasi extends Page
         return static::akrediteMi();
     }
 
+    /**
+     * "Yeni" rozetinin esigi: bu listeye BIR ONCEKI bakis ani.
+     * Damgasi olmayan sayfalarda null kalir, hicbir sey yeni sayilmaz.
+     */
+    public ?Carbon $esik = null;
+
     public function mount(): void
     {
         abort_unless(static::akrediteMi(), 403);
+
+        $this->gorulduIsaretle();
+    }
+
+    /**
+     * Sayfanin kendi gorulme damgasi -- yoksa null.
+     * Duyurular ve bultenler AYRI damga tutar: birini acmak digerinin
+     * rozetini dusurmemeli.
+     */
+    protected static function gorulmeAlani(): ?string
+    {
+        return null;
+    }
+
+    /**
+     * 🪤 Esik ONCE okunur, damga SONRA guncellenir -- yoksa kullanici sayfayi
+     * acar acmaz her sey "okundu" olur ve rozet hic gorunmez.
+     *
+     * 🪤 `forceFill`: alan Fillable listesinde DEGIL (olmamali da). `update()`
+     * ile yazmaya calisirsak sessizce duserdi.
+     */
+    private function gorulduIsaretle(): void
+    {
+        $alan = static::gorulmeAlani();
+
+        if ($alan === null) {
+            return;
+        }
+
+        $kullanici = Auth::user();
+        $this->esik = $kullanici->{$alan};
+
+        $kullanici->forceFill([$alan => now()])->save();
     }
 
     protected static function akrediteMi(): bool

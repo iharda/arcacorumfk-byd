@@ -49,6 +49,8 @@ use Spatie\Permission\Traits\HasRoles;
  * @property ?Carbon $ayrildi_at
  * @property bool $aktif
  * @property ?Carbon $son_giris_at
+ * @property ?Carbon $duyuru_gorulme_at duyuru listesine son bakis; "Yeni" rozetinin esigi
+ * @property ?Carbon $bulten_gorulme_at bulten listesine son bakis
  * @property ?Carbon $email_verified_at
  * @property ?string $iki_adimli_gizli
  * @property ?array $iki_adimli_kurtarma_kodlari
@@ -79,6 +81,13 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             'password' => 'hashed',
             'ayrildi_at' => 'datetime',
             'son_giris_at' => 'datetime',
+            /*
+             * 🪤 `Fillable` listesinde YOK ve olmamali: bu iki alan toplu
+             * atamayla degil, acikca forceFill ile yaziliyor. Listede olmayan
+             * alan sessizce duser -- `kurum_id` tam olarak boyle kaybolmustu.
+             */
+            'duyuru_gorulme_at' => 'datetime',
+            'bulten_gorulme_at' => 'datetime',
             'aktif' => 'boolean',
             'iki_adimli_gizli' => 'encrypted',
             'iki_adimli_kurtarma_kodlari' => 'encrypted:array',

@@ -32,6 +32,7 @@ class KurumPanelProvider extends PanelProvider
         return $panel
             ->id('kurum')
             ->path('kurum')
+            ->viteTheme('resources/css/filament/kurum/theme.css')
             ->brandName('Kurum Paneli')
             // Kulüp arması + sistem adı birlikte (arma tek başına 48px'te okunmuyor).
             ->brandLogo(fn () => view('filament.marka', ['altBaslik' => 'Kurum Paneli']))

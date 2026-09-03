@@ -1,0 +1,32 @@
+/* BYS panel içerik sayfaları — ortak tasarım belirteçleri.
+   İki panel teması da bunu içeri alır: kural değişince tek yerde değişsin.
+
+   ⚠️ Filament'in kendi renk değişkenleri (--primary-*, --gray-*) OLDUĞU GİBİ
+   kalır; burada yalnızca içerik sayfalarına özgü olanlar tanımlanır. */
+
+@theme {
+    /* Ölçü merdiveni — satır içi serbest değerlerin (.6rem, .85rem, .9rem…)
+       yerine. Üç sayfa da aynı merdiveni kullanır. */
+    --spacing-icerik-satir: 0.9375rem;   /* 15px · liste satırı dolgusu */
+    --spacing-icerik-kutu: 1.25rem;      /* 20px · bölüm dolgusu */
+
+    /* Kapak görseli oranları — listede 3:2, detayda 16:9 */
+    --aspect-kapak-liste: 3 / 2;
+    --aspect-kapak-detay: 16 / 9;
+}
+
+/* Okunmamış içerik şeridi.
+   ♿ Renk körlüğüne karşı yalnız renk değil: satırda ayrıca "Yeni" rozeti de
+   bulunur. Renk tek başına bilgi taşımaz. */
+.icerik-satir--yeni {
+    background-image: linear-gradient(
+        to right,
+        color-mix(in oklch, var(--color-primary-600) 5%, transparent),
+        transparent 40%
+    );
+}
+
+/* Zengin metin: `fi-prose` Filament'ten geliyor, biz yalnızca içerik
+   sayfalarındaki üst/alt boşluğu sıfırlıyoruz. */
+.icerik-metin :where(p:first-child) { margin-block-start: 0; }
+.icerik-metin :where(p:last-child) { margin-block-end: 0; }

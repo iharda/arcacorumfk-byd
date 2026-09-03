@@ -32,6 +32,7 @@ class UyePanelProvider extends PanelProvider
         return $panel
             ->id('uye')
             ->path('panel')
+            ->viteTheme('resources/css/filament/uye/theme.css')
             ->brandName('Basın Paneli')
             // Kulüp arması + sistem adı birlikte (arma tek başına 48px'te okunmuyor).
             ->brandLogo(fn () => view('filament.marka', ['altBaslik' => 'Basın Paneli']))

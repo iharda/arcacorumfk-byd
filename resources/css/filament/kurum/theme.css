@@ -1,0 +1,12 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+@import '../ortak-icerik.css';
+
+/* 🪤 Ortak görünümler de taranmalı: içerik sayfaları `filament/ortak`
+   altında yaşıyor ve iki panel de onları kullanıyor. Yalnızca panelin kendi
+   dizinini taramak, ortak sayfalardaki sınıfların derlenmemesi demekti.
+   🪤 Dizin adları BÜYÜK harfle başlar (Linux'ta yol eşleşmesi harfe duyarlı). */
+@source '../../../../app/Filament/Kurum/**/*';
+@source '../../../../app/Filament/Ortak/**/*';
+@source '../../../../resources/views/filament/kurum/**/*';
+@source '../../../../resources/views/filament/ortak/**/*';
+@source '../../../../resources/views/components/**/*';

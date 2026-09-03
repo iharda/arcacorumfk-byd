@@ -1,53 +1,81 @@
 {{-- Kulüp duyuruları — üye ve kurum panellerinde aynı ekran.
-     ⚠️ Panelde kendi Tailwind sınıflarımız derlenmez; satır içi stil. --}}
+
+     Sayfanın işi TEK: başlıklar taransın, ilgilenilen açılsın. Ağır medya
+     (görsel, video, tam metin) listede DEĞİL, detayda kurulur -- eskiden on
+     duyurunun tamamı tam boy basılıyordu, tek sayfada on `<video>` vardı. --}}
 <x-filament-panels::page>
 
-    @forelse ($this->duyurular as $duyuru)
+    @if ($this->acikDuyuru)
+        @php($duyuru = $this->acikDuyuru)
+        <x-icerik.detay :baslik="$duyuru->baslik"
+                        :tarih="$duyuru->yayin_at"
+                        :ozet="$duyuru->ozet"
+                        :icerik="$duyuru->icerik"
+                        :gorsel="$duyuru->gorsel_yolu"
+                        :video="$duyuru->video_yolu"
+                        :geri-adres="request()->fullUrlWithQuery(['acik' => null])"
+                        geri-etiket="Duyurulara dön" />
+    @else
         <x-filament::section>
-            <x-slot name="heading">{{ $duyuru->baslik }}</x-slot>
+            <x-slot name="heading">Duyurular</x-slot>
             <x-slot name="description">
-                {{ optional($duyuru->yayin_at)->timezone('Europe/Istanbul')?->format('d.m.Y H:i') }}
+                {{ trans_choice(':sayi duyuru|:sayi duyuru', $this->duyurular->total(), ['sayi' => $this->duyurular->total()]) }}
             </x-slot>
 
-            @if ($duyuru->gorsel_yolu)
-                <img src="{{ route('icerik.dosya', ['yol' => $duyuru->gorsel_yolu]) }}"
-                     alt="" loading="lazy"
-                     style="width:100%; max-height:22rem; object-fit:cover; border-radius:.6rem; margin-bottom:1rem;">
-            @endif
+            {{-- 🪤 Bölümün başlık yanı slotu `afterHeader` (headerEnd değil). --}}
+            <x-slot name="afterHeader">
+                <x-filament::input.wrapper prefix-icon="heroicon-m-magnifying-glass" class="max-w-64">
+                    <x-filament::input type="search" wire:model.live.debounce.400ms="arama"
+                                       placeholder="Başlıkta ara…" />
+                </x-filament::input.wrapper>
+            </x-slot>
 
-            @if ($duyuru->video_yolu)
-                {{-- 🎬 `preload="metadata"`: sayfada 10 duyuru birden var,
-                     hepsinin videosu peşinen inmesin; yalnızca süre bilgisi.
-                     Dosya `icerik.dosya` rotasından Range destekli akıyor. --}}
-                <video controls preload="metadata" playsinline
-                       style="width:100%; max-height:26rem; border-radius:.6rem; background:#000; margin-bottom:1rem;">
-                    <source src="{{ route('icerik.dosya', ['yol' => $duyuru->video_yolu]) }}"
-                            type="video/{{ strtolower(pathinfo($duyuru->video_yolu, PATHINFO_EXTENSION)) }}">
-                    Tarayıcınız video oynatmıyor.
-                    <a href="{{ route('icerik.dosya', ['yol' => $duyuru->video_yolu]) }}">Dosyayı açın</a>.
-                </video>
-            @endif
+            {{-- 🪤 Bölümün kendi dolgusu kapatılıyor: satırlar kenardan kenara
+                 uzanmalı, yoksa ayırıcı çizgiler havada asılı kalır. --}}
+            <div class="-mx-6 -my-4">
+                @forelse ($this->duyurular as $duyuru)
+                    <x-icerik.satir :baslik="$duyuru->baslik"
+                                    :tarih="$duyuru->yayin_at"
+                                    :ozet="$duyuru->ozet"
+                                    :yeni="$this->yeniMi($duyuru)"
+                                    :adres="request()->fullUrlWithQuery(['acik' => $duyuru->ulid])">
+                        <x-slot name="kapak">
+                            <x-icerik.kapak :gorsel="$duyuru->gorsel_yolu" :video="$duyuru->video_yolu" />
+                        </x-slot>
 
-            @if (filled($duyuru->ozet))
-                <p style="font-size:.95rem; font-weight:500; margin-bottom:.75rem;">{{ $duyuru->ozet }}</p>
-            @endif
-
-            @if (filled($duyuru->icerik))
-                {{-- İçerik zengin metin editöründen geliyor; Filament çıktısı
-                     temizlenmiş HTML. --}}
-                <div class="fi-prose" style="font-size:.9rem; line-height:1.6;">
-                    {!! $duyuru->icerik !!}
-                </div>
-            @endif
+                        @if ($duyuru->video_yolu)
+                            <x-slot name="rozetler">
+                                <x-filament::badge color="gray" size="xs">Video</x-filament::badge>
+                            </x-slot>
+                        @endif
+                    </x-icerik.satir>
+                @empty
+                    <div class="px-6 py-10">
+                        @if (filled($this->arama))
+                            <x-filament::empty-state
+                                icon="heroicon-o-magnifying-glass"
+                                heading="Eşleşen duyuru yok"
+                                description="Aramanızla eşleşen bir duyuru bulunamadı.">
+                                <x-slot name="footer">
+                                    <x-filament::button wire:click="aramayiTemizle" color="gray" size="sm">
+                                        Aramayı temizle
+                                    </x-filament::button>
+                                </x-slot>
+                            </x-filament::empty-state>
+                        @else
+                            <x-filament::empty-state
+                                icon="heroicon-o-megaphone"
+                                heading="Henüz duyuru yayınlanmadı"
+                                description="Kulüp bir duyuru yayınladığında burada görünür ve e-posta alırsınız." />
+                        @endif
+                    </div>
+                @endforelse
+            </div>
         </x-filament::section>
-    @empty
-        <x-filament::section>
-            <p style="font-size:.9rem; opacity:.65;">Henüz yayınlanmış duyuru yok.</p>
-        </x-filament::section>
-    @endforelse
 
-    @if ($this->duyurular->hasPages())
-        <div>{{ $this->duyurular->links() }}</div>
+        @if ($this->duyurular->hasPages())
+            <div>{{ $this->duyurular->links() }}</div>
+        @endif
     @endif
 
 </x-filament-panels::page>
