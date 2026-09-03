@@ -3,6 +3,7 @@
 namespace App\Filament\Yonetim\Resources\Akreditasyonlar;
 
 use App\Enums\AkreditasyonDurumu;
+use App\Filament\Yonetim\Resources\Akreditasyonlar\Pages\AkreditasyonDetay;
 use App\Filament\Yonetim\Resources\Akreditasyonlar\Pages\ListAkreditasyonlar;
 use App\Filament\Yonetim\Resources\Akreditasyonlar\Tables\AkreditasyonlarTable;
 use App\Models\Akreditasyon;
@@ -47,6 +48,10 @@ class AkreditasyonResource extends Resource
 
     public static function getPages(): array
     {
-        return ['index' => ListAkreditasyonlar::route('/')];
+        return [
+            'index' => ListAkreditasyonlar::route('/'),
+            // S1: listede görünen her kaydın kalıcı adresi olan detayı olacak.
+            'detay' => AkreditasyonDetay::route('/{record}/detay'),
+        ];
     }
 }

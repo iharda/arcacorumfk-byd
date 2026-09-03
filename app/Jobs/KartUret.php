@@ -3,7 +3,9 @@
 namespace App\Jobs;
 
 use App\Models\Akreditasyon;
+use App\Models\User;
 use App\Notifications\BasinKartiHazir;
+use App\Notifications\KartUretimiTamamlandi;
 use App\Servisler\KartUretici;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -45,6 +47,17 @@ class KartUret implements ShouldQueue
 
         if ($this->bildirimGonder) {
             $this->akreditasyon->kullanici?->notify(new BasinKartiHazir($this->akreditasyon, $kart));
+        }
+
+        /*
+         * 🔔 Üretimi TETİKLEYEN yetkiliye ayrı bildirim (T10). Düğmeye basınca
+         * dönen tek şey "kuyruğa alındı" idi, sonrası sessizdi; yetkili sonucu
+         * görmek için sayfayı yeniliyordu. Bildirim üyeye giden karttan ayrı:
+         * biri "kartın hazır", diğeri "istediğin iş bitti".
+         */
+        if ($this->tetikleyenId !== null) {
+            User::find($this->tetikleyenId)
+                ?->notify(new KartUretimiTamamlandi($this->akreditasyon, $kart));
         }
     }
 

@@ -84,8 +84,16 @@ class KuyrukAyrimiTest extends TestCase
             }
 
             $ornek = (new \ReflectionClass($sinif))->newInstanceWithoutConstructor();
+            $kuyruklar = $ornek->viaQueues();
 
-            if (($ornek->viaQueues()['mail'] ?? null) !== 'posta') {
+            /*
+             * 🔑 TANIMLI HER KANAL posta demeli -- yalnız 'mail' değil.
+             * Eskiden sadece 'mail' aranıyordu; veritabanı kanalıyla çalışan
+             * bir bildirim (panel zil ikonu) bu yüzden yakalanamıyordu.
+             * Boş dizi de kabul edilmez: kuyruğu söylemeyen bildirim
+             * varsayılana, yani ağır işlerin sırasına düşer.
+             */
+            if ($kuyruklar === [] || array_values(array_unique($kuyruklar)) !== ['posta']) {
                 $eksik[] = $sinif;
             }
         }

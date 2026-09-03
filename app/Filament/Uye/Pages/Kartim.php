@@ -3,6 +3,7 @@
 namespace App\Filament\Uye\Pages;
 
 use App\Models\Akreditasyon;
+use App\Servisler\DenetimYazici;
 use App\Support\KartDurumu;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -69,6 +70,13 @@ class Kartim extends Page
         abort_unless(Auth::user()?->can('kart.indir'), 403);
 
         $kart = $this->akreditasyon->guncelKart;
+
+        // S5: kart PDF'i HER indirmede denetime yazılır. Sıradan evrakta
+        // gürültü olmasın diye yazılmıyor ama kart basın kartının kendisi.
+        app(DenetimYazici::class)->yaz('kart.indirildi', $this->akreditasyon, yeni: [
+            'kart_no' => $this->akreditasyon->kart_no,
+            'surum' => $kart->surum,
+        ]);
 
         return Storage::disk($kart->disk)->download(
             $kart->pdf_yolu,

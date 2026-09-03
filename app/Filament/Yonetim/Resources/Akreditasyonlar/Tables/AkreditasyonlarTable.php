@@ -4,6 +4,7 @@ namespace App\Filament\Yonetim\Resources\Akreditasyonlar\Tables;
 
 use App\Enums\AkreditasyonDurumu;
 use App\Enums\BasvuruTuru;
+use App\Filament\Yonetim\Resources\Akreditasyonlar\AkreditasyonResource;
 use App\Jobs\KartUret;
 use App\Models\Akreditasyon;
 use App\Models\Ayar;
@@ -35,6 +36,8 @@ class AkreditasyonlarTable
             // ⚠️ Parametre adı $query olmalı (Filament ada göre enjekte eder).
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['kullanici', 'kurum', 'guncelKart']))
             ->defaultSort('kart_no', 'desc')
+            // T1'in aynısı burada da: satırın kendisi detayı açar (S1).
+            ->recordUrl(fn (Akreditasyon $record) => AkreditasyonResource::getUrl('detay', ['record' => $record]))
             ->columns([
                 TextColumn::make('kart_no')
                     ->label('Kart no')

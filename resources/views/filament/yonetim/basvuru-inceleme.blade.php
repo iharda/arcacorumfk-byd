@@ -338,26 +338,16 @@
                 <x-slot name="heading">
                     {{ $this->seciliEvrakModeli?->turu?->ad ?? 'Evrak önizleme' }}
                 </x-slot>
-                @if ($this->seciliEvrakModeli)
-                    <x-slot name="afterHeader">
-                        <x-filament::link
-                            :href="route('evrak.goster', $this->seciliEvrakModeli)"
-                            target="_blank" rel="noopener noreferrer" size="sm">
-                            Yeni sekmede aç
-                        </x-filament::link>
-                    </x-slot>
-                @endif
-
                 @php $e = $this->seciliEvrakModeli; @endphp
                 @if (! $e)
                     <p style="font-size:.85rem; opacity:.6;">Soldan bir evrak seçin.</p>
-                @elseif (str_starts_with($e->mime, 'image/'))
-                    <img src="{{ route('evrak.goster', $e) }}" alt="{{ $e->turu?->ad }}"
-                         style="max-width:100%; height:auto; border-radius:.5rem; display:block; margin-inline:auto;">
                 @else
-                    {{-- PDF: aynı köken, CSP 'self' izin veriyor --}}
-                    <iframe src="{{ route('evrak.goster', $e) }}" title="{{ $e->turu?->ad }}"
-                            style="width:100%; height:min(78vh, 900px); border:0; border-radius:.5rem; background:#fff;"></iframe>
+                    {{-- Tür ayrımı ve araç şeridi bileşenin içinde (S2). --}}
+                    <x-parcalar.dosya-onizleme
+                        :kaynak="route('evrak.goster', $e)"
+                        :mime="$e->mime"
+                        :ad="$e->orijinal_ad"
+                        :boyut="$e->boyut" />
                 @endif
             </x-filament::section>
         </div>
