@@ -98,10 +98,14 @@ class BasvurusTable
                     ->placeholder('—')
                     ->sortable(),
 
+                // Listede sürekli durmasına gerek yok: "bu başvuruyu kim
+                // inceledi" nadiren sorulan bir soru. Silmiyoruz -- silinirse
+                // cevap yalnız denetim kaydında kalır, orada aramak zahmetli;
+                // sütun seçicisinden bir tıkla geri geliyor. (Saha notları T2.)
                 TextColumn::make('inceleyen.name')
                     ->label('Sorumlu')
                     ->placeholder('—')
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('durum')

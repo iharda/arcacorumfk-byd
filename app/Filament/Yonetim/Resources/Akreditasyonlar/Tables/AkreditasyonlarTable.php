@@ -12,6 +12,7 @@ use App\Servisler\CsvDisaAktar;
 use App\Servisler\DenetimYazici;
 use App\Support\Telefon;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
@@ -59,20 +60,38 @@ class AkreditasyonlarTable
                     ->color(fn (AkreditasyonDurumu $state) => $state->renk())
                     ->formatStateUsing(fn (AkreditasyonDurumu $state) => $state->etiket()),
 
+                // Satır başına 1-4 rozet satır yüksekliğini ikiye katlıyor ve
+                // tabloyu yatay kaydırmaya sokuyordu; listede aranan bölge değil
+                // kişi ve durum. Bilgi kaybolmuyor: "Bölge yetkisi" kipinde tam
+                // hâliyle duruyor. (Saha notları T7.)
                 TextColumn::make('bolge_yetkileri')
                     ->label('Bölgeler')
                     ->badge()
                     ->separator()
                     ->formatStateUsing(fn ($state) => ((array) Ayar::al('bolgeler', []))[$state] ?? $state)
                     ->placeholder('Tanımsız')
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('guncelKart.surum')
+                /*
+                 * 🪤 Eskiden kartin SURUMU basiliyordu (s1, s2); yetkiliye
+                 * hicbir sey soylemiyordu. Soyleyen sey kartin HAZIR olup
+                 * olmadigi: uretim kuyrukta calistigi icin "yeniden uret"
+                 * dedikten sonra sonucu gorunecek tek yer burasi.
+                 * (Saha notlari T8 + T10'un liste ayagi.)
+                 */
+                TextColumn::make('kart_hazir')
                     ->label('Kart')
-                    ->formatStateUsing(fn ($state) => $state ? "s{$state}" : null)
-                    ->placeholder('Üretilmedi')
                     ->badge()
-                    ->color(fn ($state) => $state ? 'success' : 'warning'),
+                    ->state(fn (Akreditasyon $record) => match (true) {
+                        $record->guncelKart?->uretildi_at !== null => 'Hazır',
+                        $record->guncelKart !== null => 'Hazırlanıyor',
+                        default => 'Üretilmedi',
+                    })
+                    ->color(fn (string $state) => match ($state) {
+                        'Hazır' => 'success',
+                        'Hazırlanıyor' => 'warning',
+                        default => 'gray',
+                    }),
 
                 TextColumn::make('created_at')
                     ->label('Üretim')
@@ -173,95 +192,118 @@ class AkreditasyonlarTable
                         olay: 'akreditasyon.disa_aktarildi',
                     )),
             ])
+            /*
+             * 🧷 Satir basina bes eylem yan yana duruyordu; "Iptal et"e ulasmak
+             * icin sutun gizlemek gerekiyordu ve yatay kaydirmada Kart no ile
+             * Kisi ekrandan cikiyordu -- yetkili kimin satirinda oldugunu
+             * goremeden yikici eyleme basabiliyordu. Eylemler uc nokta
+             * menusune girer, iptal en altta ve AYRI durur. (Saha notlari E2.)
+             */
             ->recordActions([
-                Action::make('askiyaAl')
-                    ->label('Askıya al')
-                    ->icon('heroicon-m-pause-circle')
-                    ->color('warning')
-                    ->visible(fn (Akreditasyon $record) => $record->durum === AkreditasyonDurumu::Aktif
-                        && auth()->user()->can('akreditasyon.aski'))
-                    ->schema([
-                        Textarea::make('gerekce')->label('Gerekçe')->required()->rows(3)->maxLength(500),
-                    ])
-                    ->modalDescription('Kart askı süresince turnikeden GEÇMEZ. Askı sonradan kaldırılabilir.')
-                    ->action(fn (Akreditasyon $record, array $data) => self::calistir(
-                        fn () => app(AkreditasyonAkisi::class)->askiyaAl($record, $data['gerekce']),
-                        'Akreditasyon askıya alındı.',
-                    )),
+                ActionGroup::make([
+                    // İç içe ActionGroup + dropdown(false) = menüde ayırıcı çizgi.
+                    ActionGroup::make([
+                        Action::make('askiyaAl')
+                            ->label('Askıya al')
+                            ->icon('heroicon-m-pause-circle')
+                            ->color('warning')
+                            ->visible(fn (Akreditasyon $record) => $record->durum === AkreditasyonDurumu::Aktif
+                                && auth()->user()->can('akreditasyon.aski'))
+                            ->schema([
+                                Textarea::make('gerekce')->label('Gerekçe')->required()->rows(3)->maxLength(500),
+                            ])
+                            ->modalDescription('Kart askı süresince turnikeden GEÇMEZ. Askı sonradan kaldırılabilir.')
+                            ->action(fn (Akreditasyon $record, array $data) => self::calistir(
+                                fn () => app(AkreditasyonAkisi::class)->askiyaAl($record, $data['gerekce']),
+                                'Akreditasyon askıya alındı.',
+                            )),
 
-                Action::make('yenidenAktif')
-                    ->label('Askıyı kaldır')
-                    ->icon('heroicon-m-play-circle')
-                    ->color('success')
-                    ->requiresConfirmation()
-                    ->visible(fn (Akreditasyon $record) => $record->durum === AkreditasyonDurumu::Askida
-                        && auth()->user()->can('akreditasyon.aski'))
-                    ->action(fn (Akreditasyon $record) => self::calistir(
-                        fn () => app(AkreditasyonAkisi::class)->yenidenAktiflestir($record),
-                        'Akreditasyon yeniden etkin.',
-                    )),
+                        Action::make('yenidenAktif')
+                            ->label('Askıyı kaldır')
+                            ->icon('heroicon-m-play-circle')
+                            ->color('success')
+                            ->requiresConfirmation()
+                            // Sonucu olan her eylem ne olacagini yazar; Filament'in
+                            // "emin misiniz" varsayilani birakilmaz. (Saha notlari E1.)
+                            ->modalDescription('Kart bir sonraki okutmada yeniden geçerli olur. Askıya alma gerekçesi denetim kaydında kalır.')
+                            ->visible(fn (Akreditasyon $record) => $record->durum === AkreditasyonDurumu::Askida
+                                && auth()->user()->can('akreditasyon.aski'))
+                            ->action(fn (Akreditasyon $record) => self::calistir(
+                                fn () => app(AkreditasyonAkisi::class)->yenidenAktiflestir($record),
+                                'Akreditasyon yeniden etkin.',
+                            )),
 
-                Action::make('bolgeYetkisi')
-                    ->label('Bölge yetkisi')
-                    ->icon('heroicon-m-map-pin')
-                    ->visible(fn (Akreditasyon $record) => $record->durum !== AkreditasyonDurumu::Iptal
-                        && auth()->user()->can('akreditasyon.aski'))
-                    ->fillForm(fn (Akreditasyon $record) => ['bolgeler' => $record->bolge_yetkileri ?? []])
-                    ->schema([
-                        CheckboxList::make('bolgeler')
-                            ->label('Girebileceği bölgeler')
-                            ->helperText('Hiçbiri seçilmezse bölge kontrolü yapılmaz; kart geçerliyse her kapıdan geçer.')
-                            ->options(fn () => (array) Ayar::al('bolgeler', []))
-                            ->columns(2),
-                    ])
-                    ->action(function (Akreditasyon $record, array $data) {
-                        $eski = $record->bolge_yetkileri;
+                        Action::make('bolgeYetkisi')
+                            ->label('Bölge yetkisi')
+                            ->icon('heroicon-m-map-pin')
+                            ->visible(fn (Akreditasyon $record) => $record->durum !== AkreditasyonDurumu::Iptal
+                                && auth()->user()->can('akreditasyon.aski'))
+                            ->fillForm(fn (Akreditasyon $record) => ['bolgeler' => $record->bolge_yetkileri ?? []])
+                            ->schema([
+                                CheckboxList::make('bolgeler')
+                                    ->label('Girebileceği bölgeler')
+                                    ->helperText('Hiçbiri seçilmezse bölge kontrolü yapılmaz; kart geçerliyse her kapıdan geçer.')
+                                    ->options(fn () => (array) Ayar::al('bolgeler', []))
+                                    ->columns(2),
+                            ])
+                            ->action(function (Akreditasyon $record, array $data) {
+                                $eski = $record->bolge_yetkileri;
 
-                        DB::transaction(function () use ($record, $data, $eski) {
-                            $record->update(['bolge_yetkileri' => $data['bolgeler'] ?: null]);
+                                DB::transaction(function () use ($record, $data, $eski) {
+                                    $record->update(['bolge_yetkileri' => $data['bolgeler'] ?: null]);
 
-                            app(DenetimYazici::class)->yaz('akreditasyon.bolge_degisti', $record,
-                                eski: ['bolge_yetkileri' => $eski],
-                                yeni: ['bolge_yetkileri' => $data['bolgeler'] ?: null]);
-                        });
+                                    app(DenetimYazici::class)->yaz('akreditasyon.bolge_degisti', $record,
+                                        eski: ['bolge_yetkileri' => $eski],
+                                        yeni: ['bolge_yetkileri' => $data['bolgeler'] ?: null]);
+                                });
 
-                        // Bölgeler kartın üstünde yazıyor: kart yeniden üretilmeli.
-                        KartUret::dispatch($record, bildirimGonder: false, tetikleyenId: auth()->id())->afterCommit();
+                                // Bölgeler kartın üstünde yazıyor: kart yeniden üretilmeli.
+                                KartUret::dispatch($record, bildirimGonder: false, tetikleyenId: auth()->id())->afterCommit();
 
-                        Notification::make()
-                            ->title('Bölge yetkisi güncellendi, kart yeniden üretiliyor.')
-                            ->success()->send();
-                    }),
+                                Notification::make()
+                                    ->title('Bölge yetkisi güncellendi, kart yeniden üretiliyor.')
+                                    ->success()->send();
+                            }),
 
-                Action::make('kartYenidenUret')
-                    ->label('Kartı yeniden üret')
-                    ->icon('heroicon-m-arrow-path')
-                    ->requiresConfirmation()
-                    ->modalDescription('Yeni sürüm üretilir, eskisi arşivlenir. QR ve kart numarası DEĞİŞMEZ.')
-                    ->visible(fn (Akreditasyon $record) => $record->durum !== AkreditasyonDurumu::Iptal
-                        && auth()->user()->can('kart.uret'))
-                    ->action(function (Akreditasyon $record) {
-                        KartUret::dispatch($record, bildirimGonder: false, tetikleyenId: auth()->id());
+                        Action::make('kartYenidenUret')
+                            ->label('Kartı yeniden üret')
+                            ->icon('heroicon-m-arrow-path')
+                            ->requiresConfirmation()
+                            ->modalDescription('Yeni sürüm üretilir, eskisi arşivlenir. QR ve kart numarası DEĞİŞMEZ.')
+                            ->visible(fn (Akreditasyon $record) => $record->durum !== AkreditasyonDurumu::Iptal
+                                && auth()->user()->can('kart.uret'))
+                            ->action(function (Akreditasyon $record) {
+                                KartUret::dispatch($record, bildirimGonder: false, tetikleyenId: auth()->id());
 
-                        Notification::make()->title('Kart üretimi kuyruğa alındı.')->success()->send();
-                    }),
+                                Notification::make()->title('Kart üretimi kuyruğa alındı.')->success()->send();
+                            }),
+                    ])->dropdown(false),
 
-                Action::make('iptal')
-                    ->label('İptal et')
-                    ->icon('heroicon-m-no-symbol')
-                    ->color('danger')
-                    ->visible(fn (Akreditasyon $record) => $record->durum !== AkreditasyonDurumu::Iptal
-                        && auth()->user()->can('akreditasyon.iptal'))
-                    ->schema([
-                        Textarea::make('neden')->label('İptal nedeni')->required()->rows(3)->maxLength(500),
-                    ])
-                    // Geri alınamaz bir adım: sonucu açıkça yaz.
-                    ->modalDescription('Kart kalıcı olarak geçersizleşir ve turnike erişimi anında kapanır. Geri alınamaz; kişi yeniden başvurmalıdır.')
-                    ->modalSubmitActionLabel('İptal et')
-                    ->action(fn (Akreditasyon $record, array $data) => self::calistir(
-                        fn () => app(AkreditasyonAkisi::class)->iptalEt($record, $data['neden']),
-                        'Akreditasyon iptal edildi.',
-                    )),
+                    // 🔻 Geri alınamaz: menünün en altında ve AYRI dursun.
+                    ActionGroup::make([
+                        Action::make('iptal')
+                            ->label('İptal et')
+                            ->icon('heroicon-m-no-symbol')
+                            ->color('danger')
+                            ->visible(fn (Akreditasyon $record) => $record->durum !== AkreditasyonDurumu::Iptal
+                                && auth()->user()->can('akreditasyon.iptal'))
+                            ->schema([
+                                Textarea::make('neden')->label('İptal nedeni')->required()->rows(3)->maxLength(500),
+                            ])
+                            // Geri alınamaz bir adım: sonucu açıkça yaz.
+                            ->modalDescription('Kart kalıcı olarak geçersizleşir ve turnike erişimi anında kapanır. Geri alınamaz; kişi yeniden başvurmalıdır.')
+                            ->modalSubmitActionLabel('İptal et')
+                            ->action(fn (Akreditasyon $record, array $data) => self::calistir(
+                                fn () => app(AkreditasyonAkisi::class)->iptalEt($record, $data['neden']),
+                                'Akreditasyon iptal edildi.',
+                            )),
+                    ])->dropdown(false),
+
+                ])
+                    ->label('İşlemler')
+                    ->icon('heroicon-m-ellipsis-vertical')
+                    ->button()
+                    ->dropdownPlacement('bottom-end'),
             ])
             ->toolbarActions([])
             ->emptyStateHeading('Akreditasyon yok')
