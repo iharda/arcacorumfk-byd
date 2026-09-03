@@ -4,6 +4,7 @@ namespace App\Filament\Yonetim\Resources\Kurumlar\Tables;
 
 use App\Enums\DegerlendirmePuani;
 use App\Filament\Yonetim\Ortak\DegerlendirmeEylemi;
+use App\Filament\Yonetim\Resources\Kurumlar\KurumResource;
 use App\Models\Degerlendirme;
 use App\Models\Kurum;
 use App\Servisler\KurumAkreditasyonu;
@@ -27,6 +28,8 @@ class KurumlarTable
     public static function configure(Table $table): Table
     {
         return $table
+            // Satırın kendisi detayı açar (S1 + T1'in aynı kuralı).
+            ->recordUrl(fn (Kurum $record) => KurumResource::getUrl('detay', ['record' => $record]))
             // ⚠️ Parametre adı $query olmalı (Filament ada göre enjekte eder).
             ->modifyQueryUsing(fn (Builder $query) => $query
                 ->withCount([

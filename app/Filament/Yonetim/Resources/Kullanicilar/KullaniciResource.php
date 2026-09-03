@@ -2,6 +2,8 @@
 
 namespace App\Filament\Yonetim\Resources\Kullanicilar;
 
+use App\Filament\Yonetim\Resources\Kullanicilar\Pages\KullaniciDetay;
+use App\Filament\Yonetim\Resources\Kullanicilar\Pages\KullaniciDuzenle;
 use App\Filament\Yonetim\Resources\Kullanicilar\Pages\ListKullanicilar;
 use App\Filament\Yonetim\Resources\Kullanicilar\Tables\KullanicilarTable;
 use App\Models\User;
@@ -52,6 +54,10 @@ class KullaniciResource extends Resource
 
     public static function getPages(): array
     {
-        return ['index' => ListKullanicilar::route('/')];
+        return [
+            'index' => ListKullanicilar::route('/'),
+            'detay' => KullaniciDetay::route('/{record}/detay'),
+            'duzenle' => KullaniciDuzenle::route('/{record}/duzenle'),
+        ];
     }
 }

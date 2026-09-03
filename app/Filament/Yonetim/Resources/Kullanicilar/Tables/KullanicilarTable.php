@@ -4,12 +4,15 @@ namespace App\Filament\Yonetim\Resources\Kullanicilar\Tables;
 
 use App\Enums\DegerlendirmePuani;
 use App\Filament\Yonetim\Ortak\DegerlendirmeEylemi;
+use App\Filament\Yonetim\Resources\Kullanicilar\KullaniciResource;
 use App\Models\Degerlendirme;
 use App\Models\User;
+use App\Notifications\EpostaAdresiDegisti;
 use App\Servisler\DenetimYazici;
 use App\Support\Telefon;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -17,7 +20,9 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Notification as PostaYolu;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
 
 /**
@@ -34,6 +39,7 @@ class KullanicilarTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->recordUrl(fn (User $record) => KullaniciResource::getUrl('detay', ['record' => $record]))
             // ⚠️ Parametre adı $query olmalı (Filament ada göre enjekte eder).
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['roles', 'degerlendirme']))
             ->defaultSort('name')
@@ -113,6 +119,57 @@ class KullanicilarTable
             ])
             ->recordActions([
                 DegerlendirmeEylemi::kisi(),
+
+                /*
+                 * ⚠️ E-POSTA AYRI EYLEM (T13): künye formunda bilerek yok.
+                 * E-posta giriş kimliğinin kendisi -- değiştirmek hesabın
+                 * kapısını değiştirmek demek. Bu yüzden üç şart:
+                 * denetime yazılır, ESKİ adrese bilgilendirme gider ve
+                 * benzersizlik kuralı burada da sorulur.
+                 */
+                Action::make('epostaDegistir')
+                    ->label('E-posta değiştir')
+                    ->icon('heroicon-m-envelope')
+                    ->visible(fn (User $record) => auth()->user()->can('update', $record))
+                    ->fillForm(fn (User $record) => ['email' => $record->email])
+                    ->schema([
+                        TextInput::make('email')
+                            ->label('Yeni e-posta adresi')
+                            ->email()
+                            ->required()
+                            ->maxLength(200)
+                            ->rule(fn (User $record) => Rule::unique('users', 'email')->ignore($record->id)),
+                    ])
+                    ->modalDescription('Kullanıcı bundan sonra YENİ adresiyle giriş yapar. '
+                        .'Değişiklik denetim kaydına yazılır ve eski adrese bilgilendirme gönderilir.')
+                    ->modalSubmitActionLabel('E-postayı değiştir')
+                    ->action(function (User $record, array $data) {
+                        $eski = $record->email;
+                        $yeni = mb_strtolower(trim($data['email']));
+
+                        if ($eski === $yeni) {
+                            Notification::make()->title('Adres zaten aynı.')->warning()->send();
+
+                            return;
+                        }
+
+                        $record->update(['email' => $yeni]);
+
+                        app(DenetimYazici::class)->yaz('kullanici.eposta_degistirildi', $record,
+                            eski: ['email' => $eski],
+                            yeni: ['email' => $yeni]);
+
+                        /*
+                         * 🔒 Eski adrese haber: kişi kapısının değiştiğini
+                         * öğrenmeli. Kullanıcının kendisine notify() edilemez --
+                         * modelde artık YENİ adres var, mesaj yeni adrese
+                         * giderdi. Bu yüzden adrese doğrudan yollanıyor.
+                         */
+                        PostaYolu::route('mail', $eski)
+                            ->notify(new EpostaAdresiDegisti($eski, $yeni, $record->name));
+
+                        Notification::make()->title('E-posta adresi güncellendi.')->success()->send();
+                    }),
 
                 Action::make('roller')
                     ->label('Roller')

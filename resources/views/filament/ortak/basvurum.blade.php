@@ -85,7 +85,8 @@
             @foreach ($this->evrakTurleri as $tur)
                 @php $yuklu = $basvuru->evraklar->firstWhere('evrak_turu_id', $tur->id); @endphp
 
-                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:.75rem; padding:.85rem 1rem;
+                <div x-data="{ acik: false }"
+                     style="display:flex; flex-wrap:wrap; align-items:center; gap:.75rem; padding:.85rem 1rem;
                             border:1px solid rgb(var(--gray-200)); border-radius:.6rem;">
                     <div style="flex:1 1 16rem; min-width:12rem;">
                         <div style="font-size:.9rem; font-weight:600;">
@@ -102,10 +103,31 @@
                     @if ($yuklu)
                         <x-filament::badge color="success">Yüklendi</x-filament::badge>
                         <span style="font-size:.75rem; opacity:.6;">{{ $yuklu->orijinal_ad }}</span>
+                        {{-- S4: yüklenen belge GERİ AÇILABİLİR olmalı. Eksik evrak
+                             talebi gelince "ben ne yüklemiştim" sorusunun cevabı
+                             yoktu; kişi aynı belgeyi yeniden bulup yüklüyordu.
+                             Yetki tarafında yeni bir şey gerekmiyor:
+                             EvrakPolicy::view sahibi zaten kontrol ediyor. --}}
+                        <button type="button" @click="acik = ! acik"
+                                style="border:0; background:none; padding:0; cursor:pointer;
+                                       font-size:.8rem; text-decoration:underline;">
+                            <span x-show="! acik">Görüntüle</span>
+                            <span x-show="acik" x-cloak>Gizle</span>
+                        </button>
                     @else
                         <x-filament::badge color="gray">Bekliyor</x-filament::badge>
                     @endif
 
+                    @if ($yuklu)
+                        <div x-show="acik" x-cloak style="flex:1 1 100%; margin-top:.35rem;">
+                            <x-parcalar.dosya-onizleme
+                                :kaynak="route('evrak.goster', $yuklu)"
+                                :mime="$yuklu->mime"
+                                :ad="$yuklu->orijinal_ad"
+                                :boyut="$yuklu->boyut"
+                                yukseklik="min(55vh, 640px)" />
+                        </div>
+                    @endif
                 </div>
             @endforeach
         </div>

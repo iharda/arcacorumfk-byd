@@ -2,6 +2,8 @@
 
 namespace App\Filament\Yonetim\Resources\Kurumlar;
 
+use App\Filament\Yonetim\Resources\Kurumlar\Pages\KurumDetay;
+use App\Filament\Yonetim\Resources\Kurumlar\Pages\KurumDuzenle;
 use App\Filament\Yonetim\Resources\Kurumlar\Pages\ListKurumlar;
 use App\Filament\Yonetim\Resources\Kurumlar\Tables\KurumlarTable;
 use App\Models\Kurum;
@@ -41,6 +43,11 @@ class KurumResource extends Resource
 
     public static function getPages(): array
     {
-        return ['index' => ListKurumlar::route('/')];
+        return [
+            'index' => ListKurumlar::route('/'),
+            // S1: her kaydın kalıcı adresi olan detayı olacak (T5).
+            'detay' => KurumDetay::route('/{record}/detay'),
+            'duzenle' => KurumDuzenle::route('/{record}/duzenle'),
+        ];
     }
 }
