@@ -6,9 +6,10 @@ use App\Enums\DegerlendirmePuani;
 use App\Filament\Yonetim\Ortak\DegerlendirmeEylemi;
 use App\Models\Degerlendirme;
 use App\Models\Kurum;
-use App\Servisler\DenetimYazici;
+use App\Servisler\KurumAkreditasyonu;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -141,15 +142,52 @@ class KurumlarTable
                     ])
                     ->modalDescription('Kurumun çalışanları yeni başvuru yapamaz. Mevcut kartlar bu adımla İPTAL OLMAZ; onları ayrıca askıya alın.')
                     ->action(function (Kurum $record, array $data) {
-                        $eski = $record->akreditasyon_durumu;
-                        $record->update(['akreditasyon_durumu' => 'iptal']);
-
-                        app(DenetimYazici::class)->yaz('kurum.akreditasyon_kaldirildi', $record,
-                            eski: ['akreditasyon_durumu' => $eski],
-                            yeni: ['akreditasyon_durumu' => 'iptal'],
-                            not: $data['gerekce']);
+                        app(KurumAkreditasyonu::class)->kaldir($record, $data['gerekce']);
 
                         Notification::make()->title('Akreditasyon kaldırıldı.')->success()->send();
+                    }),
+
+                // 🔁 SİMETRİ ŞART: kaldırma eylemi durumu 'iptal' yapıp kendini
+                // gizliyordu, tersini yapan eylem yoktu -- kurum "İptal"de
+                // kilitleniyor, çalışanları yeni başvuru yapamıyordu. Tek çıkış
+                // veritabanına elle müdahaleydi. (Saha notları T6.)
+                Action::make('akrediteEt')
+                    ->label('Akreditasyonu geri ver')
+                    ->icon('heroicon-m-check-badge')
+                    ->color('success')
+                    // ⚠️ YALNIZ 'iptal'den geri dönüş. 'beklemede' buraya girmez:
+                    // oradaki akreditasyon başvuru onayıyla doğar (BasvuruAkisi),
+                    // hesap açılması ve bildirim o akışa bağlı. Buradan akredite
+                    // etmek kurumu yetkilisiz bırakırdı.
+                    ->visible(fn (Kurum $record) => $record->akreditasyon_durumu === 'iptal'
+                        && auth()->user()->can('akredite', $record))
+                    ->fillForm(fn (Kurum $record) => ['kontenjan' => $record->kontenjan])
+                    ->schema([
+                        Textarea::make('gerekce')
+                            ->label('Gerekçe')
+                            ->required()
+                            ->rows(3)
+                            ->maxLength(500),
+
+                        // Kontenjan başvuru kabulünü doğrudan etkiliyor ama
+                        // değiştirilecek ekranı yoktu; geri verme anı doğal yeri.
+                        TextInput::make('kontenjan')
+                            ->label('Kontenjan')
+                            ->helperText('Boş bırakılırsa sınırsız.')
+                            ->numeric()
+                            ->minValue(1)
+                            ->maxValue(999),
+                    ])
+                    ->modalDescription('Kurumun çalışanları yeniden başvuru yapabilir. İptal edilmiş kartlar bu adımla GERİ GELMEZ; gerekiyorsa yeniden üretin.')
+                    ->modalSubmitActionLabel('Akreditasyonu geri ver')
+                    ->action(function (Kurum $record, array $data) {
+                        app(KurumAkreditasyonu::class)->geriVer(
+                            $record,
+                            $data['gerekce'],
+                            filled($data['kontenjan'] ?? null) ? (int) $data['kontenjan'] : null,
+                        );
+
+                        Notification::make()->title('Kurum yeniden akredite edildi.')->success()->send();
                     }),
             ])
             ->toolbarActions([])
