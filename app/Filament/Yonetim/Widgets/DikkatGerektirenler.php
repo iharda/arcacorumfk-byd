@@ -62,8 +62,8 @@ class DikkatGerektirenler extends Widget
                 'sebep' => 'Kuyrukta uzun bekleyen',
                 'renk' => 'danger',
                 'baslik' => $b->kurum->resmi_unvan ?? $b->basvuranAdi(),
-                'ayrinti' => $b->basvuru_no.' · '
-                    .(int) $b->gonderildi_at->copy()->startOfDay()->diffInDays(now()->startOfDay()).' gündür kuyrukta',
+                // Süre cümlesi kuyruk listesiyle AYNI kaynaktan (T4).
+                'ayrinti' => implode(' · ', array_filter([$b->basvuru_no, $b->bekleyenSure()])),
                 'adres' => route('filament.yonetim.resources.basvurular.inceleme', ['record' => $b->ulid]),
             ]);
 

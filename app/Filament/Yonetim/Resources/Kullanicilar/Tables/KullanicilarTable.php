@@ -278,7 +278,14 @@ class KullanicilarTable
 
                         Notification::make()->title('Hesap aktif edildi.')->success()->send();
                     }),
-            ]);
+            ])
+            /*
+             * Boş ekran HATA ekranından ayırt edilebilmeli (saha notları E5):
+             * süzgeç sonucu boş kalan liste ile hesabın hiç doğmadığı liste
+             * aynı görünüyordu. Hesabın nereden geldiğini de burada söylüyoruz.
+             */
+            ->emptyStateHeading('Kullanıcı yok')
+            ->emptyStateDescription('Hesaplar başvuru ONAYLANDIĞINDA açılır; kurum yetkilileri çalışanlarını kendi panelinden davet eder.');
     }
 
     /** Rol adının ekranda görünen karşılığı. */

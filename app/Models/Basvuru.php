@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Concerns\UlidAnahtari;
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
-use App\Servisler\BasvuruNoUretici;
 use App\Servisler\DuzeltmeUygulayici;
 use App\Support\DuzeltmeAlanlari;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,7 +19,9 @@ use RuntimeException;
 
 /**
  * @property string $ulid
- * @property string $basvuru_no 4 karakterlik, basvurana gosterilen numara
+ * @property ?string $basvuru_no 2026-BV-0137 -- GONDERIM aninda verilir
+ * @property ?int $no_yil basvuru numarasindaki yil
+ * @property ?int $no_sira o yilin kacinci basvurusu
  * @property BasvuruTuru $tur
  * @property BasvuruDurumu $durum
  * @property ?int $kullanici_id hesap ONAY aninda acilir; o ana kadar null
@@ -43,19 +44,6 @@ class Basvuru extends Model
     protected $table = 'basvurular';
 
     protected $guarded = ['id'];
-
-    /**
-     * Kisa basvuru numarasi kayit ANINDA verilir: "basvurunuz alindi" e-postasi
-     * ayni islemde kuyruga girer, numara o an hazir olmali.
-     */
-    protected static function booted(): void
-    {
-        static::creating(function (self $basvuru) {
-            if (blank($basvuru->basvuru_no)) {
-                $basvuru->basvuru_no = app(BasvuruNoUretici::class)->uret();
-            }
-        });
-    }
 
     protected function casts(): array
     {
@@ -154,6 +142,39 @@ class Basvuru extends Model
     public function basvuranEpostasi(): ?string
     {
         return $this->kullanici->email ?? $this->basvuran_eposta;
+    }
+
+    /**
+     * Kuyrukta gecen sure -- gun. Kuyrukta olmayan ya da hic gonderilmemis
+     * basvuruda null.
+     *
+     * 🕐 Gun farki GUN BASINDAN sayilir: dun 23:00'te gelen basvuru "0 gun"
+     * degil "1 gundur" bekliyor; yetkilinin takvimi saat degil gun.
+     */
+    public function bekleyenGun(): ?int
+    {
+        if ($this->gonderildi_at === null
+            || ! in_array($this->durum, BasvuruDurumu::kuyruk(), true)) {
+            return null;
+        }
+
+        return (int) $this->gonderildi_at->copy()->startOfDay()
+            ->diffInDays(now()->startOfDay());
+    }
+
+    /**
+     * Ayni surenin okunur hali: "14 gündür kuyrukta". Panoda ve kuyruk
+     * listesinde AYNI cumle gorunsun diye tek tanim (saha notlari T4).
+     */
+    public function bekleyenSure(): ?string
+    {
+        $gun = $this->bekleyenGun();
+
+        return match (true) {
+            $gun === null => null,
+            $gun === 0 => 'bugün geldi',
+            default => $gun.' gündür kuyrukta',
+        };
     }
 
     /**

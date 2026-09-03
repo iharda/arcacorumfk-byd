@@ -55,7 +55,10 @@ class EksikEvrakTalebi extends Notification implements ShouldQueue
         $mesaj = (new MailMessage)
             ->subject('Başvurunuzda eksik/hatalı bilgi var — ARCA Çorum FK')
             ->greeting('Merhaba '.$this->basvuru->basvuranAdi().',')
-            ->line('Başvurunuz incelendi ve aşağıdaki noktaların düzeltilmesi gerekiyor:');
+            // 🔑 Numara HER yazışmada geçsin (saha notları E8): kişi telefonla
+            // aradığında "hangi başvuru" sorusunun cevabı elinde olmalı.
+            ->line('**'.$this->basvuru->basvuru_no.'** numaralı başvurunuz incelendi ve '
+                .'aşağıdaki noktaların düzeltilmesi gerekiyor:');
 
         foreach ($this->basvuru->duzeltme_notlari ?? [] as $alan => $aciklama) {
             // 🪤 `$alan` bir ANAHTAR (`evrak:kimlik`); etiket üretilir (md.11).

@@ -32,6 +32,7 @@ class BasvuruAkisi
         private AkreditasyonAkisi $akreditasyon,
         private HesapAcici $hesapAcici,
         private BasvuruBiletiAkisi $bilet,
+        private BasvuruNoUretici $basvuruNo,
     ) {}
 
     public function gonder(Basvuru $basvuru): void
@@ -45,6 +46,15 @@ class BasvuruAkisi
          * cevabı gelmiş başvuru birbirinden ayırt edilemiyordu.
          */
         $duzeltmedenDonus = $basvuru->durum === BasvuruDurumu::EksikEvrak;
+
+        /*
+         * 🔑 Numara GÖNDERİM anında verilir, taslakta değil (saha notları T3):
+         * gönderilmeyen başvuru numara yakarsa seride boşluk oluşur ve
+         * "2026-BV-0137" sıralı olma iddiasını kaybeder. Düzeltmeden dönüşte
+         * numara DEĞİŞMEZ -- başvuranın elindeki numara aynı başvuruyu
+         * göstermeye devam etmeli.
+         */
+        $this->basvuruNo->ver($basvuru);
 
         // Teyit gerekliliği GÖNDERİM ANINDA dondurulur; ayar sonradan değişse de
         // yoldaki başvurunun kuralı değişmez.

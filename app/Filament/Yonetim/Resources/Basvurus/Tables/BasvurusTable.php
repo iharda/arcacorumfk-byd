@@ -6,12 +6,18 @@ use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
 use App\Filament\Yonetim\Resources\Basvurus\BasvuruResource;
 use App\Models\Basvuru;
+use App\Servisler\BasvuruAkisi;
 use App\Servisler\CsvDisaAktar;
+use App\Support\TopluIslem;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Forms\Components\Textarea;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 class BasvurusTable
 {
@@ -32,20 +38,17 @@ class BasvurusTable
             ->defaultSort('gonderildi_at', 'asc')
             ->columns([
                 /*
-                 * Basvuran e-postadaki 4 karakterlik numarayla ariyor
-                 * (telefonda okunan numara bu). ULID kuyrukta gorunmez.
+                 * Basvuran e-postadaki numarayla ariyor (2026-BV-0137);
+                 * ULID kuyrukta hic gorunmez. Gonderilmemis basvuruda numara
+                 * YOKTUR -- numara gonderim aninda veriliyor (T3).
                  */
                 TextColumn::make('basvuru_no')
-                    ->label('Başvuru no')
+                    ->label('No')
                     ->fontFamily('mono')
+                    ->placeholder('—')
                     ->copyable()
-                    ->searchable(),
-
-                TextColumn::make('tur')
-                    ->label('Başvuru türü')
-                    ->badge()
-                    ->color('gray')
-                    ->formatStateUsing(fn (BasvuruTuru $state) => $state->etiket()),
+                    ->searchable()
+                    ->sortable(['no_yil', 'no_sira']),
 
                 /*
                  * Kurumsal başvuruda kurum ünvanı, bireyselde KİŞİ ADI gösterilir.
@@ -83,16 +86,31 @@ class BasvurusTable
                                 ->where('name', 'ilike', "%{$search}%")
                                 ->orWhere('email', 'ilike', "%{$search}%")))),
 
+                TextColumn::make('tur')
+                    ->label('Tür')
+                    ->badge()
+                    ->color('gray')
+                    ->formatStateUsing(fn (BasvuruTuru $state) => $state->etiket()),
+
                 TextColumn::make('durum')
                     ->label('Durum')
                     ->badge()
                     ->color(fn (BasvuruDurumu $state) => $state->renk())
                     ->formatStateUsing(fn (BasvuruDurumu $state) => $state->etiket())
                     // Durum adları yeni; ne anlama geldikleri fare üstüne gelince.
-                    ->tooltip(fn (BasvuruDurumu $state) => $state->aciklama()),
+                    ->tooltip(fn (BasvuruDurumu $state) => $state->aciklama())
+                    /*
+                     * 🔑 Bekleme süresi durumun ALTINDA (saha notları T4):
+                     * Genel bakış "en eski bekleyen 14 gün" diyordu ama
+                     * hangisi olduğu listede görünmüyordu; yetkili sıralamayı
+                     * gözüyle takip etmek zorunda kalıyordu. Kuyrukta olmayan
+                     * başvuruda satır boş kalır -- karara bağlanmış başvurunun
+                     * bekleme süresi bir şey anlatmaz.
+                     */
+                    ->description(fn (Basvuru $record) => $record->bekleyenSure()),
 
                 TextColumn::make('gonderildi_at')
-                    ->label('Başvuru tarihi')
+                    ->label('Gönderim')
                     // 🕐 timeZone SABİTLENİR: sunucu UTC, kullanıcı Türkiye saati bekler.
                     ->dateTime('d.m.Y H:i', 'Europe/Istanbul')
                     ->placeholder('—')
@@ -154,7 +172,37 @@ class BasvurusTable
              */
             ->recordUrl(fn (Basvuru $record) => BasvuruResource::getUrl('inceleme', ['record' => $record]))
             ->recordActions([])
-            ->toolbarActions([])
+            /*
+             * 🧷 Kuyruk temizliği (saha notları E4): sezon sonunda kuyrukta
+             * cevapsız kalmış başvurular tek tek düşürülüyordu.
+             *
+             * 🔒 Her satır KENDİ servis çağrısından geçer -- denetim kaydı
+             * satır satır yazılsın. Kuyrukta olmayan (karara bağlanmış) satır
+             * atlanır; iptal yalnız kuyruktan yapılabilir.
+             */
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    BulkAction::make('topluIptal')
+                        ->label('Başvuruları iptal et')
+                        ->icon('heroicon-m-no-symbol')
+                        ->color('danger')
+                        ->visible(fn () => auth()->user()->can('basvuru.karar'))
+                        ->schema([
+                            Textarea::make('gerekce')->label('İptal gerekçesi')->required()->rows(3)->maxLength(500),
+                        ])
+                        ->modalHeading('Seçilen başvuruları iptal et')
+                        // Yıkıcı ve geri alınamaz: sonucu açıkça yaz (E1).
+                        ->modalDescription('Başvurular kuyruktan düşer ve yeniden açılamaz. Başvuranlara bildirim GİTMEZ; iptali kendilerine siz haber vermelisiniz. Karara bağlanmış satırlar atlanır.')
+                        ->modalSubmitActionLabel('Başvuruları iptal et')
+                        ->action(fn (Collection $records, array $data) => TopluIslem::calistir(
+                            $records,
+                            '%d başvuru iptal edildi.',
+                            fn (Basvuru $b) => app(BasvuruAkisi::class)->iptalEt($b, $data['gerekce']),
+                            fn (Basvuru $b) => auth()->user()->can('iptalEt', $b),
+                        ))
+                        ->deselectRecordsAfterCompletion(),
+                ])->label('Seçilenler'),
+            ])
             ->emptyStateHeading('Kuyrukta başvuru yok')
             ->emptyStateDescription('Yeni başvurular buraya düşer.');
     }

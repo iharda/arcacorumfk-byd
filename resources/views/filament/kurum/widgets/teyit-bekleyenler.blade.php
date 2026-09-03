@@ -24,7 +24,7 @@
                             {{ $basvuru->basvuranAdi() }}
                         </div>
                         <div style="font-size:.75rem; opacity:.7; margin-top:.1rem;">
-                            {{ $basvuru->tur->etiket() }} · {{ $basvuru->basvuru_no }}
+                            {{ $basvuru->tur->etiket() }} · {{ $basvuru->basvuru_no ?? '—' }}
                             @if ($gonderim)
                                 · {{ $gonderim->format('d.m.Y') }}
                                 <span style="{{ $gecikti ? 'font-weight:600;' : '' }}">

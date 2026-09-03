@@ -41,7 +41,9 @@ class BasvuruReddedildi extends Notification implements ShouldQueue
         $mesaj = (new MailMessage)
             ->subject('Başvurunuz hakkında — ARCA Çorum FK')
             ->greeting('Merhaba '.$this->basvuru->basvuranAdi().',')
-            ->line('Başvurunuz değerlendirildi ve olumsuz sonuçlandı.')
+            // 🔑 Numara HER yazışmada geçsin (saha notları E8).
+            ->line('**'.$this->basvuru->basvuru_no.'** numaralı başvurunuz değerlendirildi '
+                .'ve olumsuz sonuçlandı.')
             ->line('**Gerekçe:** '.($this->basvuru->karar_gerekcesi ?: 'Belirtilmedi'));
 
         /*

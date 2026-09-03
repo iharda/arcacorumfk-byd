@@ -19,6 +19,7 @@ use App\Models\KapiIstemcisi;
 use App\Models\Kurum;
 use App\Models\User;
 use App\Servisler\AkreditasyonAkisi;
+use App\Servisler\BasvuruNoUretici;
 use App\Servisler\EvrakYukleyici;
 use App\Servisler\KapiIstemcisiAkisi;
 use Illuminate\Console\Command;
@@ -150,6 +151,10 @@ class PilotVerisi extends Command
             'karar_at' => now()->subDays(random_int(1, 2)),
         ]);
 
+        // Numara akista GONDERIM aninda veriliyor; pilot verisi akisi
+        // atladigi icin uretici burada elle cagriliyor.
+        app(BasvuruNoUretici::class)->ver($basvuru);
+
         $this->evrak($basvuru, 'biyometrik_fotograf', 'foto.jpg', 'image/jpeg');
         $this->evrak($basvuru, 'kimlik_gorseli', 'kimlik.jpg', 'image/jpeg');
 
@@ -188,6 +193,8 @@ class PilotVerisi extends Command
                 'calisma_yili' => DeneyimAraligi::sayidan(random_int(1, 15))?->value,
             ],
         ]);
+
+        app(BasvuruNoUretici::class)->ver($basvuru);
 
         $this->evrak($basvuru, 'biyometrik_fotograf', 'foto.jpg', 'image/jpeg');
         $this->evrak($basvuru, 'kimlik_gorseli', 'kimlik.jpg', 'image/jpeg');

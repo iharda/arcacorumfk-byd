@@ -13,8 +13,11 @@ use App\Servisler\AkreditasyonAkisi;
 use App\Servisler\CsvDisaAktar;
 use App\Servisler\DenetimYazici;
 use App\Support\Telefon;
+use App\Support\TopluIslem;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
@@ -26,6 +29,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -344,7 +348,71 @@ class AkreditasyonlarTable
                     ->button()
                     ->dropdownPlacement('bottom-end'),
             ])
-            ->toolbarActions([])
+            /*
+             * 🧷 SEZON GEÇİŞİ (saha notları E4): "sezon sonunda yüzlerce
+             * akreditasyonun süresi dolacak ve hepsi tek tek elden geçecek."
+             * Seçim + toplu işlem o geçişi dakikalara indiriyor.
+             *
+             * 🔒 Her satır KENDİ servis çağrısından geçer: denetim kaydı satır
+             * satır yazılsın, "toplu işlem yapıldı" diye tek kayıt kalmasın.
+             * Uygun durumda olmayan satırlar sessizce atlanır (seçimde hepsi
+             * birden işaretleniyor; yetkiliyi durum durum ayıklamaya zorlamak
+             * toplu işlemin amacını yok eder).
+             */
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    BulkAction::make('topluAskiyaAl')
+                        ->label('Askıya al')
+                        ->icon('heroicon-m-pause-circle')
+                        ->color('warning')
+                        ->visible(fn () => auth()->user()->can('akreditasyon.aski'))
+                        ->schema([
+                            Textarea::make('gerekce')->label('Gerekçe')->required()->rows(3)->maxLength(500),
+                        ])
+                        ->modalHeading('Seçilenleri askıya al')
+                        ->modalDescription('Kartlar askı süresince turnikeden GEÇMEZ. Aktif olmayan satırlar atlanır; askı sonradan kaldırılabilir.')
+                        ->modalSubmitActionLabel('Askıya al')
+                        ->action(fn (Collection $records, array $data) => TopluIslem::calistir(
+                            $records,
+                            '%d akreditasyon askıya alındı.',
+                            fn (Akreditasyon $a) => app(AkreditasyonAkisi::class)->askiyaAl($a, $data['gerekce']),
+                            fn (Akreditasyon $a) => $a->durum === AkreditasyonDurumu::Aktif,
+                        ))
+                        ->deselectRecordsAfterCompletion(),
+
+                    BulkAction::make('topluAskiyiKaldir')
+                        ->label('Askıyı kaldır')
+                        ->icon('heroicon-m-play-circle')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->visible(fn () => auth()->user()->can('akreditasyon.aski'))
+                        ->modalHeading('Seçilenlerin askısını kaldır')
+                        ->modalDescription('Kartlar bir sonraki okutmada yeniden geçerli olur. Askıda olmayan satırlar atlanır; askıya alma gerekçeleri denetim kaydında kalır.')
+                        ->action(fn (Collection $records) => TopluIslem::calistir(
+                            $records,
+                            '%d akreditasyon yeniden etkin.',
+                            fn (Akreditasyon $a) => app(AkreditasyonAkisi::class)->yenidenAktiflestir($a),
+                            fn (Akreditasyon $a) => $a->durum === AkreditasyonDurumu::Askida,
+                        ))
+                        ->deselectRecordsAfterCompletion(),
+
+                    BulkAction::make('topluKartUret')
+                        ->label('Kartları yeniden üret')
+                        ->icon('heroicon-m-arrow-path')
+                        ->requiresConfirmation()
+                        ->visible(fn () => auth()->user()->can('kart.uret'))
+                        ->modalHeading('Seçilenlerin kartlarını yeniden üret')
+                        ->modalDescription('Her kart için yeni sürüm üretilir, eskisi arşivlenir. QR ve kart numaraları DEĞİŞMEZ. Üretim kuyrukta çalışır; sonucu "Kart" sütununda görürsünüz.')
+                        ->modalSubmitActionLabel('Üretimi başlat')
+                        ->action(fn (Collection $records) => TopluIslem::calistir(
+                            $records,
+                            '%d kartın üretimi kuyruğa alındı.',
+                            fn (Akreditasyon $a) => KartUret::dispatch($a, bildirimGonder: false, tetikleyenId: auth()->id()),
+                            fn (Akreditasyon $a) => $a->durum !== AkreditasyonDurumu::Iptal,
+                        ))
+                        ->deselectRecordsAfterCompletion(),
+                ])->label('Seçilenler'),
+            ])
             ->emptyStateHeading('Akreditasyon yok')
             ->emptyStateDescription('Onaylanan bireysel başvurulardan doğar.');
     }

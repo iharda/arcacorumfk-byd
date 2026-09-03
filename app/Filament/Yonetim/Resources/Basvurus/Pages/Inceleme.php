@@ -70,7 +70,8 @@ class Inceleme extends Page
 
     public function getSubheading(): string|Htmlable|null
     {
-        return $this->record->tur->etiket().' · '.$this->record->basvuru_no;
+        // Gönderilmemiş başvuruda numara yoktur (T3); ayraç boşta kalmasın.
+        return implode(' · ', array_filter([$this->record->tur->etiket(), $this->record->basvuru_no]));
     }
 
     public function evrakSec(string $ulid): void
