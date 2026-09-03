@@ -2,6 +2,7 @@
 
 namespace App\Filament\Yonetim\Resources\Bultenler;
 
+use App\Filament\Yonetim\Resources\Bultenler\Pages\BultenDetay;
 use App\Filament\Yonetim\Resources\Bultenler\Pages\ListBultenler;
 use App\Filament\Yonetim\Resources\Bultenler\Tables\BultenlerTable;
 use App\Models\Bulten;
@@ -44,6 +45,10 @@ class BultenResource extends Resource
 
     public static function getPages(): array
     {
-        return ['index' => ListBultenler::route('/')];
+        return [
+            'index' => ListBultenler::route('/'),
+            // S1: her kaydın kalıcı adresi olan detayı olacak.
+            'detay' => BultenDetay::route('/{record}/detay'),
+        ];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Yonetim\Resources\Bultenler\Tables;
 
+use App\Filament\Yonetim\Resources\Bultenler\BultenResource;
 use App\Filament\Yonetim\Resources\Bultenler\Schemas\BultenFormu;
 use App\Models\Bulten;
 use App\Servisler\IcerikAkisi;
@@ -21,6 +22,8 @@ class BultenlerTable
     public static function configure(Table $table): Table
     {
         return $table
+            // Satırın kendisi detayı açar (S1).
+            ->recordUrl(fn (Bulten $record) => BultenResource::getUrl('detay', ['record' => $record]))
             ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('baslik')->label('Başlık')->searchable()->wrap()->limit(80),

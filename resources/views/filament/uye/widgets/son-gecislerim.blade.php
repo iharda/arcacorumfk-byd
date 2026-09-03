@@ -17,7 +17,7 @@
                     </div>
 
                     {{-- 🔑 UYARI RET DEĞİL: kişi geçti, yalnızca görevli uyarıldı. --}}
-                    <x-filament::badge :color="$gecis->sonuc->basarili() ? ($gecis->sonuc->uyariMi() ? 'warning' : 'success') : 'danger'">
+                    <x-filament::badge :color="$gecis->sonuc->renk()">
                         {{ $gecis->sonuc->etiket() }}
                     </x-filament::badge>
                 </li>

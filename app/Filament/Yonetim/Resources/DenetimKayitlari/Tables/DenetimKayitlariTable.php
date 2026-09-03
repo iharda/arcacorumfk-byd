@@ -2,6 +2,7 @@
 
 namespace App\Filament\Yonetim\Resources\DenetimKayitlari\Tables;
 
+use App\Filament\Yonetim\Resources\DenetimKayitlari\DenetimKaydiResource;
 use App\Models\DenetimKaydi;
 use App\Servisler\CsvDisaAktar;
 use Filament\Actions\Action;
@@ -17,6 +18,8 @@ class DenetimKayitlariTable
     public static function configure(Table $table): Table
     {
         return $table
+            // Satırın kendisi detayı açar (S1).
+            ->recordUrl(fn (DenetimKaydi $record) => DenetimKaydiResource::getUrl('detay', ['record' => $record]))
             // ⚠️ Parametre adı $query olmalı (Filament ada göre enjekte eder).
             ->defaultSort('id', 'desc')
             ->deferLoading()          // kayıt hızla büyür; ilk açılış hafif kalsın

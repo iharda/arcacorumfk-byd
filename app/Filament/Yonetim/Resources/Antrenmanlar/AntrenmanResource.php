@@ -2,6 +2,7 @@
 
 namespace App\Filament\Yonetim\Resources\Antrenmanlar;
 
+use App\Filament\Yonetim\Resources\Antrenmanlar\Pages\AntrenmanDetay;
 use App\Filament\Yonetim\Resources\Antrenmanlar\Pages\ListAntrenmanlar;
 use App\Filament\Yonetim\Resources\Antrenmanlar\Tables\AntrenmanlarTable;
 use App\Models\Antrenman;
@@ -44,6 +45,10 @@ class AntrenmanResource extends Resource
 
     public static function getPages(): array
     {
-        return ['index' => ListAntrenmanlar::route('/')];
+        return [
+            'index' => ListAntrenmanlar::route('/'),
+            // S1: her kaydın kalıcı adresi olan detayı olacak.
+            'detay' => AntrenmanDetay::route('/{record}/detay'),
+        ];
     }
 }

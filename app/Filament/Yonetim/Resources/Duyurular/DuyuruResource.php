@@ -2,6 +2,7 @@
 
 namespace App\Filament\Yonetim\Resources\Duyurular;
 
+use App\Filament\Yonetim\Resources\Duyurular\Pages\DuyuruDetay;
 use App\Filament\Yonetim\Resources\Duyurular\Pages\ListDuyurular;
 use App\Filament\Yonetim\Resources\Duyurular\Schemas\DuyuruFormu;
 use App\Filament\Yonetim\Resources\Duyurular\Tables\DuyurularTable;
@@ -51,6 +52,10 @@ class DuyuruResource extends Resource
 
     public static function getPages(): array
     {
-        return ['index' => ListDuyurular::route('/')];
+        return [
+            'index' => ListDuyurular::route('/'),
+            // S1: her kaydın kalıcı adresi olan detayı olacak.
+            'detay' => DuyuruDetay::route('/{record}/detay'),
+        ];
     }
 }

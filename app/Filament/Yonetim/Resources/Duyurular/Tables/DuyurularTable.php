@@ -2,6 +2,7 @@
 
 namespace App\Filament\Yonetim\Resources\Duyurular\Tables;
 
+use App\Filament\Yonetim\Resources\Duyurular\DuyuruResource;
 use App\Filament\Yonetim\Resources\Duyurular\Schemas\DuyuruFormu;
 use App\Models\Duyuru;
 use App\Servisler\IcerikAkisi;
@@ -21,6 +22,8 @@ class DuyurularTable
     public static function configure(Table $table): Table
     {
         return $table
+            // Satırın kendisi detayı açar (S1).
+            ->recordUrl(fn (Duyuru $record) => DuyuruResource::getUrl('detay', ['record' => $record]))
             ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('baslik')->label('Başlık')->searchable()->wrap()->limit(80),

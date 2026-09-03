@@ -2,6 +2,7 @@
 
 namespace App\Filament\Yonetim\Resources\Antrenmanlar\Tables;
 
+use App\Filament\Yonetim\Resources\Antrenmanlar\AntrenmanResource;
 use App\Filament\Yonetim\Resources\Antrenmanlar\Schemas\AntrenmanFormu;
 use App\Models\Antrenman;
 use App\Servisler\IcerikAkisi;
@@ -23,6 +24,8 @@ class AntrenmanlarTable
     public static function configure(Table $table): Table
     {
         return $table
+            // Satırın kendisi detayı açar (S1).
+            ->recordUrl(fn (Antrenman $record) => AntrenmanResource::getUrl('detay', ['record' => $record]))
             // Yaklaşan antrenman en üstte: yetkili genelde ileriye bakar.
             ->defaultSort('baslangic_at', 'desc')
             ->columns([

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Yonetim\Resources\KapiIstemcileri;
 
+use App\Filament\Yonetim\Resources\KapiIstemcileri\Pages\KapiIstemcisiDetay;
 use App\Filament\Yonetim\Resources\KapiIstemcileri\Pages\ListKapiIstemcileri;
 use App\Filament\Yonetim\Resources\KapiIstemcileri\Tables\KapiIstemcileriTable;
 use App\Models\KapiIstemcisi;
@@ -41,6 +42,10 @@ class KapiIstemcisiResource extends Resource
 
     public static function getPages(): array
     {
-        return ['index' => ListKapiIstemcileri::route('/')];
+        return [
+            'index' => ListKapiIstemcileri::route('/'),
+            // S1: her kaydın kalıcı adresi olan detayı olacak.
+            'detay' => KapiIstemcisiDetay::route('/{record}/detay'),
+        ];
     }
 }

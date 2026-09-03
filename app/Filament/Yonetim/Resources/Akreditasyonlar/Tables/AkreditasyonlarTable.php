@@ -4,6 +4,7 @@ namespace App\Filament\Yonetim\Resources\Akreditasyonlar\Tables;
 
 use App\Enums\AkreditasyonDurumu;
 use App\Enums\BasvuruTuru;
+use App\Enums\DegerlendirmePuani;
 use App\Filament\Yonetim\Resources\Akreditasyonlar\AkreditasyonResource;
 use App\Jobs\KartUret;
 use App\Models\Akreditasyon;
@@ -34,7 +35,7 @@ class AkreditasyonlarTable
     {
         return $table
             // ⚠️ Parametre adı $query olmalı (Filament ada göre enjekte eder).
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['kullanici', 'kurum', 'guncelKart']))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['kullanici.degerlendirme', 'kurum.degerlendirme', 'guncelKart']))
             ->defaultSort('kart_no', 'desc')
             // T1'in aynısı burada da: satırın kendisi detayı açar (S1).
             ->recordUrl(fn (Akreditasyon $record) => AkreditasyonResource::getUrl('detay', ['record' => $record]))
@@ -67,6 +68,41 @@ class AkreditasyonlarTable
                 // tabloyu yatay kaydırmaya sokuyordu; listede aranan bölge değil
                 // kişi ve durum. Bilgi kaybolmuyor: "Bölge yetkisi" kipinde tam
                 // hâliyle duruyor. (Saha notları T7.)
+                /*
+                 * T12: "Akreditasyonların içerisinde şunu görmem lazım: negatif
+                 * mi, nötr mü, pozitif mi." Değerlendirme yalnız Kurumlar ve
+                 * Kullanıcılar tablolarında duruyordu.
+                 *
+                 * 🔑 KİŞİ ve KURUM AYRI gösterilir: kişi olumlu, çalıştığı kurum
+                 * sorunlu olabilir; tek rozet yetkiliyi yanıltmasın.
+                 *
+                 * 🔒 Yalnızca kulüp tarafı; `degerlendirme.yonet` yetkisi yoksa
+                 * sütun hiç çizilmez.
+                 */
+                TextColumn::make('degerlendirme')
+                    ->label('Değerlendirme')
+                    ->badge()
+                    ->visible(fn () => auth()->user()?->can('degerlendirme.yonet') ?? false)
+                    /*
+                     * 🔑 KİŞİ ve KURUM AYRI: kişi olumlu, çalıştığı kurum
+                     * sorunlu olabilir; yetkilinin gördüğü tek rozet
+                     * yanıltmasın. İkisi de varsa iki rozet basılır.
+                     */
+                    ->state(fn (Akreditasyon $record) => collect([
+                        'Kişi' => $record->kullanici?->degerlendirme?->puan,
+                        'Kurum' => $record->kurum?->degerlendirme?->puan,
+                    ])
+                        ->filter()
+                        ->map(fn (DegerlendirmePuani $p, string $kim) => $kim.': '.$p->value.' · '.$p->etiket())
+                        ->values()
+                        ->all())
+                    // Rozet rengi puandan; metnin içindeki rakam tek kaynak.
+                    ->color(fn (string $state) => preg_match('/: (\d)/', $state, $e)
+                        ? DegerlendirmePuani::from((int) $e[1])->renk()
+                        : 'gray')
+                    ->placeholder('—')
+                    ->toggleable(),
+
                 TextColumn::make('bolge_yetkileri')
                     ->label('Bölgeler')
                     ->badge()

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Yonetim\Resources\KapiIstemcileri\Tables;
 
+use App\Filament\Yonetim\Resources\KapiIstemcileri\KapiIstemcisiResource;
 use App\Filament\Yonetim\Resources\KapiIstemcileri\Schemas\KapiIstemcisiFormu;
 use App\Models\Ayar;
 use App\Models\KapiIstemcisi;
@@ -19,6 +20,8 @@ class KapiIstemcileriTable
     public static function configure(Table $table): Table
     {
         return $table
+            // Satırın kendisi detayı açar (S1).
+            ->recordUrl(fn (KapiIstemcisi $record) => KapiIstemcisiResource::getUrl('detay', ['record' => $record]))
             ->defaultSort('ad')
             ->columns([
                 TextColumn::make('ad')->label('Kapı')->searchable()->sortable(),

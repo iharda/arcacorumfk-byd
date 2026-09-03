@@ -3,6 +3,7 @@
 namespace App\Filament\Yonetim\Resources\GecisKayitlari\Tables;
 
 use App\Enums\GecisSonucu;
+use App\Filament\Yonetim\Resources\GecisKayitlari\GecisKaydiResource;
 use App\Models\GecisKaydi;
 use App\Servisler\CsvDisaAktar;
 use Filament\Actions\Action;
@@ -17,6 +18,8 @@ class GecisKayitlariTable
     public static function configure(Table $table): Table
     {
         return $table
+            // Satırın kendisi detayı açar (S1).
+            ->recordUrl(fn (GecisKaydi $record) => GecisKaydiResource::getUrl('detay', ['record' => $record]))
             // ⚠️ Parametre adı $query olmalı (Filament ada göre enjekte eder).
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['akreditasyon.kullanici', 'kapiIstemcisi']))
             ->defaultSort('okundu_at', 'desc')

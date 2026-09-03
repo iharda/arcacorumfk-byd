@@ -95,6 +95,21 @@ class AkreditasyonDetay extends DetaySayfasi
                 'view' => 'filament.yonetim.akreditasyon.gecis',
                 'veri' => ['gecisler' => $gecisler],
             ],
+            /*
+             * T12: değerlendirme detayda da blok olarak. Kişi ve kurum ayrı
+             * satır; sekme yalnızca `degerlendirme.yonet` yetkisi olana çizilir
+             * (kişi bu puanı hiçbir ekranda görmez).
+             */
+            ...(auth()->user()?->can('degerlendirme.yonet') ? ['degerlendirme' => [
+                'baslik' => 'Değerlendirme',
+                'view' => 'filament.yonetim.akreditasyon.degerlendirme',
+                'veri' => [
+                    'kisi' => $a->kullanici?->degerlendirme,
+                    'kurum' => $a->kurum?->degerlendirme,
+                    'kurumAdi' => $a->kurum?->resmi_unvan,
+                ],
+            ]] : []),
+
             'basvuru' => [
                 'baslik' => 'Başvuru ve evraklar',
                 'view' => 'filament.yonetim.akreditasyon.basvuru',

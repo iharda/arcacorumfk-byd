@@ -2,6 +2,7 @@
 
 namespace App\Filament\Yonetim\Resources\GecisKayitlari;
 
+use App\Filament\Yonetim\Resources\GecisKayitlari\Pages\GecisKaydiDetay;
 use App\Filament\Yonetim\Resources\GecisKayitlari\Pages\ListGecisKayitlari;
 use App\Filament\Yonetim\Resources\GecisKayitlari\Tables\GecisKayitlariTable;
 use App\Models\GecisKaydi;
@@ -42,6 +43,10 @@ class GecisKaydiResource extends Resource
 
     public static function getPages(): array
     {
-        return ['index' => ListGecisKayitlari::route('/')];
+        return [
+            'index' => ListGecisKayitlari::route('/'),
+            // S1: her kaydın kalıcı adresi olan detayı olacak.
+            'detay' => GecisKaydiDetay::route('/{record}/detay'),
+        ];
     }
 }

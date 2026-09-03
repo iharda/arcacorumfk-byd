@@ -47,4 +47,22 @@ enum GecisSonucu: string
     {
         return $this === self::Izinli || $this->uyariMi();
     }
+
+    /**
+     * Rozet rengi. TEK TANIM: bu ifade üye panosundaki "son geçişlerim"
+     * kutusunda satır içine yazılmıştı; yönetim tarafında dört ekran daha
+     * aynısına ihtiyaç duyunca kopyalanacaktı. Biri düzeltilip diğerleri
+     * unutulmasın diye enum'a alındı.
+     *
+     * ♿ Renk tek başına bilgi taşımaz: her kullanıldığı yerde etiket() metni
+     * de basılıyor.
+     */
+    public function renk(): string
+    {
+        return match (true) {
+            $this->uyariMi() => 'warning',
+            $this->basarili() => 'success',
+            default => 'danger',
+        };
+    }
 }

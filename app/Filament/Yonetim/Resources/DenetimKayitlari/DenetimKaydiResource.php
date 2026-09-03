@@ -2,6 +2,7 @@
 
 namespace App\Filament\Yonetim\Resources\DenetimKayitlari;
 
+use App\Filament\Yonetim\Resources\DenetimKayitlari\Pages\DenetimKaydiDetay;
 use App\Filament\Yonetim\Resources\DenetimKayitlari\Pages\ListDenetimKayitlari;
 use App\Filament\Yonetim\Resources\DenetimKayitlari\Tables\DenetimKayitlariTable;
 use App\Models\DenetimKaydi;
@@ -43,6 +44,10 @@ class DenetimKaydiResource extends Resource
 
     public static function getPages(): array
     {
-        return ['index' => ListDenetimKayitlari::route('/')];
+        return [
+            'index' => ListDenetimKayitlari::route('/'),
+            // S1: her kaydın kalıcı adresi olan detayı olacak.
+            'detay' => DenetimKaydiDetay::route('/{record}/detay'),
+        ];
     }
 }

@@ -24,24 +24,32 @@ class EvrakTuruSeeder extends Seeder
         $basin = BasvuruTuru::BasinMensubu->value;
         $icerik = BasvuruTuru::IcerikUreticisi->value;
 
+        /*
+         * 🪤 webp: config/bys.php'deki `mime_izin` listesinde SERBESTTİ ama
+         * hiçbir evrak türünde kabul edilmiyordu -- ölü izin. Telefondan
+         * paylaşılan görseller giderek webp oluyor ve kullanıcı yüklemesi
+         * sessizce reddedilince sebebini anlamıyordu. İki liste artık aynı
+         * şeyi söylüyor; {@see \Tests\Feature\DosyaTuruListeleriTest}
+         * ayrışmayı bir daha yakalar. (Saha notları S6.)
+         */
         $turler = [
             [
                 'kod' => 'ticaret_sicil_gazetesi', 'ad' => 'Ticaret Sicili Gazetesi',
                 'basvuru_turleri' => [$kurum], 'zorunlu' => true,
-                'izinli_formatlar' => ['pdf', 'jpg', 'jpeg', 'png'], 'maks_boyut_kb' => 8192,
+                'izinli_formatlar' => ['pdf', 'jpg', 'jpeg', 'png', 'webp'], 'maks_boyut_kb' => 8192,
                 'hassas' => false, 'sira' => 10,
             ],
             [
                 'kod' => 'vergi_levhasi', 'ad' => 'Vergi levhası',
                 'basvuru_turleri' => [$kurum], 'zorunlu' => true,
-                'izinli_formatlar' => ['pdf', 'jpg', 'jpeg', 'png'], 'maks_boyut_kb' => 8192,
+                'izinli_formatlar' => ['pdf', 'jpg', 'jpeg', 'png', 'webp'], 'maks_boyut_kb' => 8192,
                 'hassas' => false, 'sira' => 20,
             ],
             [
                 'kod' => 'biyometrik_fotograf', 'ad' => 'Biyometrik fotoğraf',
                 'aciklama' => 'Basın kartınızda ve kapı doğrulama ekranında kullanılır.',
                 'basvuru_turleri' => [$basin, $icerik], 'zorunlu' => true,
-                'izinli_formatlar' => ['jpg', 'jpeg', 'png'], 'maks_boyut_kb' => 5120,
+                'izinli_formatlar' => ['jpg', 'jpeg', 'png', 'webp'], 'maks_boyut_kb' => 5120,
                 'hassas' => false, 'sira' => 30,
             ],
             [
@@ -49,7 +57,7 @@ class EvrakTuruSeeder extends Seeder
                 'kod' => 'kimlik_gorseli', 'ad' => 'Kimlik belgesi',
                 'aciklama' => 'T.C. kimlik kartı, sürücü belgesi veya pasaport',
                 'basvuru_turleri' => [$basin, $icerik], 'zorunlu' => true,
-                'izinli_formatlar' => ['pdf', 'jpg', 'jpeg', 'png'], 'maks_boyut_kb' => 8192,
+                'izinli_formatlar' => ['pdf', 'jpg', 'jpeg', 'png', 'webp'], 'maks_boyut_kb' => 8192,
                 'hassas' => true, 'imha_gun' => 180, 'sira' => 40,
             ],
             [
@@ -57,7 +65,7 @@ class EvrakTuruSeeder extends Seeder
                 'kod' => 'calisma_belgesi', 'ad' => 'Çalışma belgesi',
                 'aciklama' => 'Çalışma belgesi, işe giriş bildirgesi veya güncel SGK belgesi',
                 'basvuru_turleri' => [$basin], 'zorunlu' => true,
-                'izinli_formatlar' => ['pdf', 'jpg', 'jpeg', 'png'], 'maks_boyut_kb' => 8192,
+                'izinli_formatlar' => ['pdf', 'jpg', 'jpeg', 'png', 'webp'], 'maks_boyut_kb' => 8192,
                 'hassas' => true, 'imha_gun' => 180, 'sira' => 50,
             ],
             /*
@@ -74,7 +82,7 @@ class EvrakTuruSeeder extends Seeder
                 'kod' => 'ek_belge', 'ad' => 'Ek talep belgesi',
                 'aciklama' => 'Yetkilinin duzeltme talebinde elle istedigi belge.',
                 'basvuru_turleri' => [], 'zorunlu' => false,
-                'izinli_formatlar' => ['pdf', 'jpg', 'jpeg', 'png'], 'maks_boyut_kb' => 8192,
+                'izinli_formatlar' => ['pdf', 'jpg', 'jpeg', 'png', 'webp'], 'maks_boyut_kb' => 8192,
                 'hassas' => false, 'sira' => 900, 'aktif' => false,
             ],
         ];
