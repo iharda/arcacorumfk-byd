@@ -14,6 +14,7 @@ use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class KapiIstemcileriTable
 {
@@ -22,6 +23,16 @@ class KapiIstemcileriTable
         return $table
             // Satırın kendisi detayı açar (S1).
             ->recordUrl(fn (KapiIstemcisi $record) => KapiIstemcisiResource::getUrl('detay', ['record' => $record]))
+            /*
+             * ⚠️ Parametre adı $query olmalı (Filament ada göre enjekte eder).
+             * Bugünkü okutma sayısı TEK sorguda geliyor; satır başına sayım
+             * yapmak on kapıda on bir sorgu demekti.
+             */
+            ->modifyQueryUsing(fn (Builder $query) => $query->withCount([
+                'gecisKayitlari as bugun_okutma' => fn (Builder $alt) => $alt->whereBetween('okundu_at', [
+                    today('Europe/Istanbul')->startOfDay(), today('Europe/Istanbul')->endOfDay(),
+                ]),
+            ]))
             ->defaultSort('ad')
             ->columns([
                 TextColumn::make('ad')->label('Kapı')->searchable()->sortable(),
@@ -44,10 +55,29 @@ class KapiIstemcileriTable
 
                 IconColumn::make('aktif')->label('Etkin')->boolean(),
 
+                /*
+                 * 🔑 Kapının ÇALIŞTIĞINI söyleyen en doğrudan sayı. "Son
+                 * okutma: 14:32" bir cihazın saat 14:32'de yaşadığını söyler;
+                 * bugün kaç kez okuttuğu, maç sürerken hâlâ ayakta olup
+                 * olmadığını söyler.
+                 */
+                TextColumn::make('bugun_okutma')
+                    ->label('Bugün')
+                    ->badge()
+                    ->color(fn (int $state) => $state > 0 ? 'success' : 'gray')
+                    ->formatStateUsing(fn (int $state) => $state > 0 ? $state.' okutma' : '—'),
+
                 TextColumn::make('son_kullanim_at')
                     ->label('Son okutma')
                     ->dateTime('d.m.Y H:i', 'Europe/Istanbul')
-                    ->placeholder('Hiç')
+                    ->placeholder('Hiç okutmadı')
+                    /*
+                     * Hiç okutma yapmamış ETKİN kapı, kurulumu yarım kalmış
+                     * cihaz demektir: panelde tanımlı, sahada anahtarı
+                     * girilmemiş. Maç günü fark edilmesi geç olur.
+                     */
+                    ->color(fn (KapiIstemcisi $record) => $record->son_kullanim_at === null && $record->aktif
+                        ? 'warning' : null)
                     ->sortable(),
             ])
             ->headerActions([
@@ -62,6 +92,12 @@ class KapiIstemcileriTable
                     }),
             ])
             ->recordActions([
+                /*
+                 * 💀 Düzenleme DOĞRUDAN modele yazıyordu: kapı açmak ve anahtar
+                 * yenilemek denetim kaydına düşerken IP kısıtını kaldırmak iz
+                 * bırakmıyordu. Kayıt artık akıştan geçiyor (eski/yeni değerler
+                 * denetime yazılıyor); form yalnızca IP metnini diziye çeviriyor.
+                 */
                 EditAction::make()
                     ->label('Düzenle')
                     ->modalWidth(Width::Large)
@@ -73,12 +109,39 @@ class KapiIstemcileriTable
 
                         return $data;
                     })
-                    ->mutateDataUsing(function (array $data): array {
-                        $liste = collect(explode(',', (string) ($data['ip_listesi'] ?? '')))
-                            ->map(fn ($p) => trim($p))->filter()->values()->all();
-                        $data['ip_listesi'] = $liste ?: null;
+                    ->using(fn (KapiIstemcisi $record, array $data) => tap(
+                        $record,
+                        fn () => app(KapiIstemcisiAkisi::class)->guncelle($record, $data),
+                    )),
 
-                        return $data;
+                /*
+                 * 🔻 Kapatmak TURNİKEYİ DURDURUR: düzenleme formundaki bir
+                 * anahtarın arkasında değil, sonucunu yazan ayrı bir eylem
+                 * olarak duruyor.
+                 */
+                Action::make('etkinlik')
+                    ->label(fn (KapiIstemcisi $record) => $record->aktif ? 'Kapat' : 'Aç')
+                    ->icon(fn (KapiIstemcisi $record) => $record->aktif
+                        ? 'heroicon-m-pause-circle' : 'heroicon-m-play-circle')
+                    ->color(fn (KapiIstemcisi $record) => $record->aktif ? 'warning' : 'success')
+                    ->requiresConfirmation()
+                    ->modalHeading(fn (KapiIstemcisi $record) => $record->aktif
+                        ? 'Kapıyı kapatmak istiyor musunuz?' : 'Kapıyı açmak istiyor musunuz?')
+                    ->modalDescription(fn (KapiIstemcisi $record) => $record->aktif
+                        ? 'Bu cihazdan yapılan okutmalar ANINDA reddedilir. Anahtar geçerli kalır; kapı yeniden açıldığında cihaz çalışmaya devam eder.'
+                        : 'Cihaz bir sonraki okutmadan itibaren yeniden çalışır.')
+                    ->modalSubmitActionLabel(fn (KapiIstemcisi $record) => $record->aktif ? 'Kapat' : 'Aç')
+                    ->action(function (KapiIstemcisi $record) {
+                        // 🪤 Hedef durum ÖNCE okunur: akış aynı model örneğini
+                        // günceller, sonrasında `aktif` artık yeni değeri taşır
+                        // ve mesaj ters çıkardı.
+                        $hedef = ! $record->aktif;
+
+                        app(KapiIstemcisiAkisi::class)->etkinlikDegistir($record, $hedef);
+
+                        Notification::make()
+                            ->title($record->ad.($hedef ? ' açıldı.' : ' kapatıldı.'))
+                            ->success()->send();
                     }),
 
                 Action::make('anahtarYenile')

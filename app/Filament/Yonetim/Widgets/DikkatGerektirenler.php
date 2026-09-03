@@ -7,6 +7,7 @@ use App\Enums\DegerlendirmePuani;
 use App\Models\Akreditasyon;
 use App\Models\Basvuru;
 use App\Models\Degerlendirme;
+use App\Models\KapiIstemcisi;
 use App\Models\Kurum;
 use Filament\Widgets\Widget;
 use Illuminate\Support\Collection;
@@ -46,7 +47,8 @@ class DikkatGerektirenler extends Widget
             ->concat(self::kontenjaniDolanlar())
             ->concat(self::suresiBitecekler())
             ->concat(self::dusukDegerlendirmeler())
-            ->concat(self::kartiUretilemeyenler());
+            ->concat(self::kartiUretilemeyenler())
+            ->concat(self::kurulmamisKapilar());
     }
 
     /** @return Collection<int, array<string, mixed>> */
@@ -200,6 +202,45 @@ class DikkatGerektirenler extends Widget
                 'ayrinti' => $a->kart_no.' · akreditasyon '
                     .$a->created_at->timezone('Europe/Istanbul')->format('d.m.Y H:i').' tarihinde açıldı, kart yok',
                 'adres' => route('filament.yonetim.resources.akreditasyonlar.index'),
+            ]);
+
+        /** @var Collection<int, array<string, mixed>> $satirlar */
+        return $satirlar;
+    }
+
+    /**
+     * 💀 Panelde tanimli ama sahada hic okutma yapmamis ETKIN kapi: cihazin
+     * anahtari girilmemis demektir. Kart uretilemeyen akreditasyonun kapi
+     * karsiligi -- ikisi de "kayit acildi, gerceklesmedi" durumu ve ikisi de
+     * bugun ancak mac gunu, kapida fark ediliyor.
+     *
+     * 🕐 24 saat eşiği: kapi tanimlanip cihaz ertesi gun kuruluyor olabilir,
+     * ayni saat icinde alarm vermek gurultu olurdu.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private static function kurulmamisKapilar(): Collection
+    {
+        // 🔒 Kapıya erişemeyecek yetkiliye açamayacağı bir bağlantı gösterme
+        // (düşük değerlendirme satırındaki gerekçenin aynısı).
+        if (! (auth()->user()?->can('kapi.yonet') ?? false)) {
+            return collect();
+        }
+
+        $satirlar = KapiIstemcisi::query()
+            ->where('aktif', true)
+            ->whereNull('son_kullanim_at')
+            ->where('created_at', '<', now()->copy()->subDay())
+            ->orderBy('created_at')
+            ->limit(self::SEBEP_BASINA)
+            ->get()
+            ->map(fn (KapiIstemcisi $k) => [
+                'sebep' => 'Kurulumu tamamlanmamış kapı',
+                'renk' => 'warning',
+                'baslik' => $k->ad,
+                'ayrinti' => $k->kapi_kodu.' · '
+                    .$k->created_at->timezone('Europe/Istanbul')->format('d.m.Y').' tarihinde tanımlandı, hiç okutma yok',
+                'adres' => route('filament.yonetim.resources.kapilar.detay', ['record' => $k->ulid]),
             ]);
 
         /** @var Collection<int, array<string, mixed>> $satirlar */

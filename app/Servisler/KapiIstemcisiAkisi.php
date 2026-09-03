@@ -43,6 +43,73 @@ class KapiIstemcisiAkisi
         return ['istemci' => $istemci, 'anahtar' => $anahtar];
     }
 
+    /**
+     * Kapi duzenleme -- denetim kaydiyla.
+     *
+     * 💀 Duzenleme ekrandan DOGRUDAN modele yaziliyordu: kapi olusturmak ve
+     * anahtar yenilemek denetime dusuyordu ama IP KISITINI KALDIRMAK, bolge
+     * yetkisini genisletmek ya da kapiyi kapatmak iz birakmiyordu. Uctan uca
+     * testte "IP kisiti disindan erisim reddediliyor" diye korudugumuz sinir,
+     * panelden sessizce acilabiliyordu.
+     *
+     * 🔒 Eski degerler ONCE okunur: `update()`'ten sonra model yeni degerleri
+     * tasir ve denetim kaydi "eski = yeni" diye yazardi (ayni tuzak Faz 2'de
+     * kurum/kullanici duzenlemesinde de vardi).
+     *
+     * @param  array<string, mixed>  $veri
+     */
+    public function guncelle(KapiIstemcisi $istemci, array $veri): void
+    {
+        $alanlar = [
+            'ad' => $veri['ad'],
+            'kapi_kodu' => $veri['kapi_kodu'],
+            'ip_listesi' => $this->ipListesi($veri['ip_listesi'] ?? null),
+            'bolgeler' => $veri['bolgeler'] ?? null,
+            'aktif' => (bool) ($veri['aktif'] ?? false),
+        ];
+
+        $eski = $istemci->only(array_keys($alanlar));
+
+        DB::transaction(function () use ($istemci, $alanlar, $eski) {
+            $istemci->update($alanlar);
+
+            // Degismeyen alan denetim kaydini sismesin: yalnizca fark yazilir.
+            $degisen = array_keys(array_filter(
+                $alanlar,
+                fn ($deger, $alan) => $deger !== ($eski[$alan] ?? null),
+                ARRAY_FILTER_USE_BOTH,
+            ));
+
+            if ($degisen === []) {
+                return;
+            }
+
+            $this->denetim->yaz('kapi_istemcisi.guncellendi', $istemci,
+                eski: array_intersect_key($eski, array_flip($degisen)),
+                yeni: array_intersect_key($alanlar, array_flip($degisen)));
+        });
+    }
+
+    /**
+     * Kapiyi etkin/kapali yapar. Ayri bir eylem: kapatmak TURNIKEYI DURDURUR,
+     * duzenleme formunun icindeki bir anahtarin arkasinda kalmamali.
+     */
+    public function etkinlikDegistir(KapiIstemcisi $istemci, bool $aktif): void
+    {
+        DB::transaction(function () use ($istemci, $aktif) {
+            $eski = $istemci->aktif;
+
+            $istemci->update(['aktif' => $aktif]);
+
+            $this->denetim->yaz(
+                $aktif ? 'kapi_istemcisi.acildi' : 'kapi_istemcisi.kapatildi',
+                $istemci,
+                eski: ['aktif' => $eski],
+                yeni: ['aktif' => $aktif],
+            );
+        });
+    }
+
     public function anahtariYenile(KapiIstemcisi $istemci): string
     {
         $anahtar = $this->anahtarUret();

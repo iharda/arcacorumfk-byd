@@ -49,6 +49,21 @@ enum GecisSonucu: string
     }
 
     /**
+     * Turnikeden GEÇEN sonuçlar -- sorgu tarafının karşılığı.
+     *
+     * 💀 "Reddedilenler" süzgeci `sonuc != izinli` yazıyordu ve uyarı
+     * sonuçlarını da reddedilmiş gösteriyordu; oysa kapı onları geçiriyor.
+     * Aynı ayrımın iki farklı yerde iki farklı tanımı olmasın: süzgeç de
+     * ekran da buradan okusun.
+     *
+     * @return array<int, self>
+     */
+    public static function basarililar(): array
+    {
+        return array_values(array_filter(self::cases(), fn (self $s) => $s->basarili()));
+    }
+
+    /**
      * Rozet rengi. TEK TANIM: bu ifade üye panosundaki "son geçişlerim"
      * kutusunda satır içine yazılmıştı; yönetim tarafında dört ekran daha
      * aynısına ihtiyaç duyunca kopyalanacaktı. Biri düzeltilip diğerleri
