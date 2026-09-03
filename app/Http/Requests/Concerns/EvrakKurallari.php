@@ -4,6 +4,8 @@ namespace App\Http\Requests\Concerns;
 
 use App\Enums\BasvuruTuru;
 use App\Models\EvrakTuru;
+use App\Servisler\EvrakTaslagi;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Support\Collection;
 
 /**
@@ -12,6 +14,9 @@ use Illuminate\Support\Collection;
  * Zorunluluk, boyut ve biçim `evrak_turleri` tablosunda tanımlı; kural listesi
  * de oradan türetilir. Böylece panelden bir evrak türü eklendiğinde form da
  * doğrulama da birlikte değişir, iki yerde elle güncelleme gerekmez.
+ *
+ * Doğrulama hatasında dosyaların kaybolmaması da buradan yürür
+ * ({@see EvrakTaslagi}) -- Cüneyt Bey revizyonu 03.09.2026.
  */
 trait EvrakKurallari
 {
@@ -49,5 +54,50 @@ trait EvrakKurallari
         return $this->evrakTurleri($tur)
             ->mapWithKeys(fn (EvrakTuru $evrakTuru) => ["evraklar.{$evrakTuru->id}" => $evrakTuru->ad])
             ->all();
+    }
+
+    /**
+     * Bu istekte gelmeyen evrakları taslaktan canlandırır: başvuran
+     * doğrulama hatasından sonra dosyalarını YENİDEN SEÇMEK ZORUNDA DEĞİL.
+     *
+     * 🔒 Yalnızca BU BAŞVURU TÜRÜNE ait evrak türleri canlanır. Başvuran
+     * önce kurum formunu yarım bırakıp sonra bireysel forma geçtiyse
+     * oradaki taslak buraya sızmamalı; sızsaydı `BasvuruEvrakAlici`
+     * "geçersiz evrak türü" diye başvuruyu komple reddederdi.
+     */
+    protected function evrakTaslaginiCanlandir(BasvuruTuru $tur): void
+    {
+        $izinli = $this->evrakTurleri($tur)->pluck('id')->all();
+
+        /*
+         * 🪤 Dosyalar `$this->file()` ile DEĞİL ham Symfony torbasından
+         * okunur. `file()` sonucu `convertedFiles` içinde önbelleğe alınır;
+         * torbayı sonradan güncellediğimizde doğrulama hâlâ ESKİ listeyi
+         * görür ve zorunlu evrak "eksik" çıkardı. Torbayı okumak o önbelleği
+         * hiç doğurmaz.
+         */
+        $birlesik = array_intersect_key(
+            app(EvrakTaslagi::class)->birlestir((array) $this->files->get('evraklar', [])),
+            array_flip($izinli),
+        );
+
+        if ($birlesik === []) {
+            return;
+        }
+
+        $this->files->set('evraklar', $birlesik);
+    }
+
+    /** Hatalı gönderimde seçilen dosyalar taslağa alınır. */
+    protected function evraklariTaslagaAl(): void
+    {
+        app(EvrakTaslagi::class)->sakla((array) $this->file('evraklar', []));
+    }
+
+    protected function failedValidation(Validator $validator): void
+    {
+        $this->evraklariTaslagaAl();
+
+        parent::failedValidation($validator);
     }
 }

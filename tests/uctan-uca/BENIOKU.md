@@ -17,6 +17,8 @@ node tests/uctan-uca/bys-icerik-testi.mjs            # duyuru/bülten/takvim yay
 node tests/uctan-uca/bys-duyuru-video-testi.mjs      # duyuru videosu yönetim formundan yükleniyor mu
 node tests/uctan-uca/bys-insan-senaryosu.mjs         # altı perdelik uçtan uca senaryo (ekran görüntülü)
 node tests/uctan-uca/bys-panel-yonlendirme-testi.mjs # üç panel arası yönlendirme, yasak panel
+node tests/uctan-uca/bys-pano-shot.mjs               # üç panelin panosu (masaüstü + 375px mobil)
+node tests/uctan-uca/bys-degerlendirme-testi.mjs     # 1-5 değerlendirme + kulüp dışına sızmıyor
 node tests/uctan-uca/bys-guvenlik-testi.mjs          # yetki sınırları
 node tests/uctan-uca/bys-giris-testi.mjs             # yetkili girişi + 2FA + panel sınırı
 node tests/uctan-uca/bys-tek-giris-testi.mjs         # tek giriş kapısı · kilit · panel seçimi · şifre sıfırlama
@@ -44,6 +46,9 @@ sudo -u bys php artisan test --testsuite=Unit   # VKN/TCKN sağlaması + telefon
   - `/root/.bys-admin-pass` — yönetici parolası
   - `/root/.bys-admin-totp` — yöneticinin TOTP gizli anahtarı
   - `<uygulama-dizini>/../test-dosyalari/` — örnek evrak dosyaları (pdf/jpg)
+  - `bys-pano-shot.mjs` ve `bys-degerlendirme-testi.mjs` **pilot hesapları**
+    kullanır (`*+pilot@ornek.test`, şifre `Pilot-Deneme-2026`). Yoksa önce
+    `php artisan bys:pilot-verisi` ile üretin.
   Devirde bunlar yeni sunucuda yeniden üretilir.
 - **Yük testi** geçiş kaydı yazar ve `mukerrer_okutma_saniye` ayarını geçici
   olarak 0 yapar; sonunda ikisini de geri alır. Yarıda kesersen ayarı elle

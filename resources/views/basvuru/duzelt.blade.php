@@ -186,6 +186,18 @@
                                         @break
 
                                     @case('aralik')
+                                    @case('deneyim-araligi')
+                                        @php
+                                            $secenekler = $alan['tip'] === 'aralik'
+                                                ? App\Enums\CalisanAraligi::secenekler()
+                                                : App\Enums\DeneyimAraligi::secenekler();
+                                            // 🪤 Eski kayıtta düz rakam olabilir: aralığa çevirip seçili gösterelim.
+                                            $mevcut = $alan['tip'] === 'aralik'
+                                                ? $alan['deger']
+                                                : (is_numeric($alan['deger'])
+                                                    ? App\Enums\DeneyimAraligi::sayidan((int) $alan['deger'])?->value
+                                                    : $alan['deger']);
+                                        @endphp
                                         <div class="sm:col-span-2">
                                             <label class="block text-sm font-medium text-neutral-800" for="{{ $alan['girdi'] }}">
                                                 Yeni {{ mb_strtolower($alan['etiket']) }}
@@ -193,10 +205,10 @@
                                             <select id="{{ $alan['girdi'] }}" name="{{ $ad }}" required
                                                     class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm
                                                            focus:border-kulup-600 focus:ring-2 focus:ring-kulup-600/20 focus:outline-none">
-                                                @foreach (App\Enums\CalisanAraligi::cases() as $secenek)
-                                                    <option value="{{ $secenek->value }}"
-                                                            @selected(old('alan.'.$alan['girdi'], $alan['deger']) === $secenek->value)>
-                                                        {{ $secenek->etiket() }}
+                                                @foreach ($secenekler as $deger => $etiket)
+                                                    <option value="{{ $deger }}"
+                                                            @selected((string) old('alan.'.$alan['girdi'], $mevcut) === (string) $deger)>
+                                                        {{ $etiket }}
                                                     </option>
                                                 @endforeach
                                             </select>
@@ -206,23 +218,93 @@
                                         </div>
                                         @break
 
+                                    {{-- 🪤 Kutular kamu formundakiyle AYNI ŞEKİLDE çizilmeli:
+                                         doğrulama kuralları (DuzeltmeUygulayici::kurallar)
+                                         `sosyal` için anahtarlı liste, `platformlar` için
+                                         ad+adres satırları bekliyor. Burada tek bir metin
+                                         kutusu vardı; gönderilen form kuralları hiç
+                                         geçemiyordu. --}}
                                     @case('sosyal')
+                                        <div class="sm:col-span-2 grid gap-4 sm:grid-cols-2">
+                                            @foreach (App\Support\SosyalMedyaAlanlari::turIcin($basvuru->tur) as $sm => $smTanim)
+                                                @php
+                                                    $smHata = $errors->first('alan.'.$alan['girdi'].'.'.$sm);
+                                                    $smDeger = old(
+                                                        'alan.'.$alan['girdi'].'.'.$sm,
+                                                        is_array($alan['deger']) ? ($alan['deger'][$sm] ?? '') : '',
+                                                    );
+                                                @endphp
+                                                <div>
+                                                    <label class="block text-sm font-medium text-neutral-800"
+                                                           for="{{ $alan['girdi'] }}-{{ $sm }}">{{ $smTanim['etiket'] }}</label>
+                                                    {{-- 🪤 `type="url"` DEĞİL: şema sunucuda tamamlanıyor (WebAdresi). --}}
+                                                    <input type="text" inputmode="url"
+                                                           id="{{ $alan['girdi'] }}-{{ $sm }}" name="{{ $ad }}[{{ $sm }}]"
+                                                           value="{{ $smDeger }}" placeholder="{{ $smTanim['ipucu'] }}"
+                                                           @class([
+                                                               'mt-1.5 block w-full rounded-lg border px-3 py-2 text-sm transition focus:border-kulup-600 focus:ring-2 focus:ring-kulup-600/20 focus:outline-none',
+                                                               'border-neutral-300 bg-white' => ! $smHata,
+                                                               'border-kulup-600 bg-kulup-50' => (bool) $smHata,
+                                                           ])>
+                                                    @if ($smHata)<p class="mt-1 text-xs text-kulup-700">{{ $smHata }}</p>@endif
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                        @break
+
                                     @case('platformlar')
-                                        {{-- Çok satırlı alanlar: her satır "ad|adres" olarak alınır.
-                                             Tekrarlayıcı bir bileşen yerine tek kutu; düzeltme
-                                             ekranında nadiren kullanılır, karmaşıklığa değmez. --}}
-                                        <div class="sm:col-span-2">
-                                            <label class="block text-sm font-medium text-neutral-800" for="{{ $alan['girdi'] }}">
-                                                Yeni {{ mb_strtolower($alan['etiket']) }}
-                                            </label>
-                                            <textarea id="{{ $alan['girdi'] }}" name="{{ $ad }}[]" rows="3"
-                                                      placeholder="Her satıra bir adres"
-                                                      class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm
-                                                             focus:border-kulup-600 focus:ring-2 focus:ring-kulup-600/20 focus:outline-none"
-                                            >{{ old('alan.'.$alan['girdi'].'.0', is_array($alan['deger']) ? implode("\n", array_filter(array_map(fn ($d) => is_array($d) ? ($d['url'] ?? '') : $d, $alan['deger']))) : '') }}</textarea>
-                                            @error('alan.'.$alan['girdi'].'.0')
-                                                <p class="mt-1 text-xs text-kulup-700">{{ $message }}</p>
+                                        @php
+                                            $satirlar = old('alan.'.$alan['girdi'], is_array($alan['deger']) ? $alan['deger'] : []);
+                                            $satirlar = array_values(array_filter(
+                                                (array) $satirlar,
+                                                fn ($satir) => is_array($satir),
+                                            )) ?: [['ad' => '', 'url' => '']];
+                                        @endphp
+                                        <div class="sm:col-span-2"
+                                             x-data="{
+                                                 satirlar: {{ json_encode($satirlar, JSON_UNESCAPED_UNICODE) }},
+                                                 ekle() { this.satirlar.push({ ad: '', url: '' }) },
+                                                 cikar(i) { if (this.satirlar.length > 1) this.satirlar.splice(i, 1) }
+                                             }">
+                                            @error('alan.'.$alan['girdi'])
+                                                <p class="mb-2 text-xs text-kulup-700">{{ $message }}</p>
                                             @enderror
+
+                                            <div class="space-y-3">
+                                                <template x-for="(satir, i) in satirlar" :key="i">
+                                                    <div class="flex flex-wrap items-end gap-3 sm:flex-nowrap">
+                                                        <div class="w-full sm:w-1/3">
+                                                            <label class="block text-sm font-medium text-neutral-800"
+                                                                   :for="`{{ $alan['girdi'] }}-ad-${i}`">Yayın adı</label>
+                                                            <input type="text" :id="`{{ $alan['girdi'] }}-ad-${i}`"
+                                                                   :name="`{{ $ad }}[${i}][ad]`" x-model="satir.ad"
+                                                                   placeholder="Örn. Çorum Haber" required
+                                                                   class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-kulup-600 focus:ring-2 focus:ring-kulup-600/20 focus:outline-none">
+                                                        </div>
+                                                        <div class="min-w-0 flex-1">
+                                                            <label class="block text-sm font-medium text-neutral-800"
+                                                                   :for="`{{ $alan['girdi'] }}-url-${i}`">Web sitesi adresi</label>
+                                                            <input type="text" inputmode="url" :id="`{{ $alan['girdi'] }}-url-${i}`"
+                                                                   :name="`{{ $ad }}[${i}][url]`" x-model="satir.url"
+                                                                   placeholder="https://ornek.com.tr" required
+                                                                   class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-kulup-600 focus:ring-2 focus:ring-kulup-600/20 focus:outline-none">
+                                                        </div>
+                                                        <button type="button" @click="cikar(i)" x-show="satirlar.length > 1"
+                                                                class="rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-500 transition hover:border-kulup-600 hover:text-kulup-700"
+                                                                aria-label="Satırı kaldır">&times;</button>
+                                                    </div>
+                                                </template>
+                                            </div>
+
+                                            {{-- Satır başına düşen hatalar (alan.x.0.url gibi) --}}
+                                            @foreach ($errors->get('alan.'.$alan['girdi'].'.*') as $anahtarHata)
+                                                <p class="mt-1 text-xs text-kulup-700">{{ $anahtarHata[0] }}</p>
+                                            @endforeach
+
+                                            <button type="button" @click="ekle()"
+                                                    class="mt-3 rounded-lg border border-dashed border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 transition hover:border-kulup-600 hover:text-kulup-700">
+                                                Yeni yayın adresi ekle
+                                            </button>
                                         </div>
                                         @break
 

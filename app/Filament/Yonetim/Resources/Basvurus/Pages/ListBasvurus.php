@@ -14,6 +14,17 @@ class ListBasvurus extends ListRecords
         return 'Başvurular';
     }
 
+    /**
+     * Sayfa açıklaması -- Cüneyt Bey revizyonu (03.09.2026). Kuyruğun ne
+     * içerdiğini başlığın altında söylüyor; yetkili "burada hangi başvurular
+     * var" diye filtreleri kurcalamıyor.
+     */
+    public function getSubheading(): ?string
+    {
+        return 'Medya kuruluşu, basın mensubu ve bağımsız içerik üreticisi '
+            .'başvurularını inceleyin ve yönetin.';
+    }
+
     // Başvuru yetkili tarafından OLUŞTURULMAZ -- "Yeni" düğmesi yok.
     protected function getHeaderActions(): array
     {

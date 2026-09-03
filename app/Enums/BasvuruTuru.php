@@ -18,7 +18,27 @@ enum BasvuruTuru: string
         return match ($this) {
             self::Kurum => 'Kurumsal başvuru',
             self::BasinMensubu => 'Basın mensubu',
-            self::IcerikUreticisi => 'İçerik üreticisi',
+            self::IcerikUreticisi => 'Bağımsız içerik üreticisi',
+        };
+    }
+
+    /**
+     * "... basvurunuz" cumlesinde kullanilan hali.
+     *
+     * 💥 etiket() BURAYA UYMAZ: Kurum turunun etiketi zaten "Kurumsal basvuru",
+     * cumleye konunca "Kurumsal basvuru basvurunuz" cikiyordu -- musteri bunu
+     * gonderilen e-postada gordu (Yusuf/IT, 2026-08-27).
+     *
+     * Kurum icin sifat KUYRUKTAKI etiketten de farkli: yetkili tabloda
+     * "Kurumsal basvuru" gormek istiyor, basvuran e-postasinda ise
+     * "Medya kurulusu basvurunuz" (Cuneyt Bey revizyonu, 03.09.2026).
+     */
+    public function basvuruSifati(): string
+    {
+        return match ($this) {
+            self::Kurum => 'Medya kuruluşu',
+            self::BasinMensubu => 'Basın mensubu',
+            self::IcerikUreticisi => 'Bağımsız içerik üreticisi',
         };
     }
 

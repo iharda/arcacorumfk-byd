@@ -29,6 +29,11 @@
                     @endif
                 </div>
 
+                {{-- Durum adlarının ne anlama geldiği tek kaynakta (BasvuruDurumu);
+                     yetkili "yeniden inceleme bekliyor" ile "inceleme bekliyor"un
+                     farkını ekranda okuyabilmeli. --}}
+                <p style="margin-top:.45rem; font-size:.75rem; opacity:.6;">{{ $rozet['aciklama'] }}</p>
+
                 <dl style="margin-top:.9rem; display:grid; grid-template-columns:auto 1fr; gap:.35rem .75rem; font-size:.8rem;">
                     @foreach ([
                         'Gönderim'  => $record->gonderildi_at?->timezone('Europe/Istanbul')->format('d.m.Y H:i'),
@@ -43,13 +48,43 @@
                 </dl>
             </x-filament::section>
 
+            {{-- Değerlendirme -- briefi md. A.7.3. Karar DEĞİL: kararlar üst
+                 çubukta, bu bölüm sayfa içinde durur.
+                 🔒 Veriyi getiren sorgu da yetkiye bakar (Inceleme sayfasındaki
+                 computed property); burada yalnızca ikinci kapı. --}}
+            @can('degerlendirme.yonet')
+                <x-filament::section compact>
+                    <x-slot name="heading">Değerlendirme</x-slot>
+
+                    <x-parcalar.degerlendirme-serit :degerlendirme="$this->degerlendirme" baslik="" />
+
+                    @if ($this->kurumDegerlendirmesi)
+                        {{-- Başvuranın kurumu da değerlendirilmişse geçmişi
+                             burada salt okunur görünür. --}}
+                        <div style="margin-top:.9rem; padding-top:.75rem; border-top:1px solid rgba(127,127,127,.2);">
+                            <div style="font-size:.72rem; opacity:.55;">
+                                Kurum: {{ $this->kurumDegerlendirmesi->hedefAdi() }}
+                            </div>
+                            <div style="margin-top:.3rem;">
+                                <x-parcalar.degerlendirme-serit
+                                    :degerlendirme="$this->kurumDegerlendirmesi"
+                                    kompakt
+                                    :baslik="'Kurum değerlendirmesi (' . $this->kurumDegerlendirmesi->hedefAdi() . ')'" />
+                            </div>
+                        </div>
+                    @endif
+
+                    <div style="margin-top:.9rem;">{{ $this->degerlendirAction }}</div>
+                </x-filament::section>
+            @endcan
+
             @if ($record->kurum)
                 <x-filament::section compact>
                     <x-slot name="heading">Kurum</x-slot>
                     <dl style="display:grid; grid-template-columns:auto 1fr; gap:.4rem .75rem; font-size:.82rem;">
                         @foreach ([
-                            'Ünvan'        => $record->kurum->resmi_unvan,
-                            'Adres'        => trim(($record->kurum->adres ?? '') . ' · ' . ($record->kurum->ilce ?? '') . '/' . ($record->kurum->il ?? ''), ' ·/'),
+                            'Ticari unvan' => $record->kurum->resmi_unvan,
+                            'Açık adres'   => trim(($record->kurum->adres ?? '') . ' · ' . ($record->kurum->ilce ?? '') . '/' . ($record->kurum->il ?? ''), ' ·/'),
                             'Telefon'      => \App\Support\Telefon::goster($record->kurum->telefon),
                             'E-posta'      => $record->kurum->eposta,
                             'Vergi'        => trim(($record->kurum->vergi_dairesi ?? '') . ' · ' . ($record->kurum->vergi_no ?? ''), ' ·'),
@@ -64,7 +99,7 @@
 
                     @if (filled($record->kurum->yayin_platformlari))
                         <div style="margin-top:.9rem;">
-                            <div style="font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; opacity:.55;">Yayın platformları</div>
+                            <div style="font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; opacity:.55;">Web siteleri ve yayın kanalları</div>
                             <ul style="margin-top:.35rem; display:flex; flex-direction:column; gap:.25rem; font-size:.82rem;">
                                 @foreach ($record->kurum->yayin_platformlari as $p)
                                     <li>
@@ -122,7 +157,7 @@
                 @php
                     $form = $record->form_verisi ?? [];
                     $evetHayir = fn (string $anahtar) => array_key_exists($anahtar, $form)
-                        ? ($form[$anahtar] ? 'Var' : 'Yok')
+                        ? ($form[$anahtar] ? 'Evet' : 'Hayır')
                         : null;
                 @endphp
 
@@ -130,10 +165,10 @@
                     <x-slot name="heading">Başvuru bilgileri</x-slot>
                     <dl style="display:grid; grid-template-columns:auto 1fr; gap:.4rem .75rem; font-size:.82rem;">
                         @foreach ([
-                            'Adres' => trim(($form['adres'] ?? '') . ' · ' . ($form['ilce'] ?? '') . '/' . ($form['il'] ?? ''), ' ·/'),
+                            'Açık adres' => trim(($form['adres'] ?? '') . ' · ' . ($form['ilce'] ?? '') . '/' . ($form['il'] ?? ''), ' ·/'),
                             'Basın kartı' => $evetHayir('basin_karti_var'),
-                            '212 sigortası' => $evetHayir('sigorta_212_var'),
-                            'Mesleki deneyim' => isset($form['calisma_yili']) ? $form['calisma_yili'] . ' yıl' : null,
+                            'Basın İş Kanunu sigortası' => $evetHayir('sigorta_212_var'),
+                            'Medya sektöründeki deneyim' => \App\Enums\DeneyimAraligi::goster($form['calisma_yili'] ?? null),
                         ] as $etiket => $deger)
                             @if (filled($deger))
                                 <dt style="opacity:.6; white-space:nowrap;">{{ $etiket }}</dt>
@@ -144,7 +179,7 @@
 
                     @if (filled(array_filter($form['sosyal_medya'] ?? [])))
                         <div style="margin-top:.9rem;">
-                            <div style="font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; opacity:.55;">Yayın adresleri</div>
+                            <div style="font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; opacity:.55;">Yayın kanalları</div>
                             <ul style="margin-top:.35rem; display:flex; flex-wrap:wrap; gap:.4rem;">
                                 @foreach (array_filter($form['sosyal_medya']) as $ag => $url)
                                     <li>

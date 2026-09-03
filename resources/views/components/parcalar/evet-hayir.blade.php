@@ -1,5 +1,9 @@
 {{-- İki seçenekli radyo. Varsayılan SEÇİLİ DEĞİL: kullanıcı bilerek işaretlesin,
-     "hayır" sessizce varsayılmasın. --}}
+     "hayır" sessizce varsayılmasın.
+
+     🔤 "Var / Yok" DEĞİL "Evet / Hayır" (Cüneyt Bey revizyonu 03.09.2026):
+     etiketler artık tam soru cümlesi ("Geçerli bir basın kartınız var mı?"),
+     cevap da soruya uymalı. --}}
 @props(['ad', 'etiket', 'zorunlu' => false, 'deger' => null, 'yol' => null])
 
 {{-- 🪤 `yol`: `old()` ve `$errors` NOKTA yolu ister. Girdi adı
@@ -12,7 +16,7 @@
 <div>
     <span @class(['block text-sm font-medium text-neutral-800', 'zorunlu' => $zorunlu])>{{ $etiket }}</span>
     <div class="mt-2 flex gap-4">
-        @foreach ([1 => 'Var', 0 => 'Yok'] as $secenek => $metin)
+        @foreach ([1 => 'Evet', 0 => 'Hayır'] as $secenek => $metin)
             <label class="flex items-center gap-2 text-sm">
                 <input type="radio" name="{{ $ad }}" value="{{ $secenek }}"
                        @checked((string) old($yol, $deger === null ? '' : (int) $deger) === (string) $secenek)

@@ -10,7 +10,7 @@
     {{-- Durum şeridi --}}
     <x-filament::section>
         <x-slot name="heading">{{ $basvuru->kurum?->resmi_unvan ?? $basvuru->tur->etiket() }}</x-slot>
-        <x-slot name="description">Başvuru no: {{ $basvuru->ulid }}</x-slot>
+        <x-slot name="description">Başvuru no: {{ $basvuru->basvuru_no }}</x-slot>
 
         <div style="display:flex; flex-wrap:wrap; align-items:center; gap:.75rem;">
             <x-filament::badge :color="$basvuru->durum->renk()" size="lg">

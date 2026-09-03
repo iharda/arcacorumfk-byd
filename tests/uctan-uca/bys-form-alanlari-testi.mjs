@@ -9,7 +9,8 @@
  *   5. Aynı vergi numarasıyla ikinci kurum kaydı açılamıyor
  *   6. Çalışan sayısı açılır liste; serbest metin kabul edilmiyor
  *   7. Telefon E.164 (+905321234567) olarak saklanıyor
- *   8. Etiketler düzeldi (Resmi unvan · Web siteleri ve yayın adresleri)
+ *   8. Etiketler Cüneyt Bey revizyonuna uyuyor (Ticari unvan · Web siteleri
+ *      ve yayın kanalları) ve URL alanı `type="url"` DEĞİL
  *
  * ⚠️ ÜRETİME YAZAR. Kendi kaydını oluşturur, sonunda siler.
  * ⚠️ Başvuru gönderimi 10 dakikada 5 istek: her gönderimden önce önbellek
@@ -18,6 +19,7 @@
  * node /root/bys-form-alanlari-testi.mjs
  */
 import puppeteer from 'puppeteer-core';
+import { resolve } from 'node:path';
 import { readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
@@ -25,7 +27,15 @@ const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
 const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
-const D = (process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
+/*
+ * 🪤 YOL NORMALLESTIRILIR (resolve). Ham `.../uctan-uca/../../../test-dosyalari`
+ * yolunu Chrome'a verirsen dosya seciminde hata YOK ama form gonderilirken
+ * POST `net::ERR_ACCESS_DENIED` ile duser: Chrome olusturucuya okuma iznini
+ * COZULMUS yol icin verir, blob ise ham yolu tasir, ikisi tutmaz. Tarayici da
+ * "site can't be reached" der; sunucuya istek HIC ulasmaz, erisim kaydinda iz
+ * yoktur. Sunucu tasindiktan sonra bu testler bu yuzden kiriliyordu.
+ */
+const D = resolve(process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
 
 const damga = Date.now();
 const EPOSTA = `form5+${damga}@ornek.test`;
@@ -92,11 +102,16 @@ try {
 
   /* ── 1. Etiketler (md.5.5) ─────────────────────────────────────── */
   const govde = await s.evaluate(() => document.body.innerText);
-  kontrol('"Resmi unvan" yazımı düzeldi',
-    govde.includes('Resmi unvan') && ! govde.includes('Resmi ünvan'));
-  kontrol('"Web siteleri ve yayın adresleri" başlığı',
-    govde.includes('Web siteleri ve yayın adresleri') && ! govde.includes('Yayın platformları'));
-  kontrol('"+ Adres ekle" düğmesi', govde.includes('Adres ekle') && ! govde.includes('Platform ekle'));
+  kontrol('"Ticari unvan" etiketi',
+    govde.includes('Ticari unvan') && ! govde.includes('Resmi ünvan'));
+  kontrol('"Web siteleri ve yayın kanalları" başlığı',
+    govde.includes('Web siteleri ve yayın kanalları') && ! govde.includes('yayın adresleri</h2>'));
+  kontrol('"Yeni yayın adresi ekle" düğmesi',
+    govde.includes('Yeni yayın adresi ekle') && ! govde.includes('Platform ekle'));
+  kontrol('"Başvuru belgeleri" başlığı', govde.includes('Başvuru belgeleri'));
+  // 🪤 `type="url"` tarayıcıda "Lütfen bir URL girin." diyip formu durduruyordu.
+  kontrol('URL alanları tarayıcıyı şema yazmaya zorlamıyor',
+    ! /type="url"/.test(govde));
 
   /* ── 2. İl / ilçe bağlı liste ──────────────────────────────────── */
   kontrol('İl seçilmeden ilçe kutusu kapalı',

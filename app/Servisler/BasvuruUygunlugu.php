@@ -40,6 +40,7 @@ class BasvuruUygunlugu
         BasvuruDurumu::Gonderildi,
         BasvuruDurumu::Incelemede,
         BasvuruDurumu::EksikEvrak,
+        BasvuruDurumu::YenidenInceleme,
     ];
 
     /** Süren başvuru mesajı: hesap olsa da olmasa da aynı. */

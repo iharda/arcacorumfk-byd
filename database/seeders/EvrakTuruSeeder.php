@@ -9,6 +9,12 @@ use Illuminate\Database\Seeder;
 /**
  * Evrak turleri -- Plan v1.0 md.3.1 / 3.2 / 3.3.
  * Bunlar VERI; yetkili panelden ekleyip cikarabilir (Faz 2 form olusturucuya zemin).
+ *
+ * 🔤 `ad` ve `aciklama` BASVURANIN GORDUGU metinlerdir (Cuneyt Bey revizyonu
+ * 03.09.2026): baslik belgenin adi, aciklama hangi belgelerin kabul edildigi.
+ * 🪤 `aciklama` eskiden IC NOT tutuyordu ("At-rest sifreli saklanir…") ve
+ * hicbir ekranda basilmiyordu; artik forma ciktigi icin o notlar kod
+ * yorumuna tasindi.
  */
 class EvrakTuruSeeder extends Seeder
 {
@@ -20,7 +26,7 @@ class EvrakTuruSeeder extends Seeder
 
         $turler = [
             [
-                'kod' => 'ticaret_sicil_gazetesi', 'ad' => 'Ticaret sicil gazetesi',
+                'kod' => 'ticaret_sicil_gazetesi', 'ad' => 'Ticaret Sicili Gazetesi',
                 'basvuru_turleri' => [$kurum], 'zorunlu' => true,
                 'izinli_formatlar' => ['pdf', 'jpg', 'jpeg', 'png'], 'maks_boyut_kb' => 8192,
                 'hassas' => false, 'sira' => 10,
@@ -33,21 +39,23 @@ class EvrakTuruSeeder extends Seeder
             ],
             [
                 'kod' => 'biyometrik_fotograf', 'ad' => 'Biyometrik fotoğraf',
-                'aciklama' => 'Basın kartında ve kapı doğrulama ekranında kullanılır.',
+                'aciklama' => 'Basın kartınızda ve kapı doğrulama ekranında kullanılır.',
                 'basvuru_turleri' => [$basin, $icerik], 'zorunlu' => true,
                 'izinli_formatlar' => ['jpg', 'jpeg', 'png'], 'maks_boyut_kb' => 5120,
                 'hassas' => false, 'sira' => 30,
             ],
             [
-                'kod' => 'kimlik_gorseli', 'ad' => 'Kimlik / ehliyet / pasaport',
-                'aciklama' => 'At-rest şifreli saklanır; karar sonrası imha planına girer.',
+                // 🔒 At-rest sifreli saklanir; karar sonrasi imha planina girer.
+                'kod' => 'kimlik_gorseli', 'ad' => 'Kimlik belgesi',
+                'aciklama' => 'T.C. kimlik kartı, sürücü belgesi veya pasaport',
                 'basvuru_turleri' => [$basin, $icerik], 'zorunlu' => true,
                 'izinli_formatlar' => ['pdf', 'jpg', 'jpeg', 'png'], 'maks_boyut_kb' => 8192,
                 'hassas' => true, 'imha_gun' => 180, 'sira' => 40,
             ],
             [
-                'kod' => 'calisma_belgesi', 'ad' => 'Çalışma / iş giriş belgesi veya SGK belgesi',
-                'aciklama' => 'Kurum teyidi ayarı kapalıyken yetkili bu belgeden doğrular.',
+                // 🔑 Kurum teyidi ayari kapaliyken yetkili bu belgeden dogrular.
+                'kod' => 'calisma_belgesi', 'ad' => 'Çalışma belgesi',
+                'aciklama' => 'Çalışma belgesi, işe giriş bildirgesi veya güncel SGK belgesi',
                 'basvuru_turleri' => [$basin], 'zorunlu' => true,
                 'izinli_formatlar' => ['pdf', 'jpg', 'jpeg', 'png'], 'maks_boyut_kb' => 8192,
                 'hassas' => true, 'imha_gun' => 180, 'sira' => 50,

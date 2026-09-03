@@ -22,6 +22,7 @@
  * node /root/bys-insan-senaryosu.mjs [--birak]
  */
 import puppeteer from 'puppeteer-core';
+import { resolve } from 'node:path';
 import { readdirSync, readFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { totp } from './bys-totp.mjs';
@@ -31,7 +32,15 @@ const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
 const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
-const D = (process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
+/*
+ * 🪤 YOL NORMALLESTIRILIR (resolve). Ham `.../uctan-uca/../../../test-dosyalari`
+ * yolunu Chrome'a verirsen dosya seciminde hata YOK ama form gonderilirken
+ * POST `net::ERR_ACCESS_DENIED` ile duser: Chrome olusturucuya okuma iznini
+ * COZULMUS yol icin verir, blob ise ham yolu tasir, ikisi tutmaz. Tarayici da
+ * "site can't be reached" der; sunucuya istek HIC ulasmaz, erisim kaydinda iz
+ * yoktur. Sunucu tasindiktan sonra bu testler bu yuzden kiriliyordu.
+ */
+const D = resolve(process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
 const SHOT = '/root/bys-senaryo';
 
 const damga = Date.now();
@@ -330,9 +339,9 @@ echo 'KUYRUKTA:' . ($b && App\\Models\\Basvuru::kuyrukta()->whereKey($b->id)->ex
 
   await tikla(y, 'İncelemeye al');
   await bekle(2500);
-  kontrol('Durum "İncelemede"', (await govde(y)).includes('İncelemede'));
+  kontrol('Durum "İnceleniyor"', (await govde(y)).includes('İnceleniyor'));
 
-  await tikla(y, 'Eksik evrak iste');
+  await tikla(y, 'Belge iste');
   await bekle(2400);
   const secim = await y.$('select');
   if (secim) {
@@ -353,8 +362,8 @@ echo 'KUYRUKTA:' . ($b && App\\Models\\Basvuru::kuyrukta()->whereKey($b->id)->ex
     await bekle(3000);
   }
   const inc3 = await govde(y);
-  kontrol('Alan bazlı eksik evrak talebi işlendi',
-    inc3.includes('Eksik evrak') && inc3.includes('Levha okunmuyor'));
+  kontrol('Alan bazlı belge talebi işlendi',
+    inc3.includes('Belge bekleniyor') && inc3.includes('Levha okunmuyor'));
   await foto(y, 'eksik-evrak-talebi');
 
   /*
@@ -378,7 +387,9 @@ echo 'TOKEN:' . app(App\\Servisler\\BasvuruBiletiAkisi::class)->yenidenGonder($b
 $b = App\\Models\\Basvuru::where('basvuran_eposta','${K1.yetkiliEposta}')->latest('id')->firstOrFail();
 echo 'DURUM:' . $b->durum->value . ' NOT:' . (blank($b->duzeltme_notlari) ? 'temiz' : 'duruyor');`);
   kontrol('Düzeltip yeniden gönderdi, notlar temizlendi',
-    s1.url().includes('/basvuru/gonderildi') && /DURUM:gonderildi/.test(kur2) && /NOT:temiz/.test(kur2),
+    // Düzeltme sonrası artık "Gönderildi"ye DÖNMÜYOR: daha önce incelenmiş
+    // başvuru kuyrukta kaybolmasın diye ayrı durum -- revizyon 03.09.2026.
+    s1.url().includes('/basvuru/gonderildi') && /DURUM:yeniden_inceleme/.test(kur2) && /NOT:temiz/.test(kur2),
     cek(kur2, 'DURUM'));
 
   // Onay
@@ -388,7 +399,8 @@ echo 'DURUM:' . $b->durum->value . ' NOT:' . (blank($b->duzeltme_notlari) ? 'tem
   await bekle(2500);
   await tikla(y, 'Onayla');
   await bekle(1600);
-  await kipTikla(y, 'Onayla');
+  // 🔤 Kipin ana düğmesi kurumda "Kuruluşu onayla" (Cüneyt Bey, 03.09.2026).
+  await kipTikla(y, 'Kuruluşu onayla');
   await bekle(3500);
   kontrol('Birinci kurum ONAYLANDI', (await govde(y)).includes('Onaylandı'));
   const akr = artisan(`echo 'AKRED:' . (App\\Models\\Kurum::where('resmi_unvan','${K1.unvan}')->first()?->akreditasyon_durumu ?? 'yok');`);
@@ -414,7 +426,7 @@ echo 'DURUM:' . $b->durum->value . ' NOT:' . (blank($b->duzeltme_notlari) ? 'tem
     const alan = await y.$('#mountedActionSchema0\\.gerekce, textarea');
     if (alan) await alan.type('Sunulan ticaret sicil kaydı güncel değil; başvuru bu hâliyle değerlendirilemedi.', { delay: 12 });
     await dusun(400, 700);
-    await kipTikla(y, 'Reddet');
+    await kipTikla(y, 'Başvuruyu reddet');
     await bekle(3500);
     kontrol('İkinci kurum REDDEDİLDİ', (await govde(y)).includes('Reddedildi'));
     await foto(y, 'kurum-reddedildi');
@@ -476,7 +488,7 @@ echo 'GEREKCE:' . (str_contains((string) $b->karar_gerekcesi, 'güncel değil') 
     document.querySelectorAll('[name="sigorta_212_var"]').forEach(r => { if (r.value === '1') r.click(); });
     document.querySelectorAll('[name="basin_karti_var"]').forEach(r => { if (r.value === '1') r.click(); });
   });
-  await yaz(s3, '[name="calisma_yili"]', '5');
+  await s3.select('[name="calisma_yili"]', '1-5');
   await s3.click('[name="kvkk_aydinlatma"]');
   await s3.click('[name="kvkk_riza"]');
 
@@ -522,7 +534,7 @@ echo 'KUYRUKTA:' . (App\\Models\\Basvuru::kuyrukta()->whereKey($bv->id)->exists(
     await foto(y, 'basin-mensubu-inceleme');
     await tikla(y, 'Onayla');
     await bekle(1600);
-    await kipTikla(y, 'Onayla');
+    await kipTikla(y, 'Başvuruyu onayla');
     await bekle(4000);
     kontrol('Basın mensubu ONAYLANDI', (await govde(y)).includes('Onaylandı'));
   }

@@ -3,6 +3,7 @@
 namespace App\Servisler;
 
 use App\Enums\CalisanAraligi;
+use App\Enums\DeneyimAraligi;
 use App\Models\Basvuru;
 use App\Rules\TelefonNumarasi;
 use App\Rules\VergiNumarasi;
@@ -91,10 +92,12 @@ class DuzeltmeUygulayici
         return match ($tanim['tip'] ?? 'metin') {
             'telefon' => Telefon::goster(is_string($deger) ? $deger : null),
             'il-ilce' => is_array($deger) ? implode(' / ', array_filter($deger)) : $this->metne($deger),
-            'evet-hayir' => $deger ? 'Var' : 'Yok',
+            'evet-hayir' => $deger ? 'Evet' : 'Hayır',
             'aralik' => is_string($deger)
                 ? (CalisanAraligi::tryFrom($deger)?->etiket() ?? $deger)
                 : (string) json_encode($deger, JSON_UNESCAPED_UNICODE),
+            // 🪤 Eski kayitlarda duz rakam durabilir; `goster()` ikisini de bilir.
+            'deneyim-araligi' => DeneyimAraligi::goster($deger) ?? '—',
             'sosyal' => is_array($deger) ? implode(' · ', array_filter($deger)) : $this->metne($deger),
             'platformlar' => is_array($deger)
                 ? collect($deger)->map(fn ($p) => trim(($p['ad'] ?? '').' — '.($p['url'] ?? ''), ' —'))->implode(' · ')
@@ -137,6 +140,7 @@ class DuzeltmeUygulayici
                 'evet-hayir' => [$ad => ['required', 'boolean']],
                 'vergi-no' => [$ad => ['required', 'string', new VergiNumarasi]],
                 'aralik' => [$ad => ['required', Rule::enum(CalisanAraligi::class)]],
+                'deneyim-araligi' => [$ad => ['required', Rule::enum(DeneyimAraligi::class)]],
                 /*
                  * 🪤 `TelefonNumarasi` ülke kodunu `request()->input()` ile
                  * okur: NOKTALI TAM YOL vermek şart, yoksa hep varsayılana

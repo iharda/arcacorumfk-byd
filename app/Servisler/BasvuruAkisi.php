@@ -38,16 +38,29 @@ class BasvuruAkisi
     {
         $this->eksikZorunluEvrakVarsaDurdur($basvuru);
 
+        /*
+         * 🔑 DÜZELTMEDEN DÖNÜŞ ayrı bir duraktır (Cüneyt Bey revizyonu
+         * 03.09.2026). Eskiden "Gönderildi"ye geri dönülüyordu ve kuyrukta
+         * hiç açılmamış başvuruyla, bir kez incelenip belge istenmiş ve
+         * cevabı gelmiş başvuru birbirinden ayırt edilemiyordu.
+         */
+        $duzeltmedenDonus = $basvuru->durum === BasvuruDurumu::EksikEvrak;
+
         // Teyit gerekliliği GÖNDERİM ANINDA dondurulur; ayar sonradan değişse de
         // yoldaki başvurunun kuralı değişmez.
         $teyitGerekli = $basvuru->kurum_teyidi === null
             && $this->kurumTeyidiGerekliMi($basvuru);
 
-        $this->gecir($basvuru, BasvuruDurumu::Gonderildi, 'basvuru.gonderildi', [
-            'gonderildi_at' => now(),
-            'duzeltme_notlari' => null,   // düzeltme tamamlandı
-            'kurum_teyidi_gerekli' => $teyitGerekli,
-        ]);
+        $this->gecir(
+            $basvuru,
+            $duzeltmedenDonus ? BasvuruDurumu::YenidenInceleme : BasvuruDurumu::Gonderildi,
+            $duzeltmedenDonus ? 'basvuru.yeniden_gonderildi' : 'basvuru.gonderildi',
+            [
+                'gonderildi_at' => now(),
+                'duzeltme_notlari' => null,   // düzeltme tamamlandı
+                'kurum_teyidi_gerekli' => $teyitGerekli,
+            ],
+        );
 
         $basvuru->bildirimHedefi()->notify(new BasvuruAlindi($basvuru));
 
@@ -253,6 +266,23 @@ class BasvuruAkisi
         $kullanici->notify(new BasvuruOnaylandi($basvuru, $sifreBelirlenecek));
     }
 
+    /**
+     * Başvuruyu düşürür -- Cüneyt Bey revizyonu (03.09.2026), "İptal edildi".
+     *
+     * 🔑 RED DEĞİLDİR: red bir karardır, başvurana gerekçesiyle bildirilir ve
+     * yeniden başvuru bekleme süresini işletir. İptal ise kaydın kapatılması
+     * (mükerrer başvuru, başvuranın telefonla vazgeçmesi, yanlış türde
+     * başvuru). Bu yüzden `karar_veren_id` DEĞİL yalnızca `karar_at` yazılır
+     * ve başvurana bildirim gitmez.
+     */
+    public function iptalEt(Basvuru $basvuru, string $gerekce): void
+    {
+        $this->gecir($basvuru, BasvuruDurumu::IptalEdildi, 'basvuru.iptal_edildi', [
+            'karar_at' => now(),
+            'karar_gerekcesi' => $gerekce,
+        ]);
+    }
+
     public function reddet(Basvuru $basvuru, string $gerekce): void
     {
         // İki geçiş TEK işlemde: ikincisi patlarsa başvuru "İncelemede" diye
@@ -260,7 +290,7 @@ class BasvuruAkisi
         DB::transaction(function () use ($basvuru, $gerekce) {
             // Kurum teyidi reddi başvuruyu doğrudan düşürür; önce incelemeye
             // alınması beklenmez (md.5.2 "Başvuru düşer").
-            if ($basvuru->durum === BasvuruDurumu::Gonderildi) {
+            if (in_array($basvuru->durum, BasvuruDurumu::acilmamis(), true)) {
                 $this->gecir($basvuru, BasvuruDurumu::Incelemede, 'basvuru.incelemeye_alindi', [
                     'incelemeye_alindi_at' => now(),
                 ]);

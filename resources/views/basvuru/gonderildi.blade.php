@@ -9,9 +9,16 @@
         </svg>
     </div>
 
-    <h1 class="mt-5 text-2xl font-semibold tracking-tight">
-        {{ $duzeltme ? 'Düzeltmeniz alındı' : 'Başvurunuz kaydedildi' }}
-    </h1>
+    {{-- Başlık türü söyler: başvuran hangi formu doldurduğunu ekranda
+         doğrulayabilmeli (Cüneyt Bey revizyonu 03.09.2026). --}}
+    @php
+        $baslik = match (true) {
+            $duzeltme => 'Düzeltmeniz alındı',
+            $tur !== null => $tur->basvuruSifati().' başvurunuz alındı',
+            default => 'Başvurunuz alındı',
+        };
+    @endphp
+    <h1 class="mt-5 text-2xl font-semibold tracking-tight">{{ $baslik }}</h1>
     @if ($duzeltme)
         <p class="mt-3 text-neutral-600">
             Başvurunuz yeniden incelemeye alındı. Sonuç
@@ -22,14 +29,14 @@
         {{-- Hesap ONAY anında açılır (Revizyon md.1): başvuranın yapacağı
              başka bir adım YOK, bekleyecek. --}}
         <p class="mt-3 text-neutral-600">
-            Başvurunuz evraklarıyla birlikte inceleme kuyruğuna alındı. Sonuç
-            <strong class="font-medium text-koyu">{{ $eposta }}</strong> adresine bildirilecek.
+            Başvurunuz ve ilettiğiniz belgeler değerlendirmeye alınmıştır. Değerlendirme sonucu
+            <strong class="font-medium text-koyu">{{ $eposta }}</strong> adresine gönderilecektir.
         </p>
     @endif
 
     <a href="{{ route('anasayfa') }}"
        class="mt-8 inline-flex items-center rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition hover:bg-neutral-50">
-        Başa dön
+        Ana sayfaya dön
     </a>
 </div>
 @endsection

@@ -11,6 +11,7 @@ use App\Rules\VergiNumarasi;
 use App\Servisler\BasvuruUygunlugu;
 use App\Support\IlIlce;
 use App\Support\UlkeKodu;
+use App\Support\WebAdresi;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Unique;
@@ -55,6 +56,8 @@ class KurumBasvuruIstegi extends FormRequest
 
             'yayin_platformlari' => ['required', 'array', 'min:1'],
             'yayin_platformlari.*.ad' => ['required', 'string', 'max:120'],
+            // 🔑 Sema `prepareForValidation`'da tamamlaniyor: basvuran
+            // `ornek.com` yazabilmeli (Cuneyt Bey revizyonu 03.09.2026).
             'yayin_platformlari.*.url' => ['required', 'url', 'max:300'],
 
             'sosyal_medya' => ['array'],
@@ -90,11 +93,11 @@ class KurumBasvuruIstegi extends FormRequest
     public function attributes(): array
     {
         return [
-            'resmi_unvan' => 'resmi ünvan', 'adres' => 'adres', 'il' => 'il', 'ilce' => 'ilçe',
-            'kurum_telefon' => 'kurum telefonu', 'kurum_eposta' => 'kurum e-postası',
+            'resmi_unvan' => 'ticari unvan', 'adres' => 'açık adres', 'il' => 'il', 'ilce' => 'ilçe',
+            'kurum_telefon' => 'telefon', 'kurum_eposta' => 'kurumsal e-posta',
             'vergi_dairesi' => 'vergi dairesi', 'vergi_no' => 'vergi numarası',
-            'calisan_araligi' => 'çalışan sayısı', 'yayin_platformlari' => 'web siteleri ve yayın adresleri',
-            'yetkili_ad' => 'yetkili adı soyadı', 'yetkili_eposta' => 'yetkili e-postası',
+            'calisan_araligi' => 'çalışan sayısı', 'yayin_platformlari' => 'web siteleri ve yayın kanalları',
+            'yetkili_ad' => 'adı soyadı', 'yetkili_eposta' => 'yetkili e-posta adresi',
             'yetkili_telefon' => 'yetkili telefonu',
             'kurum_telefon_ulke' => 'kurum telefonu ülke kodu',
             'yetkili_telefon_ulke' => 'yetkili telefonu ülke kodu',
@@ -109,7 +112,35 @@ class KurumBasvuruIstegi extends FormRequest
             'kvkk_aydinlatma.accepted' => 'Aydınlatma metnini okuduğunuzu onaylamalısınız.',
             'kvkk_riza.accepted' => 'Başvurunun değerlendirilebilmesi için açık rıza gereklidir.',
             'yayin_platformlari.min' => 'En az bir yayın adresi girmelisiniz.',
+            'yayin_platformlari.*.url.url' => 'Geçerli bir web sitesi adresi girin.',
+            'sosyal_medya.*.url' => 'Geçerli bir profil bağlantısı girin.',
             'evraklar.*.required' => ':attribute yüklemelisiniz.',
         ];
+    }
+
+    /**
+     * 🔑 URL'lerin semasini SUNUCUDA tamamla. Alanlar artik `type="url"`
+     * degil; "http:// yazmaya zorlamamaliyiz" (Cuneyt Bey, 03.09.2026).
+     */
+    protected function prepareForValidation(): void
+    {
+        $this->evrakTaslaginiCanlandir(BasvuruTuru::Kurum);
+
+        $platformlar = $this->input('yayin_platformlari');
+
+        if (is_array($platformlar)) {
+            $this->merge(['yayin_platformlari' => array_map(
+                fn ($satir) => is_array($satir)
+                    ? ['url' => WebAdresi::duzelt($satir['url'] ?? null)] + $satir
+                    : $satir,
+                $platformlar,
+            )]);
+        }
+
+        $sosyal = $this->input('sosyal_medya');
+
+        if (is_array($sosyal)) {
+            $this->merge(['sosyal_medya' => WebAdresi::dizi($sosyal)]);
+        }
     }
 }

@@ -46,8 +46,9 @@ class BasvuruPolicy
     /** Yetkili incelemeye alabilir mi? */
     public function incele(User $user, Basvuru $basvuru): bool
     {
+        // Düzeltmeden dönen başvuru da açılmamış sayılır (bkz. BasvuruDurumu).
         return $user->can('basvuru.incele')
-            && $basvuru->durum === BasvuruDurumu::Gonderildi;
+            && in_array($basvuru->durum, BasvuruDurumu::acilmamis(), true);
     }
 
     public function eksikEvrakIste(User $user, Basvuru $basvuru): bool
@@ -60,6 +61,19 @@ class BasvuruPolicy
     {
         return $user->can('basvuru.karar')
             && $basvuru->durum === BasvuruDurumu::Incelemede;
+    }
+
+    /**
+     * Başvuruyu iptal edip kuyruktan düşürebilir mi?
+     *
+     * 🔑 Karar veren yetki ister ama İncelemede olma şartı YOKTUR: iptalin
+     * tipik sebebi (mükerrer başvuru, başvuranın vazgeçmesi) daha kuyruğun
+     * başındayken ortaya çıkar.
+     */
+    public function iptalEt(User $user, Basvuru $basvuru): bool
+    {
+        return $user->can('basvuru.karar')
+            && in_array($basvuru->durum, BasvuruDurumu::kuyruk(), true);
     }
 
     /** Başvuran kendi başvurusunu gönderebilir/düzeltebilir mi? */

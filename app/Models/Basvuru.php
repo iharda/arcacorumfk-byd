@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Concerns\UlidAnahtari;
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
+use App\Servisler\BasvuruNoUretici;
 use App\Servisler\DuzeltmeUygulayici;
 use App\Support\DuzeltmeAlanlari;
 use Illuminate\Database\Eloquent\Builder;
@@ -13,10 +14,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use RuntimeException;
 
 /**
+ * @property string $ulid
+ * @property string $basvuru_no 4 karakterlik, basvurana gosterilen numara
  * @property BasvuruTuru $tur
  * @property BasvuruDurumu $durum
  * @property ?int $kullanici_id hesap ONAY aninda acilir; o ana kadar null
@@ -26,6 +30,11 @@ use RuntimeException;
  * @property ?string $basvuran_telefon
  * @property ?array<string, mixed> $form_verisi
  * @property ?array<string, string> $duzeltme_notlari
+ * @property ?int $kurum_id
+ * @property ?Kurum $kurum
+ * @property ?Carbon $gonderildi_at
+ * @property ?Carbon $incelemeye_alindi_at
+ * @property ?Carbon $karar_at
  */
 class Basvuru extends Model
 {
@@ -34,6 +43,19 @@ class Basvuru extends Model
     protected $table = 'basvurular';
 
     protected $guarded = ['id'];
+
+    /**
+     * Kisa basvuru numarasi kayit ANINDA verilir: "basvurunuz alindi" e-postasi
+     * ayni islemde kuyruga girer, numara o an hazir olmali.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $basvuru) {
+            if (blank($basvuru->basvuru_no)) {
+                $basvuru->basvuru_no = app(BasvuruNoUretici::class)->uret();
+            }
+        });
+    }
 
     protected function casts(): array
     {
@@ -267,7 +289,7 @@ class Basvuru extends Model
         }
 
         if (is_bool($deger)) {
-            return $deger ? 'Var' : 'Yok';
+            return $deger ? 'Evet' : 'Hayır';
         }
 
         return is_scalar($deger)

@@ -12,6 +12,7 @@ use App\Servisler\BasvuruBiletiAkisi;
 use App\Servisler\DuzeltmeUygulayici;
 use App\Servisler\EvrakYukleyici;
 use App\Support\DuzeltmeAlanlari;
+use App\Support\WebAdresi;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -49,6 +50,8 @@ class BasvuruDuzeltmeController extends Controller
         $duzeltme = $basvuru->acikDuzeltme();
         $izinli = $basvuru->duzeltilebilirAlanlar();
         $ekTalepler = $duzeltme !== null ? ($duzeltme->ek_talepler ?? []) : [];
+
+        $this->baglantiAlanlariniDuzelt($istek, $basvuru, $izinli);
 
         $veri = $istek->validate(
             $this->kurallar($turler, $basvuru, $izinli, $ekTalepler),
@@ -356,5 +359,60 @@ class BasvuruDuzeltmeController extends Controller
         }
 
         return $degisimler;
+    }
+
+    /**
+     * Bağlantı alanlarında şemayı SUNUCUDA tamamlar -- Cüneyt Bey revizyonu
+     * (03.09.2026): "http vs yazmaya zorlamamalıyız."
+     *
+     * 🔑 Kamu formundaki kuralın aynısı düzeltme ekranında da geçerli olmalı;
+     * yoksa yetkili "Yayın kanalları"nı işaretlediğinde başvuran aynı duvara
+     * ikinci kez toslardı.
+     *
+     * @param  array<int, string>  $izinli
+     */
+    private function baglantiAlanlariniDuzelt(Request $istek, Basvuru $basvuru, array $izinli): void
+    {
+        $alan = $istek->input('alan');
+
+        if (! is_array($alan)) {
+            return;
+        }
+
+        $degisti = false;
+
+        foreach ($izinli as $anahtar) {
+            $tanim = DuzeltmeAlanlari::tanim($basvuru->tur, $anahtar);
+
+            if ($tanim === null || ! in_array($tanim['tip'], ['sosyal', 'platformlar'], true)) {
+                continue;
+            }
+
+            $ad = DuzeltmeUygulayici::girdiAdi($anahtar);
+
+            if (! isset($alan[$ad]) || ! is_array($alan[$ad])) {
+                continue;
+            }
+
+            /*
+             * 🪤 İki ayrı şekil var: `sosyal` düz adres listesi, `platformlar`
+             * ise satır satır ['ad' => …, 'url' => …]. Kamu formundaki
+             * (KurumBasvuruIstegi) davranışın aynısı burada da geçerli olmalı.
+             */
+            $alan[$ad] = $tanim['tip'] === 'platformlar'
+                ? array_map(
+                    fn ($satir) => is_array($satir)
+                        ? ['url' => WebAdresi::duzelt($satir['url'] ?? null)] + $satir
+                        : WebAdresi::duzelt($satir),
+                    $alan[$ad],
+                )
+                : WebAdresi::dizi($alan[$ad]);
+
+            $degisti = true;
+        }
+
+        if ($degisti) {
+            $istek->merge(['alan' => $alan]);
+        }
     }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\EvrakImha;
+use App\Console\Commands\EvrakTaslagiTemizle;
 use Illuminate\Support\Facades\Schedule;
 
 /*
@@ -10,3 +11,7 @@ use Illuminate\Support\Facades\Schedule;
 
 // KVKK: saklama süresi dolan kimlik/çalışma belgesi dosyaları silinir.
 Schedule::command(EvrakImha::class)->dailyAt('03:20')->onOneServer();
+
+// Yarım kalan başvuru formlarından kalan geçici evrak taslakları
+// (KVKK: aralarında kimlik belgesi var, diskte beklemesinler).
+Schedule::command(EvrakTaslagiTemizle::class)->hourly()->onOneServer();

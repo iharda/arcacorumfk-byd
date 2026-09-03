@@ -72,13 +72,17 @@ const basliklar = istek('/yonetim/login').toLowerCase();
 for (const [ad, desen] of [
   ['Strict-Transport-Security', /strict-transport-security:/],
   ['X-Content-Type-Options: nosniff', /x-content-type-options:\s*nosniff/],
-  ['X-Frame-Options: DENY', /x-frame-options:\s*deny/],
+  // 🪤 DENY DEĞİL SAMEORIGIN: DENY iken kendi sayfamızdaki PDF önizlemesi de
+  // engelleniyordu (03.09.2026). Dış siteden çerçeveleme hâlâ yasak.
+  ['X-Frame-Options: SAMEORIGIN', /x-frame-options:\s*sameorigin/],
   ['Content-Security-Policy', /content-security-policy:/],
   ['Referrer-Policy', /referrer-policy:/],
 ]) {
   kontrol(ad, desen.test(basliklar));
 }
-kontrol('frame-ancestors none', /frame-ancestors 'none'/.test(basliklar));
+kontrol("frame-ancestors self", /frame-ancestors 'self'/.test(basliklar));
+kontrol('Dış siteden çerçeveleme yasak (frame-ancestors * / none değil)',
+  !/frame-ancestors\s+\*/.test(basliklar));
 kontrol('Sunucu sürümü sızmıyor (X-Powered-By yok)', !/x-powered-by:/.test(basliklar));
 
 console.log('\n── Taşıma ──');

@@ -26,11 +26,23 @@ class BasvurusTable
              * Doğru ad: $query.
              */
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['kurum', 'kullanici', 'inceleyen']))
+            // Arama neyi kapsıyor? Kutunun kendisi söylesin.
+            ->searchPlaceholder('Başvuru no, kişi veya kurum ara')
             // Bekleyen en eski başvuru en üstte: kuyruk sırası bozulmasın.
             ->defaultSort('gonderildi_at', 'asc')
             ->columns([
+                /*
+                 * Basvuran e-postadaki 4 karakterlik numarayla ariyor
+                 * (telefonda okunan numara bu). ULID kuyrukta gorunmez.
+                 */
+                TextColumn::make('basvuru_no')
+                    ->label('Başvuru no')
+                    ->fontFamily('mono')
+                    ->copyable()
+                    ->searchable(),
+
                 TextColumn::make('tur')
-                    ->label('Tür')
+                    ->label('Başvuru türü')
                     ->badge()
                     ->color('gray')
                     ->formatStateUsing(fn (BasvuruTuru $state) => $state->etiket()),
@@ -75,17 +87,19 @@ class BasvurusTable
                     ->label('Durum')
                     ->badge()
                     ->color(fn (BasvuruDurumu $state) => $state->renk())
-                    ->formatStateUsing(fn (BasvuruDurumu $state) => $state->etiket()),
+                    ->formatStateUsing(fn (BasvuruDurumu $state) => $state->etiket())
+                    // Durum adları yeni; ne anlama geldikleri fare üstüne gelince.
+                    ->tooltip(fn (BasvuruDurumu $state) => $state->aciklama()),
 
                 TextColumn::make('gonderildi_at')
-                    ->label('Gönderim')
+                    ->label('Başvuru tarihi')
                     // 🕐 timeZone SABİTLENİR: sunucu UTC, kullanıcı Türkiye saati bekler.
                     ->dateTime('d.m.Y H:i', 'Europe/Istanbul')
                     ->placeholder('—')
                     ->sortable(),
 
                 TextColumn::make('inceleyen.name')
-                    ->label('İnceleyen')
+                    ->label('Sorumlu')
                     ->placeholder('—')
                     ->toggleable(),
             ])
@@ -95,7 +109,7 @@ class BasvurusTable
                     ->multiple()
                     ->options(fn () => collect(BasvuruDurumu::cases())
                         ->mapWithKeys(fn ($d) => [$d->value => $d->etiket()])->all())
-                    ->default(array_map(fn ($d) => $d->value, BasvuruDurumu::kuyruk())),
+                    ->default(BasvuruDurumu::degerleri(...BasvuruDurumu::kuyruk())),
 
                 SelectFilter::make('tur')
                     ->label('Tür')
@@ -105,15 +119,16 @@ class BasvurusTable
             ])
             ->headerActions([
                 Action::make('disaAktar')
-                    ->label('CSV indir')
+                    ->label('CSV olarak indir')
                     ->icon('heroicon-m-arrow-down-tray')
                     ->visible(fn () => auth()->user()->can('rapor.disaaktar'))
                     ->action(fn ($livewire) => app(CsvDisaAktar::class)->akit(
                         $livewire->getFilteredTableQuery()->with(['kullanici', 'kurum', 'kararVeren']),
                         'basvurular',
-                        ['Başvuru no', 'Tür', 'Başvuran', 'E-posta', 'Kurum', 'Durum', 'Gönderim', 'Karar', 'Karar veren'],
+                        ['Başvuru no', 'Başvuru türü', 'Başvuran', 'E-posta', 'Kurum', 'Durum',
+                            'Başvuru tarihi', 'Karar', 'Karar veren'],
                         fn ($b) => [
-                            $b->ulid,
+                            $b->basvuru_no,
                             $b->tur->etiket(),
                             $b->basvuranAdi(),
                             $b->basvuranEpostasi(),
@@ -127,12 +142,14 @@ class BasvurusTable
                         olay: 'basvuru.disa_aktarildi',
                     )),
             ])
-            ->recordActions([
-                Action::make('inceleme')
-                    ->label('Aç')
-                    ->icon('heroicon-m-arrow-top-right-on-square')
-                    ->url(fn ($record) => BasvuruResource::getUrl('inceleme', ['record' => $record])),
-            ])
+            /*
+             * 💥 "Aç" SÜTUNU YOK (Cüneyt Bey revizyonu 03.09.2026):
+             * "Biz niye en sona aç diye bir buton koyuyoruz? Başvuranın ismine
+             * tıklanınca açılır." Satırın kendisi bağlantı; hem tek tıkla
+             * hem de fareyle üzerine gelince adres çubuğunda görünür.
+             */
+            ->recordUrl(fn (Basvuru $record) => BasvuruResource::getUrl('inceleme', ['record' => $record]))
+            ->recordActions([])
             ->toolbarActions([])
             ->emptyStateHeading('Kuyrukta başvuru yok')
             ->emptyStateDescription('Yeni başvurular buraya düşer.');

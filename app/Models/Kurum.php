@@ -8,6 +8,7 @@ use App\Enums\CalisanAraligi;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
@@ -99,6 +100,20 @@ class Kurum extends Model
     public function davetler(): HasMany
     {
         return $this->hasMany(Davet::class, 'kurum_id');
+    }
+
+    /**
+     * Kulüp yetkilisinin bu kuruma verdiği güncel 1-5 puan.
+     *
+     * 🔒 YALNIZCA yönetim panelinde okunur; kurum/üye paneline ve kapı
+     * API'sine bu ilişki hiç eklenmez (briefi md.1 "Görünürlük").
+     *
+     * @return HasOne<Degerlendirme, $this>
+     */
+    public function degerlendirme(): HasOne
+    {
+        return $this->hasOne(Degerlendirme::class, 'kurum_id')
+            ->where('hedef_tip', Degerlendirme::HEDEF_KURUM);
     }
 
     public function akrediteMi(): bool

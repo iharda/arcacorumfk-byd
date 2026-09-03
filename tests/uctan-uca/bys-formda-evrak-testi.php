@@ -152,7 +152,7 @@ try {
     $temizlik['basvuru'][] = $basvuru->id;
     $temizlik['kurum'][] = $basvuru->kurum_id;
 
-    $kontrol('Başvuru doğrudan "Gönderildi" durumunda',
+    $kontrol('Başvuru doğrudan "İnceleme bekliyor" durumunda',
         $basvuru->durum === BasvuruDurumu::Gonderildi && $basvuru->gonderildi_at !== null,
         $basvuru->durum->value);
     $kontrol('Başvuru HESAPSIZ: kullanici_id boş ve users tablosunda kayıt yok',

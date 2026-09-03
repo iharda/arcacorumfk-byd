@@ -13,6 +13,7 @@
  * node /root/bys-bireysel-akis-testi.mjs
  */
 import puppeteer from 'puppeteer-core';
+import { resolve } from 'node:path';
 import { readdirSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { totp } from './bys-totp.mjs';
@@ -21,7 +22,15 @@ const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
 const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
-const D = (process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
+/*
+ * 🪤 YOL NORMALLESTIRILIR (resolve). Ham `.../uctan-uca/../../../test-dosyalari`
+ * yolunu Chrome'a verirsen dosya seciminde hata YOK ama form gonderilirken
+ * POST `net::ERR_ACCESS_DENIED` ile duser: Chrome olusturucuya okuma iznini
+ * COZULMUS yol icin verir, blob ise ham yolu tasir, ikisi tutmaz. Tarayici da
+ * "site can't be reached" der; sunucuya istek HIC ulasmaz, erisim kaydinda iz
+ * yoktur. Sunucu tasindiktan sonra bu testler bu yuzden kiriliyordu.
+ */
+const D = resolve(process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
 const SIFRE = 'Kirmizi-Kartal-2026-x9';
 
 const damga = Date.now();
@@ -106,20 +115,20 @@ echo 'HAZIR';`);
 
     const kutuGorunur = () => f.evaluate(() => {
       const d = [...document.querySelectorAll('div')]
-        .find(x => x.querySelector('a') && /Kurum başvurusu yap/.test(x.innerText || ''));
+        .find(x => x.querySelector('a') && /Medya kuruluşu başvurusu yap/.test(x.innerText || ''));
       return d ? getComputedStyle(d).display !== 'none' && d.offsetHeight > 0 : false;
     });
     kontrol('Yönlendirme kutusu başlangıçta gizli', (await kutuGorunur()) === false);
 
     await f.select('#kurum_ulid', 'yok');
     await bekle(400);
-    kontrol('"Listede yok" seçilince kurum başvurusuna yönlendiriliyor', await kutuGorunur());
+    kontrol('"Listede yok" seçilince medya kuruluşu başvurusuna yönlendiriliyor', await kutuGorunur());
     kontrol('Kurum seçilmeden gönderilemiyor', await f.$eval('button[type=submit]', d => d.disabled));
 
     // 🪤 Aynı sekmede açılırsa yarım kalan form kaybolur.
-    const bag = await f.$$eval('a', a => a.filter(x => /Kurum başvurusu yap/.test(x.textContent))
+    const bag = await f.$$eval('a', a => a.filter(x => /Medya kuruluşu başvurusu yap/.test(x.textContent))
       .map(x => ({ yol: new URL(x.href).pathname, hedef: x.target, rel: x.rel }))[0] ?? null);
-    kontrol('Kurum başvurusu YENİ SEKMEDE açılıyor',
+    kontrol('Medya kuruluşu başvurusu YENİ SEKMEDE açılıyor',
       bag?.yol === '/basvuru/kurum' && bag.hedef === '_blank' && /noopener/.test(bag.rel),
       JSON.stringify(bag));
     kontrol('Davet yoluyla devam edilebileceği yazıyor',
@@ -134,7 +143,8 @@ echo 'HAZIR';`);
       const g = new FormData();
       g.append('_token', jeton); g.append('kurum_ulid', 'yok');
       const c = await fetch(`${kok}/basvuru/basin-mensubu`, { method: 'POST', body: g, redirect: 'follow' });
-      return (await c.text()).includes('akredite değil');
+      // 🔤 Mesaj "Seçilen medya kuruluşu onaylı değil…" (Cüneyt Bey, 03.09.2026).
+      return (await c.text()).includes('onaylı değil');
     }, KOK);
     kontrol('Sunucu "yok" değerini reddediyor', yanit);
     await c0.close();
@@ -183,7 +193,7 @@ echo 'HAZIR';`);
   await s2.select('#il', 'Çorum');
   await bekle(500);
   await s2.select('#ilce', 'Merkez');
-  await s2.type('[name="calisma_yili"]', '6');
+  await s2.select('[name="calisma_yili"]', '6-10');
   const kurumSecildi = await s2.evaluate((unvan) => {
     const sec = document.querySelector('select[name="kurum_ulid"]');
     const opt = [...sec.options].find(o => o.text.includes(unvan));
@@ -269,7 +279,7 @@ echo 'HAZIR';`);
     await s4.select('#il', 'Çorum');
     await bekle(500);
     await s4.select('#ilce', 'Merkez');
-    await s4.type('[name="calisma_yili"]', '3');
+    await s4.select('[name="calisma_yili"]', '1-5');
     await s4.evaluate(() => {
       document.querySelector('input[name="sigorta_212_var"][value="1"]').click();
       document.querySelector('input[name="basin_karti_var"][value="0"]').click();
@@ -317,7 +327,8 @@ echo 'HAZIR';`);
   await y.evaluate(() => [...document.querySelectorAll('button, a')].find(e => e.innerText.trim() === 'Onayla')?.click());
   await bekle(1500);
   await y.evaluate(() => [...document.querySelectorAll('button')]
-    .find(b => b.innerText.trim() === 'Onayla' && b.closest('.fi-modal, [role="dialog"]'))?.click());
+    .find(b => /^(Başvuruyu|Kuruluşu) onayla$/.test(b.innerText.trim())
+      && b.closest('.fi-modal, [role="dialog"]'))?.click());
   await bekle(3000);
 
   const kart = artisan(`
@@ -343,7 +354,8 @@ echo 'KART:' . ($a?->kart_no ?? 'yok') . ' DURUM:' . ($a?->durum?->value ?? 'yok
   await y.evaluate(() => [...document.querySelectorAll('button, a')].find(e => e.innerText.trim() === 'Onayla')?.click());
   await bekle(1400);
   await y.evaluate(() => [...document.querySelectorAll('button')]
-    .find(b => b.innerText.trim() === 'Onayla' && b.closest('.fi-modal, [role="dialog"]'))?.click());
+    .find(b => /^(Başvuruyu|Kuruluşu) onayla$/.test(b.innerText.trim())
+      && b.closest('.fi-modal, [role="dialog"]'))?.click());
   await bekle(3000);
 
   const kart2 = artisan(`$u = App\\Models\\User::where('email','${BASIN}')->first(); echo 'KART:' . ($u?->akreditasyon?->kart_no ?? 'yok');`);

@@ -15,6 +15,7 @@ use App\Servisler\BasvuruEvrakAlici;
 use App\Servisler\BasvuruUygunlugu;
 use App\Servisler\DavetAkisi;
 use App\Servisler\DenetimYazici;
+use App\Servisler\EvrakTaslagi;
 use App\Support\Telefon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
@@ -40,6 +41,7 @@ class BasvuruController extends Controller
         private BasvuruUygunlugu $uygunluk,
         private BasvuruEvrakAlici $evrakAlici,
         private BasvuruAkisi $akis,
+        private EvrakTaslagi $taslak,
     ) {}
 
     public function secim(): View
@@ -51,6 +53,8 @@ class BasvuruController extends Controller
     {
         return view('basvuru.kurum', [
             'evrakTurleri' => EvrakTuru::turIcin(BasvuruTuru::Kurum),
+            // Doğrulama hatasından sonra seçili kalan dosyalar (EvrakTaslagi).
+            'taslakEvraklar' => $this->taslak->ozet(),
         ]);
     }
 
@@ -70,7 +74,9 @@ class BasvuruController extends Controller
             return back()->withInput()->withErrors(['genel' => $e->getMessage()]);
         }
 
-        return redirect()->route('basvuru.gonderildi')->with('eposta', $veri['yetkili_eposta']);
+        return redirect()->route('basvuru.gonderildi')
+            ->with('eposta', $veri['yetkili_eposta'])
+            ->with('tur', BasvuruTuru::Kurum->value);
     }
 
     /* ─────────── Bireysel başvurular (md.3.2 / md.3.3) ─────────── */
@@ -86,6 +92,7 @@ class BasvuruController extends Controller
             'kurumlar' => $tur === BasvuruTuru::BasinMensubu ? $this->akrediteKurumlar() : collect(),
             'davet' => null,
             'evrakTurleri' => EvrakTuru::turIcin($tur),
+            'taslakEvraklar' => $this->taslak->ozet(),
         ]);
     }
 
@@ -110,7 +117,9 @@ class BasvuruController extends Controller
             return back()->withInput()->withErrors(['genel' => $e->getMessage()]);
         }
 
-        return redirect()->route('basvuru.gonderildi')->with('eposta', $veri['eposta']);
+        return redirect()->route('basvuru.gonderildi')
+            ->with('eposta', $veri['eposta'])
+            ->with('tur', $tur->value);
     }
 
     /* ─────────── Davetle başvuru — "Yol B" (md.5.2) ─────────── */
@@ -126,6 +135,7 @@ class BasvuruController extends Controller
             'davet' => $davet,
             'token' => $token,
             'evrakTurleri' => EvrakTuru::turIcin(BasvuruTuru::BasinMensubu),
+            'taslakEvraklar' => $this->taslak->ozet(),
         ]);
     }
 
@@ -163,7 +173,9 @@ class BasvuruController extends Controller
             return back()->withInput()->withErrors(['genel' => $e->getMessage()]);
         }
 
-        return redirect()->route('basvuru.gonderildi')->with('eposta', $davet->eposta);
+        return redirect()->route('basvuru.gonderildi')
+            ->with('eposta', $davet->eposta)
+            ->with('tur', BasvuruTuru::BasinMensubu->value);
     }
 
     /**
@@ -179,7 +191,7 @@ class BasvuruController extends Controller
     private function basvuruyuAl(callable $olustur, array $dosyalar, BasvuruTuru $tur): Basvuru
     {
         try {
-            return DB::transaction(function () use ($olustur, $dosyalar, $tur) {
+            $basvuru = DB::transaction(function () use ($olustur, $dosyalar, $tur) {
                 $basvuru = $olustur();
 
                 $this->evrakAlici->hepsiniAl($basvuru, $dosyalar, EvrakTuru::turIcin($tur));
@@ -199,6 +211,16 @@ class BasvuruController extends Controller
 
             throw $e;
         }
+
+        /*
+         * 🧹 Başvuru alındı: geçici evrak taslağı hem diskten hem oturumdan
+         * silinir. Silinmezse aynı tarayıcıdan yapılacak İKİNCİ başvuruya
+         * birincinin kimlik belgesi sızardı -- ve KVKK açısından o dosyanın
+         * diskte durması için hiçbir sebep kalmadı.
+         */
+        $this->taslak->temizle();
+
+        return $basvuru;
     }
 
     /** @param array<string, mixed> $veri */
@@ -326,6 +348,9 @@ class BasvuruController extends Controller
 
         return view('basvuru.gonderildi', [
             'eposta' => session('eposta'),
+            // Başlık türe göre: "Medya kuruluşu başvurunuz alındı" (Cüneyt Bey,
+            // 03.09.2026). Düzeltme dönüşünde tür taşınmaz, o metin ayrı.
+            'tur' => BasvuruTuru::tryFrom((string) session('tur')),
             // Panelsiz düzeltmeden gelindiyse metin farklı.
             'duzeltme' => (bool) session('duzeltme', false),
         ]);

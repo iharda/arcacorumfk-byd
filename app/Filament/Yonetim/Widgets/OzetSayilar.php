@@ -31,7 +31,9 @@ class OzetSayilar extends StatsOverviewWidget
     protected function getStats(): array
     {
         $bekleyen = Basvuru::query()->kuyrukta()->count();
-        $yeni = Basvuru::query()->kuyrukta()->where('durum', BasvuruDurumu::Gonderildi->value)->count();
+        $yeni = Basvuru::query()->kuyrukta()
+            ->whereIn('durum', BasvuruDurumu::degerleri(...BasvuruDurumu::acilmamis()))
+            ->count();
 
         /*
          * 🪤 `whereDate()` PostgreSQL'de `CAST(okundu_at AS date) = ?` üretir;
@@ -53,25 +55,30 @@ class OzetSayilar extends StatsOverviewWidget
                 GecisSonucu::BaskaKapida->value,
             ])->count();
 
+        /*
+         * 🔤 Kart başlıkları ve alt satırları Cüneyt Bey revizyonunda
+         * (03.09.2026) yeniden yazıldı: başlık NE SAYILDIĞINI, alt satır da
+         * o sayının yanındaki bekleyen işi söylüyor.
+         */
         return [
-            Stat::make('Kuyrukta başvuru', (string) $bekleyen)
-                ->description($yeni > 0 ? "{$yeni} tanesi hiç açılmadı" : 'Hepsi incelemeye alındı')
+            Stat::make('İnceleme bekleyen başvurular', (string) $bekleyen)
+                ->description($yeni > 0 ? "{$yeni} yeni başvuru" : 'Yeni başvuru yok')
                 ->descriptionIcon($yeni > 0 ? 'heroicon-m-exclamation-circle' : 'heroicon-m-check-circle')
                 ->color($yeni > 0 ? 'warning' : 'success')
                 ->url(route('filament.yonetim.resources.basvurular.index')),
 
-            Stat::make('Aktif akreditasyon', (string) Akreditasyon::where('durum', AkreditasyonDurumu::Aktif->value)->count())
-                ->description(Akreditasyon::where('durum', AkreditasyonDurumu::Askida->value)->count().' askıda')
+            Stat::make('Geçerli akreditasyonlar', (string) Akreditasyon::where('durum', AkreditasyonDurumu::Aktif->value)->count())
+                ->description('Askıya alınan: '.Akreditasyon::where('durum', AkreditasyonDurumu::Askida->value)->count())
                 ->descriptionIcon('heroicon-m-identification')
                 ->url(route('filament.yonetim.resources.akreditasyonlar.index')),
 
-            Stat::make('Akredite kurum', (string) Kurum::where('akreditasyon_durumu', 'akredite')->count())
-                ->description(Kurum::where('akreditasyon_durumu', 'beklemede')->count().' beklemede')
+            Stat::make('Onaylı medya kuruluşları', (string) Kurum::where('akreditasyon_durumu', 'akredite')->count())
+                ->description('Onay bekleyen: '.Kurum::where('akreditasyon_durumu', 'beklemede')->count())
                 ->descriptionIcon('heroicon-m-building-office-2')
                 ->url(route('filament.yonetim.resources.kurumlar.index')),
 
-            Stat::make('Bugünkü okutma', (string) $bugunGecis)
-                ->description($bugunRet > 0 ? "{$bugunRet} tanesi reddedildi" : 'Reddedilen yok')
+            Stat::make('Bugünkü geçişler', (string) $bugunGecis)
+                ->description('Reddedilen geçiş: '.$bugunRet)
                 ->descriptionIcon($bugunRet > 0 ? 'heroicon-m-x-circle' : 'heroicon-m-check-circle')
                 ->color($bugunRet > 0 ? 'danger' : 'gray')
                 ->url(route('filament.yonetim.resources.gecis-kayitlari.index')),

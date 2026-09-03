@@ -19,6 +19,7 @@
  * node /root/bys-yeniden-basvuru-testi.mjs
  */
 import puppeteer from 'puppeteer-core';
+import { resolve } from 'node:path';
 import { readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
@@ -26,7 +27,15 @@ const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
 const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
-const D = (process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
+/*
+ * 🪤 YOL NORMALLESTIRILIR (resolve). Ham `.../uctan-uca/../../../test-dosyalari`
+ * yolunu Chrome'a verirsen dosya seciminde hata YOK ama form gonderilirken
+ * POST `net::ERR_ACCESS_DENIED` ile duser: Chrome olusturucuya okuma iznini
+ * COZULMUS yol icin verir, blob ise ham yolu tasir, ikisi tutmaz. Tarayici da
+ * "site can't be reached" der; sunucuya istek HIC ulasmaz, erisim kaydinda iz
+ * yoktur. Sunucu tasindiktan sonra bu testler bu yuzden kiriliyordu.
+ */
+const D = resolve(process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
 
 const damga = Date.now();
 const ADAY = `yeniden+${damga}@ornek.test`;
@@ -60,7 +69,7 @@ async function basvuruGonder(adSoyad) {
   await s.select('#il', 'Çorum');
   await bekle(500);
   await s.select('#ilce', 'Merkez');
-  await s.type('[name="calisma_yili"]', '4');
+  await s.select('[name="calisma_yili"]', '1-5');
   const secildi = await s.evaluate((unvan) => {
     const sec = document.querySelector('select[name="kurum_ulid"]');
     const opt = [...sec.options].find(o => o.text.includes(unvan));

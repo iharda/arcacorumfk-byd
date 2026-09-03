@@ -56,7 +56,7 @@ class BasvuruResource extends Resource
 
     public static function getNavigationBadgeColor(): ?string
     {
-        return Basvuru::query()->where('durum', BasvuruDurumu::Gonderildi->value)->exists()
+        return Basvuru::query()->whereIn('durum', BasvuruDurumu::degerleri(...BasvuruDurumu::acilmamis()))->exists()
             ? 'warning'
             : 'gray';
     }

@@ -39,6 +39,8 @@ class RolYetkiSeeder extends Seeder
 
         'icerik.yonet' => 'Duyuru, antrenman takvimi, bülten yönetimi',
 
+        'degerlendirme.yonet' => 'Başvuran değerlendirmesi görme ve puanlama',
+
         'rapor.disaaktar' => 'Rapor dışa aktarma (CSV/Excel)',
 
         'kullanici.yonet' => 'Kullanıcı ve rol yönetimi',
@@ -74,6 +76,7 @@ class RolYetkiSeeder extends Seeder
             'kart.uret', 'kart.indir',
             'gecis.gor',
             'icerik.yonet',
+            'degerlendirme.yonet',
             'rapor.disaaktar',
         ]);
 

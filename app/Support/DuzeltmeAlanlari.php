@@ -51,8 +51,8 @@ class DuzeltmeAlanlari
      * @var array<string, array<int, string|bool>>
      */
     private const BIREYSEL = [
-        'ad_soyad' => ['Ad soyad', 'metin', 'basvuru:basvuran_ad'],
-        'adres' => ['Adres', 'metin-uzun', 'form:adres'],
+        'ad_soyad' => ['Adı soyadı', 'metin', 'basvuru:basvuran_ad'],
+        'adres' => ['Açık adres', 'metin-uzun', 'form:adres'],
         'il_ilce' => ['İl / ilçe', 'il-ilce', 'form:il+ilce'],
         'telefon' => ['Telefon', 'telefon', 'basvuru:basvuran_telefon'],
         /*
@@ -63,28 +63,28 @@ class DuzeltmeAlanlari
          * açıklama kutusundan yanıtlar.
          */
         'eposta' => ['E-posta', 'metin', 'basvuru:basvuran_eposta', false],
-        'sosyal_medya' => ['Sosyal medya', 'sosyal', 'form:sosyal_medya'],
+        'sosyal_medya' => ['Yayın kanalları', 'sosyal', 'form:sosyal_medya'],
         // 🔒 Kurum bağı yalnızca AKREDİTE kurumlar arasından kurulabilir ve
         // kontenjan/teyit zincirini değiştirir: panelden yürür.
         'kurum' => ['Kurum', 'metin', 'basvuru:kurum_id', false],
         'basin_karti' => ['Basın kartı', 'evet-hayir', 'form:basin_karti_var'],
-        'sigorta_212' => ['212 sigortası', 'evet-hayir', 'form:sigorta_212_var'],
-        'calisma_yili' => ['Mesleki deneyim (yıl)', 'sayi', 'form:calisma_yili'],
+        'sigorta_212' => ['Basın İş Kanunu sigortası', 'evet-hayir', 'form:sigorta_212_var'],
+        'calisma_yili' => ['Medya sektöründeki deneyim', 'deneyim-araligi', 'form:calisma_yili'],
     ];
 
     /** @var array<string, array<int, string|bool>> */
     private const KURUMSAL = [
-        'resmi_unvan' => ['Resmi ünvan', 'metin', 'kurum:resmi_unvan'],
-        'adres' => ['Adres', 'metin-uzun', 'kurum:adres'],
+        'resmi_unvan' => ['Ticari unvan', 'metin', 'kurum:resmi_unvan'],
+        'adres' => ['Açık adres', 'metin-uzun', 'kurum:adres'],
         'il_ilce' => ['İl / ilçe', 'il-ilce', 'kurum:il+ilce'],
         'telefon' => ['Telefon', 'telefon', 'kurum:telefon'],
         'eposta' => ['E-posta', 'metin', 'kurum:eposta', false],
         'vergi_dairesi' => ['Vergi dairesi', 'metin', 'kurum:vergi_dairesi'],
         'vergi_no' => ['Vergi numarası', 'vergi-no', 'kurum:vergi_no'],
         'calisan_araligi' => ['Çalışan sayısı', 'aralik', 'kurum:calisan_araligi'],
-        'yayin_platformlari' => ['Yayın platformları', 'platformlar', 'kurum:yayin_platformlari'],
+        'yayin_platformlari' => ['Web siteleri ve yayın kanalları', 'platformlar', 'kurum:yayin_platformlari'],
         'sosyal_medya' => ['Sosyal medya', 'sosyal', 'kurum:sosyal_medya'],
-        'yetkili_ad' => ['Yetkili adı soyadı', 'metin', 'basvuru:basvuran_ad'],
+        'yetkili_ad' => ['Başvuru yetkilisinin adı soyadı', 'metin', 'basvuru:basvuran_ad'],
         'yetkili_telefon' => ['Yetkili telefonu', 'telefon', 'basvuru:basvuran_telefon'],
     ];
 

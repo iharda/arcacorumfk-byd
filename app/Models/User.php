@@ -11,6 +11,7 @@ use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use SensitiveParameter;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -113,6 +115,38 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     public function akreditasyonlar(): HasMany
     {
         return $this->hasMany(Akreditasyon::class, 'kullanici_id');
+    }
+
+    /**
+     * Değerlendirme bağının anahtarı: e-postanın küçük harfli hâli.
+     *
+     * 💀 `users.email` OLDUĞU GİBİ saklanır -- projede hiçbir yerde küçük
+     * harfe indirgenmiyor (`0001_01_01_000000_create_users_table` yalnızca
+     * `unique()` koyuyor). `degerlendirmeler.eposta` ise küçük harflidir;
+     * ilişki doğrudan `email` sütununa kurulsaydı "Ali@x.com" ile açılmış
+     * hesapta puan SESSİZCE görünmezdi. Eloquent ilişki anahtarı olarak
+     * niteliği okur, sütun olmak zorunda değildir.
+     */
+    protected function epostaAnahtari(): Attribute
+    {
+        return Attribute::get(fn (): string => Str::lower(trim($this->email)));
+    }
+
+    /**
+     * Kişiye verilmiş güncel 1-5 değerlendirme.
+     *
+     * 🪤 Bağ `kullanici_id` üzerinden KURULMAZ: puan hesap açılmadan önce
+     * verilmiş olabilir ve o satırda `kullanici_id` hâlâ boştur. Doğruluk
+     * kaynağı E-POSTA'dır.
+     *
+     * 🔒 YALNIZCA yönetim panelinde okunur.
+     *
+     * @return HasOne<Degerlendirme, $this>
+     */
+    public function degerlendirme(): HasOne
+    {
+        return $this->hasOne(Degerlendirme::class, 'eposta', 'eposta_anahtari')
+            ->where('hedef_tip', Degerlendirme::HEDEF_KISI);
     }
 
     /**

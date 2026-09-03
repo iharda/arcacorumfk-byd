@@ -6,7 +6,10 @@
  * Ölçülenler:
  *   1. Bağlantı HESAP GEREKTİRMEDEN açılıyor mu?
  *   2. Sayfada YALNIZCA işaretli alanlar açık mı? (işaretsiz evrak türü yok)
- *   3. Düzeltme gönderilince başvuru "Gönderildi"ye dönüyor, bilet ölüyor mu?
+ *   3. Düzeltme gönderilince başvuru "Yeniden inceleme bekliyor"a geçiyor,
+ *      bilet ölüyor mu? (Cüneyt Bey revizyonu 03.09.2026: eskiden
+ *      "Gönderildi"ye dönüyordu ve kuyrukta hiç açılmamış başvurudan
+ *      ayırt edilemiyordu.)
  *   4. Aynı bağlantı ikinci kez açılmıyor mu? (410)
  *   5. Bir başvurunun bileti BAŞKA başvuruya erişim veriyor mu? (vermemeli)
  *   6. Süresi dolmuş / iptal edilmiş bilet 410 mü, 500 mü?
@@ -153,8 +156,8 @@ try {
     $basvuru->refresh();
     $bilet->refresh();
 
-    $kontrol('Başvuru "Gönderildi" durumuna döndü',
-        $basvuru->durum === BasvuruDurumu::Gonderildi, $basvuru->durum->value);
+    $kontrol('Başvuru "Yeniden inceleme bekliyor" durumuna geçti',
+        $basvuru->durum === BasvuruDurumu::YenidenInceleme, $basvuru->durum->value);
     $kontrol('Düzeltme notları temizlendi', blank($basvuru->duzeltme_notlari));
     $kontrol('Evrak yüklendi', $basvuru->evraklar()->where('evrak_turu_id', $isaretli->id)->exists());
     $kontrol('Açıklama yetkiliye kaydedildi',

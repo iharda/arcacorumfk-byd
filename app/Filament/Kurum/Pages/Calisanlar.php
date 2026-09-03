@@ -2,12 +2,12 @@
 
 namespace App\Filament\Kurum\Pages;
 
+use App\Filament\Kurum\Ortak\TeyitEylemleri;
 use App\Models\Basvuru;
 use App\Models\Davet;
 use App\Models\Kurum;
 use App\Models\User;
 use App\Servisler\AkreditasyonAkisi;
-use App\Servisler\BasvuruAkisi;
 use App\Servisler\DavetAkisi;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -30,6 +30,9 @@ use Throwable;
  */
 class Calisanlar extends Page
 {
+    /** Teyit eylemleri kurum panosundaki widget'la PAYLAŞILIR. */
+    use TeyitEylemleri;
+
     protected string $view = 'filament.kurum.calisanlar';
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-users';
@@ -116,34 +119,7 @@ class Calisanlar extends Page
             });
     }
 
-    public function teyitAction(): Action
-    {
-        return Action::make('teyit')
-            ->label('Teyit et')
-            ->color('success')
-            ->icon('heroicon-m-check')
-            ->requiresConfirmation()
-            ->modalHeading('Çalışanınız olduğunu teyit ediyor musunuz?')
-            ->modalDescription('Teyidinizden sonra başvuru kulüp incelemesine geçer.')
-            ->action(function (array $arguments) {
-                $this->teyitVer($arguments['basvuru'] ?? '', true);
-            });
-    }
-
-    public function teyitReddetAction(): Action
-    {
-        return Action::make('teyitReddet')
-            ->label('Çalışanımız değil')
-            ->color('danger')
-            ->icon('heroicon-m-x-mark')
-            ->schema([
-                Textarea::make('not')->label('Açıklama (isteğe bağlı)')->rows(3)->maxLength(500),
-            ])
-            ->modalDescription('Başvuru düşer ve kulüp incelemesine hiç girmez.')
-            ->action(function (array $arguments, array $data) {
-                $this->teyitVer($arguments['basvuru'] ?? '', false, $data['not'] ?? null);
-            });
-    }
+    // teyitAction() / teyitReddetAction() -> TeyitEylemleri trait'i.
 
     public function ayrilisAction(): Action
     {
@@ -198,25 +174,6 @@ class Calisanlar extends Page
     }
 
     /* ─────────────────── Yardımcılar ─────────────────── */
-
-    private function teyitVer(string $ulid, bool $onay, ?string $not = null): void
-    {
-        $basvuru = Basvuru::where('ulid', $ulid)
-            ->where('kurum_id', $this->kurum()->id)      // 🔒 kapsam: kendi kurumu
-            ->firstOrFail();
-
-        try {
-            app(BasvuruAkisi::class)->kurumTeyidiVer($basvuru, $onay, $not);
-        } catch (Throwable $e) {
-            Notification::make()->title($e->getMessage())->danger()->send();
-
-            return;
-        }
-
-        Notification::make()
-            ->title($onay ? 'Teyit verildi, başvuru kulüp incelemesine geçti.' : 'Başvuru düşürüldü.')
-            ->success()->send();
-    }
 
     /**
      * md.5.4: ayrılış → akreditasyon OTOMATİK iptal, onay adımı yok.

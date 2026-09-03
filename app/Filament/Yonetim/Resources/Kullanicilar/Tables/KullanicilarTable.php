@@ -2,6 +2,9 @@
 
 namespace App\Filament\Yonetim\Resources\Kullanicilar\Tables;
 
+use App\Enums\DegerlendirmePuani;
+use App\Filament\Yonetim\Ortak\DegerlendirmeEylemi;
+use App\Models\Degerlendirme;
 use App\Models\User;
 use App\Servisler\DenetimYazici;
 use App\Support\Telefon;
@@ -32,7 +35,7 @@ class KullanicilarTable
     {
         return $table
             // ⚠️ Parametre adı $query olmalı (Filament ada göre enjekte eder).
-            ->modifyQueryUsing(fn (Builder $query) => $query->with('roles'))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['roles', 'degerlendirme']))
             ->defaultSort('name')
             ->columns([
                 TextColumn::make('name')->label('Ad soyad')->searchable()->sortable(),
@@ -62,6 +65,35 @@ class KullanicilarTable
                     ->sortable(),
 
                 IconColumn::make('aktif')->label('Aktif')->boolean(),
+
+                /*
+                 * 🔒 Yalnızca kulüp tarafı -- kişi bu puanı hiçbir ekranda
+                 * görmez. Bağ e-posta üzerinden (`User::degerlendirme()`):
+                 * puan hesap açılmadan önce verilmiş olabilir.
+                 */
+                TextColumn::make('degerlendirme.puan')
+                    ->label('Değerlendirme')
+                    ->badge()
+                    ->color(fn (?DegerlendirmePuani $state) => $state?->renk() ?? 'gray')
+                    ->formatStateUsing(fn (?DegerlendirmePuani $state) => $state
+                        ? $state->value.' · '.$state->etiket()
+                        : '—')
+                    ->placeholder('—')
+                    /*
+                     * 🪤 Sıralama ALT SORGUYLA: ilişki `lower(users.email)`
+                     * üzerinden kurulu, JOIN'i Filament üretemez. `users.email`
+                     * projede küçük harfe indirgenmeden saklanıyor, bu yüzden
+                     * iki taraf da burada indirgeniyor.
+                     */
+                    ->sortable(query: fn (Builder $query, string $direction) => $query->orderBy(
+                        Degerlendirme::query()
+                            ->select('puan')
+                            ->whereRaw('degerlendirmeler.eposta = lower(users.email)')
+                            ->where('hedef_tip', Degerlendirme::HEDEF_KISI)
+                            ->limit(1),
+                        $direction,
+                    ))
+                    ->visible(fn () => auth()->user()?->can('degerlendirme.yonet') ?? false),
             ])
             ->filters([
                 SelectFilter::make('roller')
@@ -80,6 +112,8 @@ class KullanicilarTable
                     ->query(fn (Builder $query) => $query->where('aktif', false)),
             ])
             ->recordActions([
+                DegerlendirmeEylemi::kisi(),
+
                 Action::make('roller')
                     ->label('Roller')
                     ->icon('heroicon-m-key')

@@ -44,9 +44,16 @@ ARCA Çorum FK
 @endif
 
 {{-- Subcopy --}}
-@isset($actionText)
+@if (isset($actionText))
 <x-slot:subcopy>
 "{{ $actionText }}" düğmesi çalışmıyorsa aşağıdaki adresi tarayıcınıza yapıştırın: <span class="break-all">[{{ $displayableActionUrl }}]({{ $actionUrl }})</span>
 </x-slot:subcopy>
-@endisset
+@elseif (! empty($dipnot))
+{{-- 🔑 Düğmesi olmayan bildirimlerde de imzanın ALTINA ince bir not
+     konabilsin diye ($mesaj->viewData['dipnot']). "Bu e-posta ...
+     otomatik olarak gönderilmiştir." satırı buradan çıkıyor. --}}
+<x-slot:subcopy>
+{{ $dipnot }}
+</x-slot:subcopy>
+@endif
 </x-mail::message>

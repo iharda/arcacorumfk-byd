@@ -7,9 +7,18 @@
  * node /root/bys-guvenlik-testi.mjs
  */
 import puppeteer from 'puppeteer-core';
+import { resolve } from 'node:path';
 import { readdirSync, writeFileSync, unlinkSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-const TEST_DOSYALARI = (process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');   // ornek evraklar; BYS_TEST_DOSYALARI ile degistirilebilir
+/*
+ * 🪤 YOL NORMALLESTIRILIR (resolve). Ham `.../uctan-uca/../../../test-dosyalari`
+ * yolunu Chrome'a verirsen dosya seciminde hata YOK ama form gonderilirken
+ * POST `net::ERR_ACCESS_DENIED` ile duser: Chrome olusturucuya okuma iznini
+ * COZULMUS yol icin verir, blob ise ham yolu tasir, ikisi tutmaz. Tarayici da
+ * "site can't be reached" der; sunucuya istek HIC ulasmaz, erisim kaydinda iz
+ * yoktur. Sunucu tasindiktan sonra bu testler bu yuzden kiriliyordu.
+ */
+const TEST_DOSYALARI = resolve(process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');   // ornek evraklar; BYS_TEST_DOSYALARI ile degistirilebilir
 
 const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
@@ -166,14 +175,15 @@ echo 'TOKEN:' . $token;`);
     g.set('kurum_ulid', ulid);
     g.set('ad_soyad', 'Sızma Deneme'); g.set('eposta', eposta);
     g.set('telefon_ulke', '+90'); g.set('telefon', '530 000 00 00'); g.set('adres', 'Adres');
-    g.set('il', 'Çorum'); g.set('ilce', 'Merkez'); g.set('calisma_yili', '2');
+    g.set('il', 'Çorum'); g.set('ilce', 'Merkez'); g.set('calisma_yili', '1-5');
     g.set('sigorta_212_var', '1'); g.set('basin_karti_var', '0');
     g.set('kvkk_aydinlatma', '1'); g.set('kvkk_riza', '1');
     const c = await fetch(`${kok}/basvuru/basin-mensubu`, { method: 'POST', body: g, redirect: 'follow' });
     return { url: c.url, metin: await c.text() };
   }, KOK, kurumUlid, `sizma+${damga}@ornek.test`);
   kontrol('Elle gönderilen akredite olmayan kurum sunucuda reddediliyor',
-    !sizma.url.includes('gonderildi') && /akredite değil/i.test(sizma.metin),
+    // Metin 03.09.2026 revizesinde "onaylı değil" oldu; eski yazım da kabul.
+    !sizma.url.includes('gonderildi') && /(onaylı|akredite) değil/i.test(sizma.metin),
     sizma.url.replace(KOK, ''));
   kontrol('Sızma denemesinden hesap AÇILMADI',
     /HESAP:yok/.test(artisan(`echo 'HESAP:' . (App\\Models\\User::where('email','sizma+${damga}@ornek.test')->exists() ? 'var' : 'yok');`)));

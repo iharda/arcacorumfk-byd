@@ -36,12 +36,22 @@ Sistem, başvuru türüne göre aşağıdaki verileri işler:
 | Çalışma belgesi | İş giriş belgesi veya SGK belgesi | Basın mensubu |
 | Kurumsal | Ünvan, vergi dairesi/no, adres, çalışan sayısı, yayın ve sosyal medya bağlantıları | Kurum başvurusu |
 | İşlem güvenliği | **Kulüp girişlerinde kart okutma kayıtları** (kapı, yön, zaman, sonuç), IP adresi, oturum açma kayıtları | Akredite kişiler |
+| Kulüp değerlendirmesi | **Kulüp yetkilisinin başvuran hakkındaki 1–5 puanı ve serbest metin notu** | Tüm başvuranlar (kurum ve kişi) |
 
 > Kimlik belgesi görselleri ve çalışma belgeleri **sunucuda şifreli** saklanır;
 > herkese açık bir adresten erişilemez.
 
+> ⚖️ **Değerlendirme alanı ÖZNEL bir kanaattir ve kişisel veridir.** Yalnızca
+> kulüp yetkilisi görür — kurum panelinde, üye panelinde, kapı API'sinde ve
+> kartta hiç görünmez. Ancak "yalnızca kulüp görür" ifadesi bir *erişim
+> yetkisi* tanımıdır: **veri sahibi KVKK m.11 kapsamında talep ederse bu alan
+> da kapsamdadır.** Puanlama ekranında yetkiliye bu uyarı gösterilir.
+> Her puan ve not değişikliği, kim tarafından yapıldığı ve eski→yeni değeriyle
+> birlikte denetim kaydına düşer.
+
 ### İşleme amaçları
 - Akreditasyon başvurusunun alınması ve değerlendirilmesi
+- Önceki akreditasyon dönemlerine ilişkin kurumsal hafızanın tutulması (kulüp değerlendirmesi)
 - Başvuranın kimliğinin ve mesleki bağının doğrulanması
 - Dijital basın kartının üretilmesi
 - Kulüp tesis ve etkinlik alanlarına **giriş yetkisinin denetlenmesi**
@@ -125,6 +135,10 @@ Sistemde şu an durum:
 ## Hukukçuya iletilecek sorular
 
 1. Geçiş kayıtları ve denetim kaydı için saklama süresi ne olmalı?
+1. **Kulüp değerlendirmesi** (1–5 puan + not) için saklama süresi ne olmalı?
+   Öneri: akreditasyon bittikten sonra **2 sezon**, ardından `bys:evrak-imha`
+   benzeri bir işle silinsin. Öznel kanaat içerdiği için m.11 talebinde
+   açıklanması gerekebilir; aydınlatma metninde ayrı satır olarak yer almalı.
 2. Kimlik belgesi görseli için 180 gün uygun mu, yoksa karar sonrası hemen
    imha mı edilmeli?
 3. Reddedilen başvurularda evrak imhası ne zaman yapılmalı?
@@ -133,4 +147,4 @@ Sistemde şu an durum:
 5. Sistem kulübün kendi sunucusuna taşındığında barındırma maddesi değişecek —
    metin buna göre mi yazılsın?
 
-*Taslak tarihi: 21.08.2026*
+*Taslak tarihi: 21.08.2026 · değerlendirme alanı eklendi: 28.08.2026*

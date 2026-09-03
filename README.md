@@ -20,6 +20,11 @@ kadar olan süreci tek yerden yönetir.
    yanıt döner ve her okutma kayda geçer.
 5. **İçerik** — duyuru, antrenman takvimi ve bülten yayımlanır; bildirimler
    yalnızca ilk yayında ve kuyrukta parçalı gönderilir.
+6. **Değerlendirme** — kulüp yetkilisi başvurana **1–5 arası puan** ve not
+   yazar (kuruma ya da kişiye). Puan **karar değildir**: onay/red akışını
+   etkilemez, kimseyi engellemez; yetkiliye geçmişi hatırlatır. 🔒 Yalnızca
+   yönetim panelinde görünür — kurum/üye panelinde, kapı API'sinde ve kartta
+   hiç geçmez.
 
 ## Panolar
 
@@ -29,6 +34,12 @@ kadar olan süreci tek yerden yönetir.
 | `/kurum` | Basın kuruluşu — kendi çalışanları ve başvuruları |
 | `/panel` | Basın mensubu — kendi kartı, evrakları, içerikler |
 | `/kapi` | Turnike görevlisi — QR okutma (PWA, çevrimdışı uyarısı var) |
+
+Üç panelin de girişinde **"Genel bakış"** panosu karşılar: üye kendi kartının
+geçerliliğini ve kendisinden bekleneni, kurum yetkilisi teyidini bekleyen
+başvuruları ve kontenjanını, kulüp yetkilisi kuyruk yaşını, karar dağılımını,
+maç günü geçiş akışını ve elini değdirmesi gereken satırları görür.
+**Verisi olmayan kutu hiç çizilmez** — boş kutu, dolu kutudan kötüdür.
 
 Giriş **tek kapıdan**: `/giris`. Kurum yetkilisi, basın mensubu ve içerik
 üreticisi buradan girer; sistem rolüne göre panele yollar, iki panele birden
@@ -102,6 +113,7 @@ kullanımı ve uyarıları için [tests/uctan-uca/BENIOKU.md](tests/uctan-uca/BE
 | [docs/pilot-senaryosu.md](docs/pilot-senaryosu.md) | Müşteriyle yapılacak deneme akışı |
 | [docs/canliya-alma.md](docs/canliya-alma.md) | Canlıya çıkış kontrol listesi |
 | [docs/kvkk-taslak.md](docs/kvkk-taslak.md) | Aydınlatma/saklama metni taslağı (hukuk onayı bekliyor) |
+| [docs/revizyon-20260903.md](docs/revizyon-20260903.md) | Cüneyt Bey'in 03.09.2026 revizyonu: madde madde ne değişti |
 
 ## Tuzaklar
 
@@ -121,6 +133,23 @@ Vakit kaybettiren, tekrar eden hatalar:
   Erişim her zaman policy'den geçer.
 - Kişisel veri saklanıyor: kimlik belgeleri gece çalışan `bys:evrak-imha` ile
   süresi dolduğunda silinir. Yeni bir alan eklerken saklama süresini de düşünün.
+- **Panelde kendi Tailwind sınıflarımız derlenmiyor.** Pano ve şerit gibi
+  parçalarda yerleşim/renk **satır içi `style`** ile yazılır; yeni sınıf adı
+  üretirseniz sessizce çalışmaz.
+- **Değerlendirme puanı kulüp dışına çıkmaz.** Blade'de `@can` sarmalı YETMEZ;
+  veriyi getiren sorgu da yalnızca yönetim tarafında olmalı.
+  `bys-degerlendirme-testi.mjs` bunu sayfa kaynağı üzerinden doğruluyor.
+- **`X-Frame-Options`/`frame-ancestors` `DENY`/`none` OLAMAZ.** İnceleme
+  ekranındaki PDF önizlemesi kendi origin'imizdeki bir `<iframe>`; `none`
+  onu da engelliyor ve ekranda boş gri kutu çıkıyor. Doğrusu `SAMEORIGIN` /
+  `frame-ancestors 'self'` (nginx: `snippets/bys-guvenlik-basliklari.conf`,
+  `bys-sertlestirme-denetimi.mjs` bunu doğruluyor).
+- **Dosya girdisi `old()` ile geri doldurulamaz.** Doğrulama hatasında
+  başvuran evraklarını yeniden seçmesin diye `EvrakTaslagi` dosyayı sunucuda
+  tutuyor. Formda yeni bir dosya alanı açarsanız o mekanizmayı da bağlayın,
+  yoksa "form yenilendi, dosyaları tekrar seçin" hatası geri gelir.
+- **`users.email` küçük harfe indirgenmeden saklanıyor.** E-posta anahtarlı bir
+  bağ kuracaksanız iki tarafı da indirgeyin (`DegerlendirmeAkisi::epostaAnahtari`).
 
 ## Lisans
 

@@ -41,15 +41,31 @@ class BasvuruAlindi extends Notification implements ShouldQueue
         return ['mail'];
     }
 
+    /**
+     * Metin Cüneyt Bey revizyonunda (03.09.2026) yeniden yazıldı.
+     *
+     * 🪤 İmzadaki satır sonları MARKDOWN kuralına göre: satırın sonundaki
+     * İKİ BOŞLUK `<br>` üretir. `<br>` yazılamaz, şablon `{{ }}` ile
+     * kaçırdığı için ekranda etiket olarak görünürdü.
+     */
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
-            ->subject('Başvurunuz alındı — ARCA Çorum FK Basın Yönetim Sistemi')
+        $sifat = $this->basvuru->tur->basvuruSifati();
+
+        $mesaj = (new MailMessage)
+            ->subject($sifat.' başvurunuz alındı — ARCA Çorum FK Basın Yönetim Sistemi')
             ->greeting('Merhaba '.$this->basvuru->basvuranAdi().',')
-            ->line('**'.$this->basvuru->tur->etiket().'** başvurunuz tarafımıza ulaştı.')
-            ->line('Başvuru numaranız: **'.$this->basvuru->ulid.'**')
-            ->line('Evraklarınızla birlikte inceleme kuyruğuna alındı.')
-            ->line('Yetkili incelemesi tamamlandığında sonuç bu e-posta adresine bildirilecektir.')
-            ->salutation('ARCA Çorum FK');
+            ->line('**'.$sifat.'** başvurunuz başarıyla alınmıştır.')
+            // 🔑 ULID DEGIL kisa numara: 26 hane telefonda okunmuyordu (Yusuf/IT).
+            ->line('Başvuru numaranız: **'.$this->basvuru->basvuru_no.'**')
+            ->line('Başvurunuz ve ilettiğiniz belgeler kulüp yetkilileri tarafından '
+                .'değerlendirilecektir. Değerlendirme sonucu bu e-posta adresine gönderilecektir.')
+            ->line('Başvurunuzla ilgili iletişimlerinizde başvuru numaranızı belirtmenizi rica ederiz.')
+            ->salutation("Saygılarımızla,  \nARCA Çorum FK  \nBasın Yönetim Sistemi");
+
+        $mesaj->viewData['dipnot'] = 'Bu e-posta, '.mb_strtolower($sifat, 'UTF-8')
+            .' başvurunuzun alındığını bildirmek amacıyla otomatik olarak gönderilmiştir.';
+
+        return $mesaj;
     }
 }

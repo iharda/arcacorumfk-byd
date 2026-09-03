@@ -14,6 +14,7 @@
  * node /root/bys-basvuru-akisi-testi.mjs
  */
 import puppeteer from 'puppeteer-core';
+import { resolve } from 'node:path';
 import { readdirSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { totp } from './bys-totp.mjs';
@@ -22,7 +23,15 @@ const K = '/root/.cache/puppeteer/chrome';
 const CHROME = `${K}/${readdirSync(K).sort().pop()}/chrome-linux64/chrome`;
 const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const KOK = `https://${ALAN}`;
-const DOSYA = (process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
+/*
+ * 🪤 YOL NORMALLESTIRILIR (resolve). Ham `.../uctan-uca/../../../test-dosyalari`
+ * yolunu Chrome'a verirsen dosya seciminde hata YOK ama form gonderilirken
+ * POST `net::ERR_ACCESS_DENIED` ile duser: Chrome olusturucuya okuma iznini
+ * COZULMUS yol icin verir, blob ise ham yolu tasir, ikisi tutmaz. Tarayici da
+ * "site can't be reached" der; sunucuya istek HIC ulasmaz, erisim kaydinda iz
+ * yoktur. Sunucu tasindiktan sonra bu testler bu yuzden kiriliyordu.
+ */
+const DOSYA = resolve(process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');
 
 const damga = Date.now();
 const EPOSTA = `bystest+${damga}@ornek.test`;
@@ -110,7 +119,7 @@ $b = App\\Models\\Basvuru::where('basvuran_eposta','${EPOSTA}')->latest('id')->f
 echo 'DURUM:' . ($b?->durum->value ?? 'yok')
    . ' EVRAK:' . ($b?->evraklar()->count() ?? 0)
    . ' HESAP:' . (App\\Models\\User::withTrashed()->where('email','${EPOSTA}')->exists() ? 'var' : 'yok');`);
-  kontrol('Başvuru doğrudan "Gönderildi" ve iki evrakı var',
+  kontrol('Başvuru doğrudan "İnceleme bekliyor" ve iki evrakı var',
     /DURUM:gonderildi/.test(ilkDurum) && /EVRAK:2/.test(ilkDurum),
     (ilkDurum.match(/DURUM:\w+ EVRAK:\d+/) || ['?'])[0]);
   kontrol('Onaydan önce HESAP AÇILMADI', /HESAP:yok/.test(ilkDurum));
@@ -183,14 +192,14 @@ echo 'DURUM:' . ($b?->durum->value ?? 'yok')
     .find(e => e.innerText.trim() === 'İncelemeye al')?.click());
   await bekle(2500);
   const inc2 = await y.evaluate(() => document.body.innerText);
-  kontrol('Durum "İncelemede" oldu', inc2.includes('İncelemede'));
+  kontrol('Durum "İnceleniyor" oldu', inc2.includes('İnceleniyor'));
 
-  /* ───────── 7) Alan bazlı eksik evrak talebi ───────── */
+  /* ───────── 7) Alan bazlı belge talebi ───────── */
   await y.evaluate(() => [...document.querySelectorAll('button, a')]
-    .find(e => e.innerText.trim() === 'Eksik evrak iste')?.click());
+    .find(e => e.innerText.trim() === 'Belge iste')?.click());
   await bekle(2200);
   const secim = await y.$('select');
-  kontrol('Eksik evrak kipi açıldı', !!secim);
+  kontrol('Belge talebi kipi açıldı', !!secim);
   if (secim) {
     /*
      * 🪤 DEĞER DEĞİL GÖRÜNEN AD ile seç. Alan anahtarları artık görünen ad
@@ -209,7 +218,7 @@ echo 'DURUM:' . ($b?->durum->value ?? 'yok')
     await bekle(3000);
   }
   const inc3 = await y.evaluate(() => document.body.innerText);
-  kontrol('Durum "Eksik evrak" oldu', inc3.includes('Eksik evrak'));
+  kontrol('Durum "Belge bekleniyor" oldu', inc3.includes('Belge bekleniyor'));
   kontrol('İstenen düzeltme kayda geçti', inc3.includes('Levha okunmuyor'));
 
   /* ───────── 8) PANELSİZ düzeltme: başvuranın hesabı yok ───────── */
@@ -239,6 +248,15 @@ echo 'TOKEN:' . app(App\\Servisler\\BasvuruBiletiAkisi::class)->yenidenGonder($b
   ]);
   kontrol('Düzeltme gönderildi', d.url().includes('/basvuru/gonderildi'), d.url().replace(KOK, ''));
 
+  // 🔑 Düzeltmeden dönüş "İnceleme bekliyor"a DEĞİL "Yeniden inceleme
+  // bekliyor"a düşer (Cüneyt Bey revizyonu 03.09.2026).
+  const donusDurumu = artisan(`
+$b = App\\Models\\Basvuru::where('basvuran_eposta','${EPOSTA}')->latest('id')->first();
+echo 'DURUM:' . ($b?->durum->value ?? 'yok');`);
+  kontrol('Düzeltme dönüşü "Yeniden inceleme bekliyor"',
+    /DURUM:yeniden_inceleme/.test(donusDurumu),
+    (donusDurumu.match(/DURUM:\w+/) || ['?'])[0]);
+
   /* ───────── 9) Onay ───────── */
   await y.goto(acLink, { waitUntil: 'networkidle2' });
   await bekle(900);
@@ -248,12 +266,14 @@ echo 'TOKEN:' . app(App\\Servisler\\BasvuruBiletiAkisi::class)->yenidenGonder($b
   await y.evaluate(() => [...document.querySelectorAll('button, a')]
     .find(e => e.innerText.trim() === 'Onayla')?.click());
   await bekle(1500);
+  // 🔤 Kipin ana düğmesi artık "Başvuruyu onayla" / "Kuruluşu onayla".
   await y.evaluate(() => [...document.querySelectorAll('button')]
-    .find(b => b.innerText.trim() === 'Onayla' && b.closest('[role="dialog"], .fi-modal'))?.click());
+    .find(b => /^(Başvuruyu|Kuruluşu) onayla$/.test(b.innerText.trim())
+      && b.closest('[role="dialog"], .fi-modal'))?.click());
   await bekle(3000);
   const inc4 = await y.evaluate(() => document.body.innerText);
   kontrol('Durum "Onaylandı" oldu', inc4.includes('Onaylandı'),
-    (inc4.match(/Taslak|Gönderildi|İncelemede|Eksik evrak|Onaylandı|Reddedildi/) || ['?'])[0]);
+    (inc4.match(/Taslak|İnceleme bekliyor|İnceleniyor|Belge bekleniyor|Yeniden inceleme bekliyor|Onaylandı|Reddedildi|İptal edildi/) || ['?'])[0]);
   await y.screenshot({ path: '/root/bys-inceleme.png', fullPage: true });
 
   /* ───────── 10) Hesap ONAYDA açıldı, kurum akredite ───────── */

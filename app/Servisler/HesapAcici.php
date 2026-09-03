@@ -26,7 +26,10 @@ use RuntimeException;
  */
 class HesapAcici
 {
-    public function __construct(private DenetimYazici $denetim) {}
+    public function __construct(
+        private DenetimYazici $denetim,
+        private DegerlendirmeAkisi $degerlendirme,
+    ) {}
 
     /**
      * @return array{0: User, 1: bool} kullanıcı ve şifre belirlemesi gerekip
@@ -97,6 +100,14 @@ class HesapAcici
             }
 
             $kullanici->assignRole($rol);
+
+            /*
+             * 🔑 E-posta anahtarlı değerlendirme puanı hesaba BURADA bağlanır.
+             * Yetkili puanı inceleme sırasında -- hesap doğmadan -- vermiş
+             * olabilir; o satırda `kullanici_id` boştur. Aynı transaction:
+             * hesap açılıp bağ kurulmadan yarıda kalmasın.
+             */
+            $this->degerlendirme->hesabaBagla($kullanici);
 
             $basvuru->update(['kullanici_id' => $kullanici->id]);
             // İlişki tazelensin: onay akışının devamı (akreditasyon, bildirim)

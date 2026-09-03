@@ -19,6 +19,18 @@
         {{ $davet ? 'Başvurunuzu tamamlayın' : $tur->etiket() . ' başvurusu' }}
     </h1>
 
+    @unless ($davet)
+        <p class="mt-3 text-neutral-600">
+            @if ($basin)
+                Onaylı bir medya kuruluşunda görev yapan basın mensubu olarak akreditasyon başvurusu
+                oluşturmak için aşağıdaki bilgileri eksiksiz doldurun.
+            @else
+                Herhangi bir medya kuruluşuna bağlı olmadan gazetecilik veya içerik üretimi yapıyorsanız
+                akreditasyon başvurusu oluşturmak için aşağıdaki bilgileri eksiksiz doldurun.
+            @endif
+        </p>
+    @endunless
+
     @if ($davet)
         {{-- Davet bilgisi: kimin adına ve hangi kurumdan geldiği açıkça yazılmalı. --}}
         <div class="mt-4 rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm">
@@ -51,11 +63,14 @@
             <h2 class="text-base font-semibold">Kişisel bilgiler</h2>
             <div class="mt-4 grid gap-4 sm:grid-cols-2">
                 @unless ($davet)
-                    <x-parcalar.alan ad="ad_soyad" etiket="Ad soyad" zorunlu :sutun="2" />
-                    <x-parcalar.alan ad="eposta" etiket="E-posta" tur="email" zorunlu :sutun="1" />
+                    <x-parcalar.alan ad="ad_soyad" etiket="Adı soyadı" zorunlu :sutun="2"
+                                     ipucu="Adınızı ve soyadınızı girin" />
+                    <x-parcalar.alan ad="eposta" etiket="E-posta adresi" tur="email" zorunlu :sutun="1"
+                                     :ipucu="$basin ? 'ornek@kurumadi.com' : 'ornek@eposta.com'" />
                 @endunless
                 <x-parcalar.telefon ad="telefon" etiket="Cep telefonu" />
-                <x-parcalar.alan ad="adres" etiket="Adres" zorunlu :sutun="2" />
+                <x-parcalar.alan ad="adres" etiket="Açık adres" zorunlu :sutun="2"
+                                 ipucu="Mahalle, cadde, sokak ve bina numarası" />
                 <x-parcalar.il-ilce />
             </div>
         </section>
@@ -68,7 +83,7 @@
                         @php $kurumHata = $errors->first('kurum_ulid'); @endphp
                         <div class="sm:col-span-2">
                             <label for="kurum_ulid" class="zorunlu block text-sm font-medium text-neutral-800">
-                                Çalıştığınız kurum
+                                Çalıştığınız medya kuruluşu
                             </label>
                             <select id="kurum_ulid" name="kurum_ulid" required x-model="kurum"
                                     @class([
@@ -76,7 +91,7 @@
                                         'border-neutral-300 bg-white' => ! $kurumHata,
                                         'border-kulup-600 bg-kulup-50' => (bool) $kurumHata,
                                     ])>
-                                <option value="">Seçiniz…</option>
+                                <option value="">Medya kuruluşunu seçin</option>
                                 @foreach ($kurumlar as $k)
                                     <option value="{{ $k->ulid }}" @selected(old('kurum_ulid') === $k->ulid)>
                                         {{ $k->resmi_unvan }}
@@ -84,7 +99,7 @@
                                 @endforeach
                                 {{-- Listede yalnızca AKREDİTE kurumlar var; kalan herkes buraya düşer. --}}
                                 <option value="yok" @selected(old('kurum_ulid') === 'yok' || $kurumlar->isEmpty())>
-                                    Kurumum listede yok
+                                    Medya kuruluşum listede yok
                                 </option>
                             </select>
                             @if ($kurumHata)
@@ -99,39 +114,69 @@
                             <div x-cloak x-show="kurum === 'yok'"
                                  class="mt-3 rounded-lg border border-neutral-300 bg-neutral-50 px-4 py-3 text-sm">
                                 <p class="text-neutral-700">
-                                    Basın mensubu akreditasyonu, çalıştığınız kurumun akredite olmasına bağlı.
-                                    Kurumunuz başvurdu ve sonuç bekliyorsa akreditasyon tamamlanınca bu listede
-                                    görünecek. Henüz başvurmadıysa önce kurum başvurusu yapılmalı.
-                                    Kurumunuz akredite olduktan sonra sizi doğrudan davet edebilir; o zaman bu
-                                    formu baştan doldurmanız gerekmez.
+                                    Basın mensubu akreditasyonu, çalıştığınız medya kuruluşunun onaylı olmasına
+                                    bağlıdır. Kuruluşunuz başvurdu ve sonuç bekliyorsa onay tamamlanınca bu
+                                    listede görünecek. Henüz başvurmadıysa önce medya kuruluşu başvurusu
+                                    yapılmalı. Kuruluşunuz onaylandıktan sonra sizi doğrudan davet edebilir;
+                                    o zaman bu formu baştan doldurmanız gerekmez.
                                 </p>
                                 {{-- 🪤 YENİ SEKME: aynı sekmede açılırsa yarım kalan form ve
                                      kişinin yazdığı her şey kaybolur. --}}
                                 <a href="{{ route('basvuru.kurum') }}" target="_blank" rel="noopener"
                                    class="mt-3 inline-block rounded-lg bg-kulup-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-kulup-700">
-                                    Kurum başvurusu yap
+                                    Medya kuruluşu başvurusu yap
                                 </a>
                             </div>
                         </div>
                     @endunless
 
-                    <x-parcalar.evet-hayir ad="sigorta_212_var" etiket="212 sayılı Basın İş Kanunu sigortası" zorunlu />
-                    <x-parcalar.evet-hayir ad="basin_karti_var" etiket="Basın kartı" zorunlu />
-                    <x-parcalar.alan ad="calisma_yili" etiket="Medya sektöründeki deneyiminiz (yıl)"
-                                     tur="number" zorunlu :sutun="1" min="0" max="70" />
+                    <x-parcalar.evet-hayir ad="sigorta_212_var"
+                                           etiket="Basın İş Kanunu kapsamında sigortalı mısınız?" zorunlu />
+                    <x-parcalar.evet-hayir ad="basin_karti_var"
+                                           etiket="Geçerli bir basın kartınız var mı?" zorunlu />
+
+                    {{-- 🔑 Serbest rakam DEĞİL aralık (Cüneyt Bey revizyonu 03.09.2026):
+                         kimse deneyimini "7 yıl" diye tarif etmiyor, kulüp de
+                         karşılaştırılabilir veri alıyor. --}}
+                    @php $deneyimHata = $errors->first('calisma_yili'); @endphp
+                    <div>
+                        <label for="calisma_yili" class="zorunlu block text-sm font-medium text-neutral-800">
+                            Medya sektöründeki deneyiminiz
+                        </label>
+                        <select id="calisma_yili" name="calisma_yili" required
+                                @class([
+                                    'mt-1.5 block w-full rounded-lg border px-3 py-2 text-sm shadow-xs transition focus:border-kulup-600 focus:ring-2 focus:ring-kulup-600/20 focus:outline-none',
+                                    'border-neutral-300 bg-white' => ! $deneyimHata,
+                                    'border-kulup-600 bg-kulup-50' => (bool) $deneyimHata,
+                                ])>
+                            <option value="">Deneyim aralığınızı seçin</option>
+                            @foreach (App\Enums\DeneyimAraligi::secenekler() as $deger => $etiket)
+                                <option value="{{ $deger }}" @selected(old('calisma_yili') === $deger)>{{ $etiket }}</option>
+                            @endforeach
+                        </select>
+                        @if ($deneyimHata)<p class="mt-1 text-xs text-kulup-700">{{ $deneyimHata }}</p>@endif
+                    </div>
                 </div>
             </section>
         @else
             <section>
-                <h2 class="text-base font-semibold">Yayın yaptığınız platformlar</h2>
+                <h2 class="text-base font-semibold">Yayın kanalları</h2>
+                <p class="mt-1 text-sm text-neutral-600">
+                    Başvurunuzun değerlendirilebilmesi için aktif olarak kullandığınız en az bir profil
+                    veya yayın bağlantısını girin.
+                </p>
                 @error('sosyal_medya')<p class="mt-1 text-xs text-kulup-700">{{ $message }}</p>@enderror
                 <div class="mt-4 grid gap-4 sm:grid-cols-2">
-                    @foreach (['x' => 'X', 'instagram' => 'Instagram', 'youtube' => 'YouTube', 'tiktok' => 'TikTok', 'web' => 'İnternet sitesi / blog'] as $anahtar => $etiket)
+                    {{-- 🪤 `type="url"` DEĞİL: tarayıcı şema yazmayanı durduruyordu;
+                         şema sunucuda tamamlanıyor (WebAdresi). --}}
+                    {{-- Liste App\Support\SosyalMedyaAlanlari'nda: düzeltme ekranı da aynısını çiziyor. --}}
+                    @foreach (App\Support\SosyalMedyaAlanlari::turIcin($tur) as $anahtar => $tanim)
+                        @php [$etiket, $ipucu] = [$tanim['etiket'], $tanim['ipucu']]; @endphp
                         @php $h = $errors->first("sosyal_medya.$anahtar"); @endphp
                         <div>
                             <label for="sm-{{ $anahtar }}" class="block text-sm font-medium text-neutral-800">{{ $etiket }}</label>
-                            <input type="url" id="sm-{{ $anahtar }}" name="sosyal_medya[{{ $anahtar }}]"
-                                   value="{{ old("sosyal_medya.$anahtar") }}" placeholder="https://"
+                            <input type="text" inputmode="url" id="sm-{{ $anahtar }}" name="sosyal_medya[{{ $anahtar }}]"
+                                   value="{{ old("sosyal_medya.$anahtar") }}" placeholder="{{ $ipucu }}"
                                    @class([
                                        'mt-1.5 block w-full rounded-lg border px-3 py-2 text-sm shadow-xs transition focus:border-kulup-600 focus:ring-2 focus:ring-kulup-600/20 focus:outline-none',
                                        'border-neutral-300 bg-white' => ! $h,
@@ -141,14 +186,15 @@
                         </div>
                     @endforeach
                 </div>
-                <div class="mt-4 max-w-xs">
-                    <x-parcalar.evet-hayir ad="basin_karti_var" etiket="Basın kartı" zorunlu />
+                <div class="mt-4 max-w-sm">
+                    <x-parcalar.evet-hayir ad="basin_karti_var"
+                                           etiket="Geçerli bir basın kartınız var mı?" zorunlu />
                 </div>
             </section>
         @endif
 
-        {{-- ── Evraklar (Revizyon md.3.1: başvuruyla AYNI adımda) ── --}}
-        <x-parcalar.evraklar :turler="$evrakTurleri" />
+        {{-- ── Belgeler (Revizyon md.3.1: başvuruyla AYNI adımda) ── --}}
+        <x-parcalar.evraklar :turler="$evrakTurleri" :taslaklar="$taslakEvraklar" />
 
         <section class="rounded-xl border border-neutral-200 bg-white p-5">
             <h2 class="text-base font-semibold">Kişisel verilerin korunması</h2>
@@ -163,11 +209,13 @@
                         <span class="{{ $errors->has($ad) ? 'text-kulup-700' : 'text-neutral-700' }}">
                             @if ($tur === 'aydinlatma')
                                 <a href="{{ route('hukuki.metin', 'aydinlatma') }}" target="_blank" rel="noopener"
-                                   class="font-medium text-kulup-700 underline">Aydınlatma metnini</a> okudum.
+                                   class="font-medium text-kulup-700 underline">Kişisel Verilerin İşlenmesine İlişkin
+                                    Aydınlatma Metni</a>’ni okudum.
                             @else
-                                Başvurumun değerlendirilmesi için kişisel verilerimin işlenmesine
+                                Başvurumun değerlendirilmesi kapsamında kişisel verilerimin işlenmesine
                                 <a href="{{ route('hukuki.metin', 'acik-riza') }}" target="_blank" rel="noopener"
-                                   class="font-medium text-kulup-700 underline">açık rıza</a> veriyorum.
+                                   class="font-medium text-kulup-700 underline">Açık Rıza Metni</a>’nde belirtilen
+                                koşullar doğrultusunda onay veriyorum.
                             @endif
                         </span>
                     </label>

@@ -2,6 +2,9 @@
 
 namespace App\Filament\Yonetim\Resources\Kurumlar\Tables;
 
+use App\Enums\DegerlendirmePuani;
+use App\Filament\Yonetim\Ortak\DegerlendirmeEylemi;
+use App\Models\Degerlendirme;
 use App\Models\Kurum;
 use App\Servisler\DenetimYazici;
 use Filament\Actions\Action;
@@ -24,9 +27,12 @@ class KurumlarTable
     {
         return $table
             // ⚠️ Parametre adı $query olmalı (Filament ada göre enjekte eder).
-            ->modifyQueryUsing(fn (Builder $query) => $query->withCount([
-                'akreditasyonlar as aktif_kart_sayisi' => fn (Builder $query) => $query->where('durum', 'aktif'),
-            ]))
+            ->modifyQueryUsing(fn (Builder $query) => $query
+                ->withCount([
+                    'akreditasyonlar as aktif_kart_sayisi' => fn (Builder $query) => $query->where('durum', 'aktif'),
+                ])
+                // Değerlendirme sütunu satır başına sorgu açmasın.
+                ->with('degerlendirme'))
             ->defaultSort('resmi_unvan')
             ->columns([
                 TextColumn::make('resmi_unvan')
@@ -60,6 +66,35 @@ class KurumlarTable
                     ->placeholder('Sınırsız')
                     ->toggleable(),
 
+                /*
+                 * 🔒 Yalnızca kulüp tarafı. Sütun `visible()` ile gizlenir ama
+                 * asıl güvence bu tablonun YÖNETİM panelinde olması: kurum ve
+                 * üye panelinde bu veriyi getiren hiçbir sorgu yok.
+                 */
+                TextColumn::make('degerlendirme.puan')
+                    ->label('Değerlendirme')
+                    ->badge()
+                    ->color(fn (?DegerlendirmePuani $state) => $state?->renk() ?? 'gray')
+                    ->formatStateUsing(fn (?DegerlendirmePuani $state) => $state
+                        ? $state->value.' · '.$state->etiket()
+                        : '—')
+                    ->placeholder('—')
+                    /*
+                     * 🪤 Nokta yazımlı ilişki sütununda çıplak `sortable()`
+                     * JOIN üretmez; `order by degerlendirmeler.puan` geçersiz
+                     * SQL olur. Sıralama ilişkili ALT SORGUYLA yapılır
+                     * (`degerlendirmeler.kurum_id` indeksli).
+                     */
+                    ->sortable(query: fn (Builder $query, string $direction) => $query->orderBy(
+                        Degerlendirme::query()
+                            ->select('puan')
+                            ->whereColumn('degerlendirmeler.kurum_id', 'kurumlar.id')
+                            ->where('hedef_tip', Degerlendirme::HEDEF_KURUM)
+                            ->limit(1),
+                        $direction,
+                    ))
+                    ->visible(fn () => auth()->user()?->can('degerlendirme.yonet') ?? false),
+
                 TextColumn::make('created_at')
                     ->label('Kayıt')
                     ->dateTime('d.m.Y', 'Europe/Istanbul')
@@ -70,8 +105,27 @@ class KurumlarTable
                 SelectFilter::make('akreditasyon_durumu')
                     ->label('Akreditasyon')
                     ->options(self::DURUMLAR),
+
+                SelectFilter::make('degerlendirme')
+                    ->label('Değerlendirme')
+                    ->options(DegerlendirmePuani::secenekler() + ['yok' => 'Değerlendirilmemiş'])
+                    ->visible(fn () => auth()->user()?->can('degerlendirme.yonet') ?? false)
+                    ->query(function (Builder $query, array $data) {
+                        $deger = $data['value'] ?? null;
+
+                        if (blank($deger)) {
+                            return $query;
+                        }
+
+                        return $deger === 'yok'
+                            ? $query->whereDoesntHave('degerlendirme')
+                            : $query->whereHas('degerlendirme',
+                                fn (Builder $q) => $q->where('puan', (int) $deger));
+                    }),
             ])
             ->recordActions([
+                DegerlendirmeEylemi::kurum(),
+
                 Action::make('akreditasyonuKaldir')
                     ->label('Akreditasyonu kaldır')
                     ->icon('heroicon-m-no-symbol')

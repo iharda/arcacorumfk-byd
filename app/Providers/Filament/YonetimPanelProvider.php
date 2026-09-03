@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Yonetim\Pages\Pano;
 use App\Filament\Yonetim\Widgets\OzetSayilar;
 use App\Support\KulupRengi;
 use App\Support\YerelAvatar;
@@ -10,7 +11,6 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\View\PanelsRenderHook;
@@ -81,7 +81,8 @@ class YonetimPanelProvider extends PanelProvider
             //    giriyor; ikonları ezberlemesini bekleyemeyiz.
             ->discoverResources(in: app_path('Filament/Yonetim/Resources'), for: 'App\Filament\Yonetim\Resources')
             ->discoverPages(in: app_path('Filament/Yonetim/Pages'), for: 'App\Filament\Yonetim\Pages')
-            ->pages([Dashboard::class])
+            // 🔤 Filament'in çıplak `Dashboard`'ı DEĞİL: menüde "Dashboard" yazıyordu.
+            ->pages([Pano::class])
             ->discoverWidgets(in: app_path('Filament/Yonetim/Widgets'), for: 'App\Filament\Yonetim\Widgets')
             ->widgets([OzetSayilar::class])
             ->middleware([

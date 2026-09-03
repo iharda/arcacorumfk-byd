@@ -2,8 +2,8 @@
 
 namespace App\Filament\Uye\Pages;
 
-use App\Enums\AkreditasyonDurumu;
 use App\Models\Akreditasyon;
+use App\Support\KartDurumu;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Pages\Page;
@@ -76,26 +76,13 @@ class Kartim extends Page
         );
     }
 
+    /**
+     * 🔑 Metin `App\Support\KartDurumu`'nda: aynı cümleleri üye panosundaki
+     * `KartimOzeti` widget'ı da gösteriyor. Kopyalanmış olsaydı biri
+     * düzeltilip diğeri unutulurdu.
+     */
     public function durumMesaji(): ?string
     {
-        $a = $this->akreditasyon;
-
-        if (! $a) {
-            return 'Henüz akreditasyonunuz yok. Başvurunuz onaylandığında kartınız burada görünür.';
-        }
-
-        if ($a->durum === AkreditasyonDurumu::Iptal) {
-            return 'Akreditasyonunuz iptal edilmiştir; kart kulüp girişlerinde geçerli değildir.';
-        }
-
-        if ($a->durum === AkreditasyonDurumu::Askida) {
-            return 'Akreditasyonunuz askıdadır; askı kaldırılana kadar kart geçerli değildir.';
-        }
-
-        if (! $a->guncelKart) {
-            return 'Kartınız hazırlanıyor. Birkaç dakika içinde burada görünecek.';
-        }
-
-        return null;
+        return KartDurumu::mesaj($this->akreditasyon);
     }
 }

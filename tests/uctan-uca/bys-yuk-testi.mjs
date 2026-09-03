@@ -12,8 +12,17 @@
  * node tests/uctan-uca/bys-yuk-testi.mjs [saniye] [eszamanlilik]
  */
 import { execFileSync } from 'node:child_process';
+import { resolve } from 'node:path';
 import https from 'node:https';
-const TEST_DOSYALARI = (process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');   // ornek evraklar; BYS_TEST_DOSYALARI ile degistirilebilir
+/*
+ * 🪤 YOL NORMALLESTIRILIR (resolve). Ham `.../uctan-uca/../../../test-dosyalari`
+ * yolunu Chrome'a verirsen dosya seciminde hata YOK ama form gonderilirken
+ * POST `net::ERR_ACCESS_DENIED` ile duser: Chrome olusturucuya okuma iznini
+ * COZULMUS yol icin verir, blob ise ham yolu tasir, ikisi tutmaz. Tarayici da
+ * "site can't be reached" der; sunucuya istek HIC ulasmaz, erisim kaydinda iz
+ * yoktur. Sunucu tasindiktan sonra bu testler bu yuzden kiriliyordu.
+ */
+const TEST_DOSYALARI = resolve(process.env.BYS_TEST_DOSYALARI ?? import.meta.dirname + '/../../../test-dosyalari');   // ornek evraklar; BYS_TEST_DOSYALARI ile degistirilebilir
 
 const ALAN = process.env.BYS_ALAN || 'byd.ordolive.com';
 const SURE = Number(process.argv[2]) || 15;

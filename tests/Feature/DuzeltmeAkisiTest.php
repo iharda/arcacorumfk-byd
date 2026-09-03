@@ -393,4 +393,80 @@ class DuzeltmeAkisiTest extends TestCase
             ->assertSee('İlk bilgiler')
             ->assertSee('1-5 kişi');
     }
+
+    /**
+     * 💀 Düzeltme ekranındaki "Web siteleri ve yayın kanalları" ile
+     * "Sosyal medya" TEK metin kutusuydu; doğrulama ise kamu formundaki
+     * şekli (ad+adres satırları / anahtarlı liste) bekliyordu. Yetkili bu
+     * alanları işaretlediğinde başvuran formu HİÇ gönderemiyordu.
+     *
+     * Şema tamamlama da burada geçerli olmalı -- Cüneyt Bey revizyonu
+     * (03.09.2026): "http vs yazmaya zorlamamalıyız."
+     */
+    public function test_yayin_kanallari_ve_sosyal_medya_duzeltilebiliyor(): void
+    {
+        $kurum = Kurum::create([
+            'resmi_unvan' => 'Test Gazetesi',
+            'adres' => 'Eski adres 1',
+            'il' => 'Çorum',
+            'ilce' => 'Merkez',
+            'telefon' => '+903642223344',
+            'eposta' => 'kurum@ornek.test',
+            'vergi_dairesi' => 'Çorum',
+            'vergi_no' => '1234567890',
+            'calisan_araligi' => CalisanAraligi::Bes,
+            'yayin_platformlari' => [['ad' => 'Eski Site', 'url' => 'https://eski.test']],
+            'sosyal_medya' => ['x' => 'https://x.com/eski'],
+            'akreditasyon_durumu' => 'beklemede',
+        ]);
+
+        $basvuru = Basvuru::create([
+            'tur' => BasvuruTuru::Kurum,
+            'durum' => BasvuruDurumu::Incelemede,
+            'kurum_id' => $kurum->id,
+            'basvuran_ad' => 'Yetkili Kişi',
+            'basvuran_eposta' => 'yetkili-kurum@ornek.test',
+            'basvuran_telefon' => '+905321112233',
+        ]);
+
+        $this->zorunluEvraklariYukle($basvuru);
+
+        app(BasvuruAkisi::class)->eksikEvrakIste($basvuru, [
+            'veri:yayin_platformlari' => 'Adres açılmıyor',
+            'veri:sosyal_medya' => 'Hesap bulunamadı',
+        ]);
+
+        $token = app(BasvuruBiletiAkisi::class)->uret($basvuru->fresh());
+
+        // Kutular kamu formundaki şekliyle çizilmeli.
+        $this->get(route('basvuru.duzelt', ['token' => $token]))
+            ->assertOk()
+            ->assertSee('Yayın adı')
+            ->assertSee('Yeni yayın adresi ekle')
+            ->assertSee('name="alan[veri_sosyal_medya][instagram]"', false);
+
+        // Şemasız yazılan adresler kabul edilmeli.
+        $this->post(route('basvuru.duzelt.kaydet', ['token' => $token]), [
+            'alan' => [
+                'veri_yayin_platformlari' => [
+                    ['ad' => 'Çorum Haber', 'url' => 'corumhaber.com.tr'],
+                ],
+                'veri_sosyal_medya' => [
+                    'x' => 'x.com/corumhaber',
+                    'instagram' => '',
+                ],
+            ],
+            'aciklama' => 'Adresleri güncelledim',
+        ])->assertRedirect(route('basvuru.gonderildi'));
+
+        $kurum->refresh();
+
+        $this->assertSame('Çorum Haber', $kurum->yayin_platformlari[0]['ad']);
+        $this->assertSame('https://corumhaber.com.tr', $kurum->yayin_platformlari[0]['url'],
+            'Yayın adresinde şema sunucuda tamamlanmadı.');
+        $this->assertSame('https://x.com/corumhaber', $kurum->sosyal_medya['x'],
+            'Sosyal medya adresinde şema sunucuda tamamlanmadı.');
+
+        $this->assertSame(BasvuruDurumu::YenidenInceleme, $basvuru->fresh()->durum);
+    }
 }

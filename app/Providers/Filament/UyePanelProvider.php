@@ -2,13 +2,13 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Uye\Pages\Pano;
 use App\Support\KulupRengi;
 use App\Support\YerelAvatar;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -56,7 +56,8 @@ class UyePanelProvider extends PanelProvider
             ->databaseNotifications()
             ->discoverResources(in: app_path('Filament/Uye/Resources'), for: 'App\Filament\Uye\Resources')
             ->discoverPages(in: app_path('Filament/Uye/Pages'), for: 'App\Filament\Uye\Pages')
-            ->pages([Dashboard::class])
+            // 🔤 Filament'in çıplak `Dashboard`'ı DEĞİL: menüde "Dashboard" yazıyordu.
+            ->pages([Pano::class])
             ->discoverWidgets(in: app_path('Filament/Uye/Widgets'), for: 'App\Filament\Uye\Widgets')
             ->middleware([
                 EncryptCookies::class,

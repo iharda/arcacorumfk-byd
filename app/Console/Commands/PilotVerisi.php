@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
 use App\Enums\CalisanAraligi;
+use App\Enums\DeneyimAraligi;
 use App\Jobs\KartUret;
 use App\Models\Akreditasyon;
 use App\Models\Antrenman;
@@ -184,7 +185,7 @@ class PilotVerisi extends Command
                 'il' => 'Çorum',
                 'ilce' => 'Merkez',
                 'basin_karti_var' => (bool) random_int(0, 1),
-                'calisma_yili' => random_int(1, 15),
+                'calisma_yili' => DeneyimAraligi::sayidan(random_int(1, 15))?->value,
             ],
         ]);
 

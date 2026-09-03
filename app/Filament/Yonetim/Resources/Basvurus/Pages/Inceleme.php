@@ -4,12 +4,15 @@ namespace App\Filament\Yonetim\Resources\Basvurus\Pages;
 
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
+use App\Filament\Yonetim\Ortak\DegerlendirmeEylemi;
 use App\Filament\Yonetim\Resources\Basvurus\BasvuruResource;
 use App\Models\Ayar;
 use App\Models\Basvuru;
+use App\Models\Degerlendirme;
 use App\Notifications\EksikEvrakTalebi;
 use App\Servisler\BasvuruAkisi;
 use App\Servisler\BasvuruBiletiAkisi;
+use App\Servisler\DegerlendirmeAkisi;
 use App\Support\DuzeltmeAlanlari;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Repeater;
@@ -67,7 +70,7 @@ class Inceleme extends Page
 
     public function getSubheading(): string|Htmlable|null
     {
-        return $this->record->tur->etiket().' · '.$this->record->ulid;
+        return $this->record->tur->etiket().' · '.$this->record->basvuru_no;
     }
 
     public function evrakSec(string $ulid): void
@@ -114,6 +117,43 @@ class Inceleme extends Page
     }
 
     /**
+     * Bu başvurunun hedefine (kuruma ya da kişiye) verilmiş güncel puan.
+     *
+     * 🔒 Yalnızca yönetim panelinde okunur; şablon da `@can` ile sarmalı.
+     */
+    public function getDegerlendirmeProperty(): ?Degerlendirme
+    {
+        if (! auth()->user()?->can('degerlendirme.yonet')) {
+            return null;
+        }
+
+        return app(DegerlendirmeAkisi::class)->basvuruIcin($this->record);
+    }
+
+    /**
+     * Bireysel başvuranın KURUMUNA verilmiş puan -- salt okunur ikinci satır.
+     * Yetkili kişiyi değerlendirirken kurumun geçmişini de görsün.
+     */
+    public function getKurumDegerlendirmesiProperty(): ?Degerlendirme
+    {
+        if ($this->record->tur === BasvuruTuru::Kurum
+            || ! auth()->user()?->can('degerlendirme.yonet')) {
+            return null;
+        }
+
+        return app(DegerlendirmeAkisi::class)->kurumIcin($this->record->kurum);
+    }
+
+    /**
+     * Puanlama modalı. 🔑 ÜST ÇUBUKTA DEĞİL sayfa içinde: üst çubuk KARAR
+     * eylemlerinin yeri, değerlendirme ise karar değildir (briefi md. A.1).
+     */
+    public function degerlendirAction(): Action
+    {
+        return DegerlendirmeEylemi::basvuru(fn () => $this->record);
+    }
+
+    /**
      * Eksik evrak talebinde işaretlenebilecek alanlar: anahtar => etiket.
      *
      * 🔑 Anahtarlar `DuzeltmeAlanlari` şemasından gelir (`evrak:<kod>`,
@@ -155,11 +195,13 @@ class Inceleme extends Page
                 )),
 
             Action::make('eksikEvrak')
-                ->label('Eksik evrak iste')
+                ->label('Belge iste')
                 ->icon('heroicon-m-exclamation-triangle')
                 ->color('warning')
                 ->modalWidth(Width::TwoExtraLarge)
+                ->modalHeading('Başvurandan belge veya bilgi isteyin')
                 ->modalSubmitActionLabel('Talebi gönder')
+                ->modalCancelActionLabel('Vazgeç')
                 ->visible(fn () => auth()->user()->can('eksikEvrakIste', $this->record))
                 ->schema([
                     Repeater::make('notlar')
@@ -258,6 +300,7 @@ class Inceleme extends Page
                 ->modalHeading('Düzeltme bağlantısını yeniden gönder')
                 ->modalDescription('Başvurana yeni bir bağlantı gider ve önceki bağlantı geçersiz olur.')
                 ->modalSubmitActionLabel('Gönder')
+                ->modalCancelActionLabel('Vazgeç')
                 ->visible(fn () => $this->record->durum === BasvuruDurumu::EksikEvrak
                     && auth()->user()->can('eksikEvrakIste', $this->record))
                 ->action(fn () => $this->calistir(function () {
@@ -266,22 +309,33 @@ class Inceleme extends Page
                     $this->record->bildirimHedefi()->notify(new EksikEvrakTalebi($this->record, $token));
                 }, 'Yeni düzeltme bağlantısı gönderildi.')),
 
+            /*
+             * Onay kipinin metni Cüneyt Bey revizyonunda (03.09.2026) yeniden
+             * yazıldı: başlık SORU, açıklama onaydan sonra ne olacağını
+             * anlatıyor, düğmeler "Vazgeç" / "Başvuruyu onayla".
+             */
             Action::make('onayla')
                 ->label('Onayla')
                 ->icon('heroicon-m-check-circle')
                 ->color('success')
                 ->requiresConfirmation()
-                ->modalHeading('Başvuruyu onayla')
                 // Hesap onayla birlikte açılır; bireysel başvuruda "kurum
                 // akredite edilecek" metni yanlıştı.
+                ->modalHeading(fn () => $this->record->tur === BasvuruTuru::Kurum
+                    ? 'Medya kuruluşunu onaylamak istiyor musunuz?'
+                    : 'Başvuruyu onaylamak istiyor musunuz?')
                 ->modalDescription(fn () => $this->record->tur === BasvuruTuru::Kurum
-                    ? 'Kurum akredite edilecek, yetkiliye hesap açılacak ve bildirim gidecek. Bu adım geri alınamaz.'
+                    ? 'Onaylamanızın ardından medya kuruluşu sisteme kaydedilecek, başvuru '
+                        .'yetkilisi için bir hesap oluşturulacak ve sonuç e-posta yoluyla bildirilecektir.'
                     // 🔑 Kartın hangi bölgelere yetkili doğacağı KARAR ANINDA
                     // görünmeli (Düzeltme listesi md.9): "her kapıdan geçer"
                     // sessizce verilen bir yetki olmasın.
-                    : 'Başvurana hesap açılacak, akreditasyon ve kart numarası oluşacak. '
-                        .$this->bolgeOzeti().' Bu adım geri alınamaz.')
-                ->modalSubmitActionLabel('Onayla')
+                    : 'Onaylamanızın ardından başvuru sahibi için bir hesap açılacak, akreditasyon '
+                        .'kaydı ve kart numarası oluşturulacaktır. '.$this->bolgeOzeti())
+                ->modalSubmitActionLabel(fn () => $this->record->tur === BasvuruTuru::Kurum
+                    ? 'Kuruluşu onayla'
+                    : 'Başvuruyu onayla')
+                ->modalCancelActionLabel('Vazgeç')
                 ->visible(fn () => auth()->user()->can('kararVer', $this->record))
                 ->action(fn () => $this->calistir(
                     fn () => app(BasvuruAkisi::class)->onayla($this->record),
@@ -292,7 +346,9 @@ class Inceleme extends Page
                 ->label('Reddet')
                 ->icon('heroicon-m-x-circle')
                 ->color('danger')
-                ->modalSubmitActionLabel('Reddet')
+                ->modalHeading('Başvuruyu reddetmek istiyor musunuz?')
+                ->modalSubmitActionLabel('Başvuruyu reddet')
+                ->modalCancelActionLabel('Vazgeç')
                 ->visible(fn () => auth()->user()->can('kararVer', $this->record))
                 ->schema([
                     Textarea::make('gerekce')
@@ -305,6 +361,36 @@ class Inceleme extends Page
                 ->action(fn (array $data) => $this->calistir(
                     fn () => app(BasvuruAkisi::class)->reddet($this->record, $data['gerekce']),
                     'Başvuru reddedildi.',
+                )),
+
+            /*
+             * "İptal edildi" durumu -- Cüneyt Bey revizyonu (03.09.2026).
+             * 🔑 REDDETMEKTEN AYRI: red bir karardır, başvurana gerekçesiyle
+             * bildirilir ve yeniden başvuru bekleme süresini işletir. İptal
+             * kaydın kapatılmasıdır (mükerrer başvuru, başvuranın vazgeçmesi,
+             * yanlış türde başvuru) ve bildirim doğurmaz.
+             */
+            Action::make('iptalEt')
+                ->label('İptal et')
+                ->icon('heroicon-m-archive-box-x-mark')
+                ->color('gray')
+                ->modalHeading('Başvuruyu iptal etmek istiyor musunuz?')
+                ->modalDescription('Başvuru kuyruktan düşer ve karara bağlanamaz. '
+                    .'Başvurana bildirim GİTMEZ; iptali kendisine siz haber vermelisiniz.')
+                ->modalSubmitActionLabel('Başvuruyu iptal et')
+                ->modalCancelActionLabel('Vazgeç')
+                ->visible(fn () => auth()->user()->can('iptalEt', $this->record))
+                ->schema([
+                    Textarea::make('gerekce')
+                        ->label('İptal sebebi')
+                        ->helperText('Yalnızca denetim kaydına yazılır, başvurana gönderilmez.')
+                        ->required()
+                        ->rows(3)
+                        ->maxLength(1000),
+                ])
+                ->action(fn (array $data) => $this->calistir(
+                    fn () => app(BasvuruAkisi::class)->iptalEt($this->record, $data['gerekce']),
+                    'Başvuru iptal edildi.',
                 )),
         ];
     }
@@ -330,6 +416,7 @@ class Inceleme extends Page
         return [
             'etiket' => $this->record->durum->etiket(),
             'renk' => $this->record->durum->renk(),
+            'aciklama' => $this->record->durum->aciklama(),
         ];
     }
 
