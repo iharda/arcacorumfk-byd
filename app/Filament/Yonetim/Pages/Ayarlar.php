@@ -5,7 +5,7 @@ namespace App\Filament\Yonetim\Pages;
 use App\Enums\BasvuruTuru;
 use App\Models\Akreditasyon;
 use App\Models\Ayar;
-use App\Servisler\DenetimYazici;
+use App\Servisler\AyarlarAkisi;
 use App\Servisler\KartNoUretici;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -18,6 +18,7 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Throwable;
 
 /**
  * Sistem ayarları -- Plan v1.0 md.8 ("kurum teyidi aç/kapa vb.").
@@ -52,6 +53,9 @@ class Ayarlar extends Page
             'davet_gecerlilik_gun' => (int) Ayar::al('davet_gecerlilik_gun', 7),
             'duzeltme_bileti_gun' => (int) Ayar::al('duzeltme_bileti_gun', 14),
             'yeniden_basvuru_bekleme_gun' => (int) Ayar::al('yeniden_basvuru_bekleme_gun', 0),
+            'kart_yil' => Ayar::al('kart_yil'),
+            'mukerrer_okutma_saniye' => (int) Ayar::al('mukerrer_okutma_saniye', 30),
+            'kart_paylasimi_saniye' => (int) Ayar::al('kart_paylasimi_saniye', 120),
             'kart_kodu_basin' => KartNoUretici::kod(BasvuruTuru::BasinMensubu),
             'kart_kodu_icerik' => KartNoUretici::kod(BasvuruTuru::IcerikUreticisi),
             'bolgeler' => collect((array) Ayar::al('bolgeler', []))
@@ -104,8 +108,23 @@ class Ayarlar extends Page
                     ]),
 
                 Section::make('Kart ve bölgeler')
-                    ->description('Kart numarasındaki tür harfi ve kartın yetki verdiği alanlar. Değişiklik YENİ kartları etkiler; basılmış kartlar numarasını korur.')
+                    ->description('Kart numarasındaki yıl, tür harfi ve kartın yetki verdiği alanlar. Değişiklik YENİ kartları etkiler; basılmış kartlar numarasını korur.')
                     ->schema([
+                        /*
+                         * 🔑 Sezon yılı: `KartNoUretici` bu ayarı OKUYORDU ama
+                         * değiştirecek ekran yoktu -- kural işliyor, ekranı
+                         * yok (aynı desen kurum.yonet, kart.indir ve
+                         * kontenjanda da düzeltilmişti). Sezon Temmuz'da
+                         * dönüyor, takvim yılı Ocak'ta: ikisi aynı şey değil.
+                         */
+                        TextInput::make('kart_yil')
+                            ->label('Kart numarasındaki yıl')
+                            ->helperText('Boş bırakılırsa içinde bulunulan yıl kullanılır. Sıra numarası yıl başına sayılır: yıl değişince numaralar 0001\'den başlar.')
+                            ->numeric()
+                            ->minValue(2020)
+                            ->maxValue(2100)
+                            ->placeholder((string) now()->year),
+
                         TextInput::make('kart_kodu_basin')
                             ->label('Basın mensubu kart harfi')
                             ->helperText(fn () => 'Örnek: 2026-'.(KartNoUretici::kod(BasvuruTuru::BasinMensubu) ?: 'K').'-0042  ·  '
@@ -163,6 +182,35 @@ class Ayarlar extends Page
                             ->columnSpanFull(),
                     ]),
 
+                /*
+                 * 🔑 İkisi de `KapiDogrulama`'da OKUNUYORDU, ekranı yoktu:
+                 * turnikede görevlinin uyarı görüp görmeyeceğini belirleyen
+                 * iki sayı yalnızca veritabanından değiştirilebiliyordu.
+                 * 💥 Hiçbiri geçişi ENGELLEMEZ -- ikisi de görevliyi uyarır
+                 * (Düzeltme listesi md.12).
+                 */
+                Section::make('Kapı ve okutma')
+                    ->description('Turnikede görevliyi uyaran iki eşik. Hiçbiri geçişi engellemez; ikisi de "bir kontrol et" demektir.')
+                    ->schema([
+                        TextInput::make('mukerrer_okutma_saniye')
+                            ->label('Aynı kapıda yeniden okutma uyarısı')
+                            ->helperText('AYNI kapıda bu süre içinde ikinci kez okutulursa görevli uyarılır — kamera yakaladı, görevli tekrar denedi, kişi geri döndü. 0 = uyarı kapalı.')
+                            ->suffix('saniye')
+                            ->numeric()
+                            ->required()
+                            ->minValue(0)
+                            ->maxValue(600),
+
+                        TextInput::make('kart_paylasimi_saniye')
+                            ->label('Kart paylaşımı uyarısı')
+                            ->helperText('Aynı kart BAŞKA bir kapıda bu süre içinde okutulduysa görevli uyarılır; bir kişi iki turnikede aynı anda olamaz, yüz kontrolü istenir. 0 = uyarı kapalı.')
+                            ->suffix('saniye')
+                            ->numeric()
+                            ->required()
+                            ->minValue(0)
+                            ->maxValue(3600),
+                    ]),
+
                 Section::make('KVKK metinleri')
                     ->description('İçerik kulüpten gelir. Boş bırakılan metin, kamuya açık sayfada "henüz yayımlanmadı" olarak görünür — boş sayfa gösterilmez.')
                     ->schema([
@@ -204,42 +252,14 @@ class Ayarlar extends Page
         return Action::make('kaydet')
             ->label('Kaydet')
             ->action(function () {
-                $veri = $this->form->getState();
+                try {
+                    app(AyarlarAkisi::class)->kaydet($this->form->getState());
+                } catch (Throwable $e) {
+                    // Bölge silme koruması buradan geçer: sebep ekranda yazsın,
+                    // form da doldurulmuş hâliyle kalsın.
+                    Notification::make()->title($e->getMessage())->danger()->persistent()->send();
 
-                // Kart harfleri ve bölgeler tek ayar altında toplanıyor;
-                // formdaki ayrı alanlardan birleştiriyoruz.
-                $veri['kart_tur_kodlari'] = [
-                    BasvuruTuru::BasinMensubu->value => strtoupper($veri['kart_kodu_basin']),
-                    BasvuruTuru::IcerikUreticisi->value => strtoupper($veri['kart_kodu_icerik']),
-                ];
-                $veri['bolgeler'] = collect($veri['bolgeler'] ?? [])
-                    ->filter(fn ($b) => filled($b['anahtar'] ?? null))
-                    ->mapWithKeys(fn ($b) => [$b['anahtar'] => $b['ad']])
-                    ->all();
-                unset($veri['kart_kodu_basin'], $veri['kart_kodu_icerik']);
-
-                foreach ($veri as $anahtar => $yeni) {
-                    $eski = Ayar::al($anahtar);
-                    if ($eski === $yeni) {
-                        continue;
-                    }
-
-                    Ayar::yaz($anahtar, $yeni);
-
-                    // Hukuki metinlerde "son güncelleme" tarihi de tutulur;
-                    // kamuya açık sayfada gösteriliyor.
-                    if (str_ends_with($anahtar, '_metni')) {
-                        Ayar::yaz($anahtar.'_guncelleme', now()->toDateString());
-                    }
-
-                    // Metinler uzun; denetim kaydına tam gövdeyi değil
-                    // değiştiği bilgisini yazıyoruz.
-                    $kisalt = fn ($d) => is_string($d) && mb_strlen($d) > 200
-                        ? mb_substr($d, 0, 200).'…'
-                        : $d;
-
-                    app(DenetimYazici::class)->yaz('ayar.degistirildi',
-                        eski: [$anahtar => $kisalt($eski)], yeni: [$anahtar => $kisalt($yeni)]);
+                    return;
                 }
 
                 Notification::make()->title('Ayarlar kaydedildi.')->success()->send();
