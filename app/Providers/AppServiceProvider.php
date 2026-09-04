@@ -120,8 +120,20 @@ class AppServiceProvider extends ServiceProvider
         // Form sayfasını görüntüleme
         RateLimiter::for('basvuru-goruntule', fn (Request $r) => Limit::perMinute(60)->by($r->ip()));
 
-        // Başvuru gönderimi: hesap açar ve e-posta gönderir, dar tutulur.
-        RateLimiter::for('basvuru-gonder', fn (Request $r) => Limit::perMinutes(10, 5)->by($r->ip()));
+        /*
+         * Başvuru gönderimi.
+         *
+         * 🪤 Sayaç HER POST'u sayar, doğrulamada düşenler dahil. Sınır 5'ken
+         * uzun formu ilk kez dolduran kullanıcı beş hatada kilitleniyordu
+         * (04.09.2026 kayıtları: iki gerçek başvuran tam beş denemede 429).
+         * Sınır IP başına olduğu için aynı gazetenin ofisinden başvuran
+         * muhabirler de bu bütçeyi paylaşıyor.
+         *
+         * 🔑 Asıl korunması gereken BAŞARILI gönderim: hesap açar ve e-posta
+         * yollar. Hatalı denemenin o bütçeyi yemesi için sebep yok; sayı,
+         * kaba kuvveti kesecek kadar yüksek tutuldu.
+         */
+        RateLimiter::for('basvuru-gonder', fn (Request $r) => Limit::perMinutes(10, 180)->by($r->ip()));
 
         // Aktivasyon: imzalı bağlantı, yine de kaba kuvvete kapalı olsun.
         RateLimiter::for('hesap-aktivasyon', fn (Request $r) => Limit::perMinutes(10, 15)->by($r->ip()));
