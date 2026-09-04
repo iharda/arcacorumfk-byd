@@ -11,7 +11,7 @@ use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\URL;
 
 /**
- * Plan v1.0 md.9 — onay bildirimi.
+ * Plan v1.0 md.9 — onay bildirimi. Metin 04.09.2026 revizyonunda yeniden yazıldı.
  *
  * 🔑 Hesap ONAY anında açıldığı için (Revizyon md.3.2) bu e-posta aynı zamanda
  * hesabın kapısıdır: kullanıcı şifresini henüz belirlememişse imzalı, süreli
@@ -48,34 +48,59 @@ class BasvuruOnaylandi extends Notification implements ShouldQueue
         return ['mail'];
     }
 
+    /**
+     * 🪤 İmzadaki satır sonları MARKDOWN kuralına göre: satır sonundaki İKİ
+     * BOŞLUK `<br>` üretir. `<br>` yazılamaz -- şablon `{{ }}` ile kaçırdığı
+     * için ekranda etiket olarak görünür (BasvuruAlindi'de de aynı tuzak).
+     */
     public function toMail(object $notifiable): MailMessage
     {
         $kurumsal = $this->basvuru->tur === BasvuruTuru::Kurum;
+        $sifat = $this->basvuru->tur->basvuruSifati();
+        $unvan = $this->basvuru->kurum?->resmi_unvan;
+
+        // "Mikron Medya adına yaptığınız medya kuruluşu başvurusu onaylandı."
+        // Ünvan bir şekilde boşsa cümle " adına" ile başlamasın diye kişisel kip.
+        $acilis = $kurumsal && filled($unvan)
+            ? $unvan.' adına yaptığınız '.mb_strtolower($sifat, 'UTF-8').' başvurusu onaylandı.'
+            : $sifat.' başvurunuz onaylandı.';
 
         $mesaj = (new MailMessage)
             ->subject('Başvurunuz onaylandı — ARCA Çorum FK')
             ->greeting('Merhaba '.$this->basvuru->basvuranAdi().',')
-            ->line($kurumsal
-                ? '**'.$this->basvuru->kurum?->resmi_unvan.'** akredite edildi.'
-                : 'Akreditasyon başvurunuz onaylandı.')
-            ->line($kurumsal
-                ? 'Kurum panelinizden çalışanlarınız için başvuru başlatabilirsiniz.'
-                : 'Basın kartınız panelinizden görüntülenebilir.');
+            ->line($acilis);
 
         if (! $this->sifreBelirlenecek) {
             return $mesaj
+                ->line($kurumsal
+                    ? 'Kurum panelinizden çalışanlarınızın akreditasyon süreçlerini yönetebilirsiniz.'
+                    : 'Basın kartınızı panelinizden görüntüleyebilirsiniz.')
                 ->action($kurumsal ? 'Kurum paneline git' : 'Panele git', url($kurumsal ? '/kurum' : '/panel'))
-                ->salutation('ARCA Çorum FK');
+                ->salutation($this->imza());
         }
 
         return $mesaj
-            ->line('Hesabınız onayla birlikte açıldı. Şifrenizi aşağıdaki bağlantıdan belirleyip panelinize girebilirsiniz.')
-            ->action('Şifremi belirle', URL::temporarySignedRoute(
+            ->line($kurumsal
+                ? 'Başvurunuzun onaylanmasıyla birlikte kurum hesabınız oluşturuldu. '
+                    .'Şifrenizi oluşturarak panele giriş yapabilir ve çalışanlarınızın '
+                    .'akreditasyon süreçlerini yönetebilirsiniz.'
+                : 'Başvurunuzun onaylanmasıyla birlikte hesabınız oluşturuldu. '
+                    .'Şifrenizi oluşturarak panele giriş yapabilir ve basın kartınızı '
+                    .'görüntüleyebilirsiniz.')
+            ->action('Şifre oluştur', URL::temporarySignedRoute(
                 'hesap.aktivasyon',
                 now()->addHours(48),
                 ['kullanici' => $notifiable->ulid],
             ))
-            ->line('Bu bağlantı **48 saat** geçerlidir. Süresi dolarsa giriş sayfasındaki "şifremi unuttum" adımından yeni bağlantı isteyebilirsiniz.')
-            ->salutation('ARCA Çorum FK');
+            ->line('Bu bağlantı 48 saat boyunca geçerlidir. Bağlantının süresi dolarsa '
+                .'giriş sayfasındaki “Şifremi unuttum” seçeneğini kullanarak yeni bir '
+                .'bağlantı isteyebilirsiniz.')
+            ->salutation($this->imza());
+    }
+
+    /** Üç satırlık kulüp imzası -- BasvuruAlindi ile aynı biçim. */
+    private function imza(): string
+    {
+        return "Saygılarımızla,  \nARCA Çorum FK  \nBasın Yönetim Sistemi";
     }
 }

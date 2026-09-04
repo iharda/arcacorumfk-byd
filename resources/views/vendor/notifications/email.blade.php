@@ -46,7 +46,7 @@ ARCA Çorum FK
 {{-- Subcopy --}}
 @if (isset($actionText))
 <x-slot:subcopy>
-"{{ $actionText }}" düğmesi çalışmıyorsa aşağıdaki adresi tarayıcınıza yapıştırın: <span class="break-all">[{{ $displayableActionUrl }}]({{ $actionUrl }})</span>
+“{{ $actionText }}” düğmesi çalışmıyorsa aşağıdaki bağlantıyı kopyalayıp tarayıcınızın adres çubuğuna yapıştırın: <span class="break-all">[{{ $displayableActionUrl }}]({{ $actionUrl }})</span>
 </x-slot:subcopy>
 @elseif (! empty($dipnot))
 {{-- 🔑 Düğmesi olmayan bildirimlerde de imzanın ALTINA ince bir not
