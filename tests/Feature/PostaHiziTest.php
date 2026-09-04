@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Basvuru;
 use App\Notifications\BasvuruAlindi;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
@@ -35,7 +36,7 @@ class PostaHiziTest extends TestCase
     public function test_ara_katman_yalnizca_posta_kanalinda(): void
     {
         $bildirim = new BasvuruAlindi(new Basvuru);
-        $alici = new \Illuminate\Notifications\AnonymousNotifiable;
+        $alici = new AnonymousNotifiable;
 
         $this->assertInstanceOf(RateLimited::class, $bildirim->middleware($alici, 'mail')[0]);
         $this->assertSame([], $bildirim->middleware($alici, 'database'));
