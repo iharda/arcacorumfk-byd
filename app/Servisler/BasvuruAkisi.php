@@ -287,10 +287,14 @@ class BasvuruAkisi
      */
     public function iptalEt(Basvuru $basvuru, string $gerekce): void
     {
-        $this->gecir($basvuru, BasvuruDurumu::IptalEdildi, 'basvuru.iptal_edildi', [
-            'karar_at' => now(),
-            'karar_gerekcesi' => $gerekce,
-        ]);
+        DB::transaction(function () use ($basvuru, $gerekce) {
+            $this->gecir($basvuru, BasvuruDurumu::IptalEdildi, 'basvuru.iptal_edildi', [
+                'karar_at' => now(),
+                'karar_gerekcesi' => $gerekce,
+            ]);
+
+            $this->kurumDurumunuSenkronla($basvuru, 'iptal_edildi');
+        });
     }
 
     public function reddet(Basvuru $basvuru, string $gerekce): void
@@ -311,9 +315,46 @@ class BasvuruAkisi
                 'karar_veren_id' => Auth::id(),
                 'karar_gerekcesi' => $gerekce,
             ]);
+
+            $this->kurumDurumunuSenkronla($basvuru, 'reddedildi');
         });
 
         $basvuru->bildirimHedefi()->notify(new BasvuruReddedildi($basvuru));
+    }
+
+    /**
+     * Kurumsal başvurunun kararını KURUM kaydına da yazar (M1-A).
+     *
+     * 🔑 Kurum satırı başvuru anında `beklemede` doğar ve onayda `akredite`
+     * olurdu; red ve iptal kuruma HİÇ DOKUNMUYORDU. Sonuç: reddedilen kurum
+     * Kurumlar listesinde sonsuza kadar "Beklemede" görünüyor, Başvurular
+     * ekranında ise varsayılan kuyruk süzgeci onu gizliyordu -- kullanıcının
+     * "kurumlarda var, başvurularda yok" dediği tablo tam olarak buydu.
+     *
+     * ⚠️ YALNIZCA `beklemede` taşınır. Zaten akredite bir kurumun SONRAKİ bir
+     * başvurusu reddedilirse akreditasyonu düşmemeli -- akreditasyon kaldırma
+     * ayrı ve bilinçli bir eylemdir (KurumAkreditasyonu, durumu `iptal` yapar).
+     * Bu yüzden buradaki durumlar `iptal`den de ayrı tutuldu: `iptal` "geri
+     * ver" eylemini açar, `reddedildi`/`iptal_edildi` açmamalı.
+     */
+    private function kurumDurumunuSenkronla(Basvuru $basvuru, string $durum): void
+    {
+        if ($basvuru->tur !== BasvuruTuru::Kurum || ! $basvuru->kurum) {
+            return;
+        }
+
+        $kurum = $basvuru->kurum;
+
+        if ($kurum->akreditasyon_durumu !== 'beklemede') {
+            return;
+        }
+
+        $kurum->update(['akreditasyon_durumu' => $durum]);
+
+        $this->denetim->yaz('kurum.durum_degisti', $kurum,
+            eski: ['akreditasyon_durumu' => 'beklemede'],
+            yeni: ['akreditasyon_durumu' => $durum],
+            not: "Başvuru {$basvuru->basvuru_no} kararıyla eşitlendi");
     }
 
     /** Ortak geçiş: doğrula → yaz → denetle, hepsi tek işlemde. */

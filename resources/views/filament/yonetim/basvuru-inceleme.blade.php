@@ -46,6 +46,41 @@
                         @endif
                     @endforeach
                 </dl>
+
+                {{-- 🔑 KURUM TEYİDİ (Tutarsızlık incelemesi M3).
+                     `kurum_teyidi` kuyruk mantığının merkezinde: teyit bekleyen
+                     başvuru `scopeKuyrukta()` dışında kalır, yani yetkilinin
+                     listesinde HİÇ GÖRÜNMEZ. Bu alan bugüne kadar hiçbir ekranda
+                     basılmıyordu; yetkili başvurunun neden görünmediğini de
+                     öğrenemiyordu. "Başvuru yaptım, kayboldu" şikâyetinin en
+                     olası kaynağı buydu. --}}
+                @if ($record->kurum_teyidi_gerekli)
+                    @php
+                        [$teyitEtiket, $teyitRenk] = match ($record->kurum_teyidi) {
+                            true => ['Verildi', 'success'],
+                            false => ['Reddedildi', 'danger'],
+                            default => ['Bekleniyor', 'warning'],
+                        };
+                    @endphp
+                    <div style="margin-top:.9rem; padding-top:.75rem; border-top:1px solid rgba(127,127,127,.2);">
+                        <div style="display:flex; flex-wrap:wrap; gap:.5rem; align-items:center;">
+                            <span style="font-size:.78rem; opacity:.6;">Kurum teyidi</span>
+                            <x-filament::badge :color="$teyitRenk">{{ $teyitEtiket }}</x-filament::badge>
+                            @if ($record->kurum)
+                                <span style="font-size:.78rem; opacity:.65;">{{ $record->kurum->resmi_unvan }}</span>
+                            @endif
+                        </div>
+
+                        <p style="margin-top:.35rem; font-size:.75rem; opacity:.6;">
+                            @if ($record->kurum_teyidi === null)
+                                Kurum yanıtlayana kadar bu başvuru inceleme kuyruğunda görünmez@if ($record->gonderildi_at)
+                                    · {{ $record->gonderildi_at->diffInDays(now()) }} gündür bekliyor@endif.
+                            @else
+                                {{ $record->kurum_teyidi_at?->timezone('Europe/Istanbul')->format('d.m.Y H:i') ?? '—' }}
+                            @endif
+                        </p>
+                    </div>
+                @endif
             </x-filament::section>
 
             {{-- Değerlendirme -- briefi md. A.7.3. Karar DEĞİL: kararlar üst
@@ -227,7 +262,16 @@
                                            border-color:{{ $secili ? 'rgb(var(--primary-600))' : 'rgb(var(--gray-200))' }};
                                            background:{{ $secili ? 'rgb(var(--primary-50))' : 'transparent' }};
                                            cursor:pointer;">
-                                <span style="display:block; font-size:.83rem; font-weight:600;">{{ $evrak->turu?->ad }}</span>
+                                <span style="display:block; font-size:.83rem; font-weight:600;">
+                                    {{ $evrak->turu?->ad }}
+                                    {{-- İmha edilmiş evrak listede de belli olsun: yetkili
+                                         tıklamadan önce dosyanın gitmiş olduğunu görmeli (M2.2). --}}
+                                    @if ($evrak->imhaEdildiMi())
+                                        <x-filament::badge color="gray" size="xs" style="display:inline-flex; vertical-align:middle;">
+                                            İmha edildi
+                                        </x-filament::badge>
+                                    @endif
+                                </span>
                                 <span style="display:block; font-size:.72rem; opacity:.6; margin-top:.1rem;">
                                     {{ $evrak->orijinal_ad }} ·
                                     {{ $evrak->boyut < 1024 ? $evrak->boyut . ' B' : number_format($evrak->boyut / 1024, 0, ',', '.') . ' KB' }}
@@ -342,12 +386,14 @@
                 @if (! $e)
                     <p style="font-size:.85rem; opacity:.6;">Soldan bir evrak seçin.</p>
                 @else
-                    {{-- Tür ayrımı ve araç şeridi bileşenin içinde (S2). --}}
+                    {{-- Tür ayrımı, imha dalı ve araç şeridi bileşenin içinde (S2). --}}
                     <x-parcalar.dosya-onizleme
                         :kaynak="route('evrak.goster', $e)"
                         :mime="$e->mime"
                         :ad="$e->orijinal_ad"
-                        :boyut="$e->boyut" />
+                        :boyut="$e->boyut"
+                        :imha="$e->imhaEdildiMi()"
+                        :imha-tarihi="$e->imha_edildi_at" />
                 @endif
             </x-filament::section>
         </div>

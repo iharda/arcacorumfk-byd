@@ -63,6 +63,13 @@ class Kurum extends Model
      *
      * Vergi numarası tekillik kuralı da bu kaydı hariç tutmak zorunda: kendi
      * kurumunun numarası kişinin kendi başvurusunu engellememeli.
+     *
+     * 🪤 `withTrashed()` ŞART (Tutarsızlık incelemesi M1-D). Başvuru yumuşak
+     * silinirse bağ kopar ve üç şey birden bozulur: yetkiliye YENİ bir kurum
+     * satırı açılır, eski satır "Beklemede" diye öksüz kalır ve vergi no
+     * tekilliği kendi eski kaydını hariç tutamadığı için başvuran "Bu vergi
+     * numarasıyla kayıtlı bir kurum zaten var" hatasına takılır -- çıkmaz
+     * sokak. Silinmiş başvuru da kurumun kime ait olduğunu söylemeye devam eder.
      */
     public static function yetkilininOncekiKurumu(?string $eposta): ?self
     {
@@ -71,7 +78,7 @@ class Kurum extends Model
         }
 
         return static::query()
-            ->whereIn('id', Basvuru::query()
+            ->whereIn('id', Basvuru::withTrashed()
                 ->where('tur', BasvuruTuru::Kurum->value)
                 ->where('basvuran_eposta', $eposta)
                 ->whereNotNull('kurum_id')

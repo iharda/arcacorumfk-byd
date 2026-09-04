@@ -112,6 +112,16 @@ class EvrakYukleyici
     /** Şifreli evrakı okur; şifresizse olduğu gibi döner. */
     public function icerik(Evrak $evrak): string
     {
+        /*
+         * 🪤 İkinci kapı (M2.2). Asıl engel EvrakController'daki 410; burası
+         * ileride eklenecek bir çağıranın aynı tuzağa düşmesini engeller.
+         * `Storage::get(null)` bu diskte ('throw' => true) TypeError/500 verir
+         * -- sebebini söylemeyen bir hata. Sebebi burada söylüyoruz.
+         */
+        if ($evrak->imhaEdildiMi()) {
+            throw new RuntimeException('Evrakın saklama süresi doldu; dosya imha edilmiş.');
+        }
+
         $ham = Storage::disk($evrak->disk)->get($evrak->yol);
 
         return $evrak->sifreli ? base64_decode(Crypt::decryptString($ham)) : $ham;

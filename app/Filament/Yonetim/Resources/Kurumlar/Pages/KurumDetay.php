@@ -20,10 +20,13 @@ class KurumDetay extends DetaySayfasi
 
     protected static ?string $title = 'Kurum';
 
+    /** ⚠️ `iptal` ile `iptal_edildi` ayrımı için bkz. KurumlarTable::DURUMLAR (M1-A). */
     private const DURUMLAR = [
         'beklemede' => ['Beklemede', 'warning'],
         'akredite' => ['Akredite', 'success'],
         'iptal' => ['İptal', 'danger'],
+        'reddedildi' => ['Reddedildi', 'danger'],
+        'iptal_edildi' => ['Başvuru iptal edildi', 'gray'],
     ];
 
     public function kimlik(): string

@@ -101,7 +101,14 @@
                     </div>
 
                     @if ($yuklu)
-                        <x-filament::badge color="success">Yüklendi</x-filament::badge>
+                        {{-- Başvuran da "belgem duruyor mu" sorusunun cevabını
+                             görmeli: saklama süresi dolan hassas evrakın dosyası
+                             KVKK gereği silinir, kaydı kalır (M2.2). --}}
+                        @if ($yuklu->imhaEdildiMi())
+                            <x-filament::badge color="gray">İmha edildi</x-filament::badge>
+                        @else
+                            <x-filament::badge color="success">Yüklendi</x-filament::badge>
+                        @endif
                         <span style="font-size:.75rem; opacity:.6;">{{ $yuklu->orijinal_ad }}</span>
                         {{-- S4: yüklenen belge GERİ AÇILABİLİR olmalı. Eksik evrak
                              talebi gelince "ben ne yüklemiştim" sorusunun cevabı
@@ -125,6 +132,8 @@
                                 :mime="$yuklu->mime"
                                 :ad="$yuklu->orijinal_ad"
                                 :boyut="$yuklu->boyut"
+                                :imha="$yuklu->imhaEdildiMi()"
+                                :imha-tarihi="$yuklu->imha_edildi_at"
                                 yukseklik="min(55vh, 640px)" />
                         </div>
                     @endif

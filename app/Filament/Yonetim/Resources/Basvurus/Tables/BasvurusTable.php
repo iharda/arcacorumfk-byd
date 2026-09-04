@@ -138,6 +138,33 @@ class BasvurusTable
                     ->multiple()
                     ->options(fn () => collect(BasvuruTuru::cases())
                         ->mapWithKeys(fn ($t) => [$t->value => $t->etiket()])->all()),
+
+                /*
+                 * 🔑 KURUM TEYİDİ SÜZGECİ (Tutarsızlık incelemesi M3).
+                 * Teyit bekleyen başvuru `scopeKuyrukta()` dışında kalır, yani
+                 * varsayılan "Durum" süzgeci onu getirse bile yetkili neden
+                 * beklediğini göremiyordu. "Bekliyor" seçeneği tam olarak
+                 * "kurumdan yanıt gelmediği için duran" başvuruları verir.
+                 *
+                 * ⚠️ `kurum_teyidi` ÜÇ DEĞERLİ (null/true/false) ve üstüne bir de
+                 * `kurum_teyidi_gerekli` var; bu yüzden SelectFilter'ın kendi
+                 * sütun eşlemesi değil elle yazılmış sorgu kullanılıyor.
+                 */
+                SelectFilter::make('kurum_teyidi')
+                    ->label('Kurum teyidi')
+                    ->options([
+                        'bekliyor' => 'Bekliyor',
+                        'verildi' => 'Verildi',
+                        'reddedildi' => 'Reddedildi',
+                        'gerekmez' => 'Gerekmez',
+                    ])
+                    ->query(fn (Builder $query, array $data) => match ($data['value'] ?? null) {
+                        'bekliyor' => $query->where('kurum_teyidi_gerekli', true)->whereNull('kurum_teyidi'),
+                        'verildi' => $query->where('kurum_teyidi', true),
+                        'reddedildi' => $query->where('kurum_teyidi', false),
+                        'gerekmez' => $query->where('kurum_teyidi_gerekli', false),
+                        default => $query,
+                    }),
             ])
             ->headerActions([
                 Action::make('disaAktar')

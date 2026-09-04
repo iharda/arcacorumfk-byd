@@ -53,7 +53,14 @@
                                     + 'border-radius:.5rem; padding:.55rem .7rem; background:none; cursor:pointer;'
                                     + 'border-color:' + (secili === {{ $e->id }}
                                         ? 'rgba(127,127,127,.55)' : 'rgba(127,127,127,.2)')">
-                            <div style="font-size:.85rem; font-weight:500;">{{ $e->turu?->ad ?? 'Evrak' }}</div>
+                            <div style="font-size:.85rem; font-weight:500;">
+                                {{ $e->turu?->ad ?? 'Evrak' }}
+                                @if ($e->imhaEdildiMi())
+                                    <x-filament::badge color="gray" size="xs" style="display:inline-flex; vertical-align:middle;">
+                                        İmha edildi
+                                    </x-filament::badge>
+                                @endif
+                            </div>
                             <div style="font-size:.72rem; opacity:.6; overflow-wrap:anywhere;">{{ $e->orijinal_ad }}</div>
                         </button>
                     @endforeach
@@ -67,6 +74,8 @@
                                 :mime="$e->mime"
                                 :ad="$e->orijinal_ad"
                                 :boyut="$e->boyut"
+                                :imha="$e->imhaEdildiMi()"
+                                :imha-tarihi="$e->imha_edildi_at"
                                 yukseklik="min(60vh, 700px)" />
                         </div>
                     @endforeach

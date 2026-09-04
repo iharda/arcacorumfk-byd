@@ -127,6 +127,16 @@ class EvrakController extends Controller
     {
         $this->authorize('view', $evrak);
 
+        /*
+         * 🔑 İMHA EDİLMİŞ EVRAK 410 (M2.2). Yetki kontrolünden SONRA, denetim
+         * kaydından ÖNCE: "yok" cevabı da ancak bakma hakkı olana verilir,
+         * ama okunamayan dosya için "görüntülendi" kaydı yazılmaz.
+         *
+         * 410 Gone bilerek seçildi: kaynak VARDI, kalıcı olarak gitti ve geri
+         * gelmeyecek. 404 "hiç olmadı" der ve yetkiliyi aramaya iter.
+         */
+        abort_if($evrak->imhaEdildiMi(), 410, 'Bu evrakın saklama süresi doldu ve dosyası imha edildi.');
+
         $evrak->loadMissing('turu');
 
         // Hassas evraka erişim ayrıca loglanır; sıradan evrakta gürültü olmasın.

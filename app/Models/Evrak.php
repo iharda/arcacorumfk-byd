@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Storage;
  * @property string $dogrulama_durumu
  * @property ?string $dogrulama_notu
  * @property ?Carbon $imha_tarihi
+ * @property ?Carbon $imha_edildi_at
  * @property ?EvrakTuru $turu
  * @property ?Basvuru $basvuru
  */
@@ -46,7 +47,22 @@ class Evrak extends Model
             'icerik_dogrulandi' => 'boolean',
             'sifreli' => 'boolean',
             'imha_tarihi' => 'date',
+            'imha_edildi_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Dosyası imha edilmiş mi? (Tutarsızlık incelemesi M2.2)
+     *
+     * 🔑 KAYIT DURUYOR, dosya yok. `bys:evrak-imha` saklama süresi dolan
+     * hassas evrakın dosyasını siler ama satırı bırakır -- "hangi evrak ne
+     * zaman imha edildi" sorusunun cevabı verilebilmeli. Ekranlar bu durumu
+     * SORMAK ZORUNDA: sormayan ekran `Storage::get(null)` çağırır ve `evrak`
+     * diski `'throw' => true` olduğu için 500 döner.
+     */
+    public function imhaEdildiMi(): bool
+    {
+        return blank($this->yol);
     }
 
     protected static function booted(): void

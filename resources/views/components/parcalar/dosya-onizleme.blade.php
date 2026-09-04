@@ -20,6 +20,8 @@
     'boyut' => null,          // bayt
     'indir' => null,          // ayrı indirme adresi; yoksa kaynak kullanılır
     'yukseklik' => 'min(78vh, 900px)',
+    'imha' => false,          // dosya imha edildi mi? (Evrak::imhaEdildiMi())
+    'imhaTarihi' => null,     // imha anı; eski kayıtlarda bilinmiyor olabilir
 ])
 
 @php
@@ -41,6 +43,30 @@
     $rozet = mb_strimwidth($rozet, 0, 8, '');
 @endphp
 
+@if ($imha)
+    {{-- 🔑 İMHA EDİLMİŞ EVRAK (Tutarsızlık incelemesi M2.2).
+         Buradan aşağısı hiç çizilmez: ne <img>, ne <iframe>, ne "İndir"
+         bağlantısı. Hepsi `evrak.goster`'e gider ve orada 410 alır --
+         yetkiliye kırık bir kutu ya da inen boş dosya göstermenin anlamı yok.
+         Kayıt DURUYOR: hangi belgenin yüklendiği ve ne zaman imha edildiği
+         hâlâ okunabilir olmalı. --}}
+    <div {{ $attributes->merge(['style' => 'min-width:0;']) }}>
+        <div style="border:1px dashed rgba(127,127,127,.45); border-radius:.5rem;
+                    padding:1.25rem; text-align:center;">
+            <span style="display:inline-block; font-size:.7rem; letter-spacing:.06em; font-weight:600;
+                         padding:.15rem .5rem; border-radius:.25rem;
+                         background:rgba(127,127,127,.15);">İMHA EDİLDİ</span>
+            <p style="margin:.6rem 0 .15rem; font-weight:500; overflow-wrap:anywhere;">{{ $ad ?? 'Dosya' }}</p>
+            <p style="margin:.6rem 0 0; font-size:.82rem; opacity:.75;">
+                Saklama süresi doldu, dosya imha edildi@if ($imhaTarihi)
+                    ({{ $imhaTarihi->timezone('Europe/Istanbul')->format('d.m.Y') }})@endif.
+            </p>
+            <p style="margin:.35rem 0 0; font-size:.75rem; opacity:.55;">
+                Başvuru kaydı ve karar geçmişi duruyor; yalnızca dosya silindi (KVKK).
+            </p>
+        </div>
+    </div>
+@else
 <div {{ $attributes->merge(['style' => 'min-width:0;']) }}
      x-data="{ tamEkran: false, metin: null, metinHata: false }">
 
@@ -118,3 +144,4 @@
         </div>
     @endif
 </div>
+@endif

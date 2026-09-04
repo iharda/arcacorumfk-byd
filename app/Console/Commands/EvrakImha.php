@@ -6,6 +6,7 @@ use App\Models\Evrak;
 use App\Servisler\DenetimYazici;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 /**
  * Evrak imhası -- Plan v1.0 md.11 (KVKK): reddedilen/iptal başvuruların
@@ -41,7 +42,9 @@ class EvrakImha extends Command
          * Bir sezonun sonunda binlerce hassas evrak birikir; gece çalışan
          * komut bellek sınırına çarpıp hiç imha yapmadan ölürdü.
          */
-        $sorgu->chunkById(200, function ($adaylar) use (&$aday, &$sayac, $kuru, $denetim) {
+        $hata = 0;
+
+        $sorgu->chunkById(200, function ($adaylar) use (&$aday, &$sayac, &$hata, $kuru, $denetim) {
             foreach ($adaylar as $evrak) {
                 $aday++;
                 $this->line(($kuru ? '[kuru] ' : '').$evrak->ulid.' · '.$evrak->orijinal_ad);
@@ -50,18 +53,45 @@ class EvrakImha extends Command
                     continue;
                 }
 
-                rescue(fn () => Storage::disk($evrak->disk)->delete($evrak->yol), report: false);
+                /*
+                 * 🪤 TEK EVRAK BÜTÜN KOŞUYU DÜŞÜRMESİN. Buradaki hata gece
+                 * çalışan zamanlayıcıda kimseye görünmüyor: komut ölür,
+                 * KALAN evrak da imha edilmez ve saklama süresi sessizce aşılır.
+                 * `yol` sütunundaki NOT NULL kısıtı tam olarak bunu yapıyordu
+                 * (bkz. 2026_09_04_170000 migration'ı).
+                 */
+                try {
+                    rescue(fn () => Storage::disk($evrak->disk)->delete($evrak->yol), report: false);
 
-                $evrak->forceFill(['yol' => null, 'imha_tarihi' => null])->saveQuietly();
+                    /*
+                     * `imha_tarihi` "ne zaman imha EDİLECEK" demek; imha olunca
+                     * anlamını yitirdiği için NULL'lanır. İmha ANI ise ekranda
+                     * lazım (M2.2): "Saklama süresi doldu, dosya imha edildi
+                     * (tarih)" kartı bu sütundan okur.
+                     */
+                    $evrak->forceFill([
+                        'yol' => null,
+                        'imha_tarihi' => null,
+                        'imha_edildi_at' => now(),
+                    ])->saveQuietly();
 
-                $denetim->yaz('evrak.imha_edildi', $evrak,
-                    yeni: ['orijinal_ad' => $evrak->orijinal_ad],
-                    not: 'Saklama süresi doldu',
-                    aktorTip: 'sistem');
+                    $denetim->yaz('evrak.imha_edildi', $evrak,
+                        yeni: ['orijinal_ad' => $evrak->orijinal_ad],
+                        not: 'Saklama süresi doldu',
+                        aktorTip: 'sistem');
 
-                $sayac++;
+                    $sayac++;
+                } catch (Throwable $e) {
+                    $hata++;
+                    $this->error("  ✖ {$evrak->ulid} imha edilemedi: {$e->getMessage()}");
+                    report($e);
+                }
             }
         });
+
+        if ($hata > 0) {
+            $this->warn("{$hata} evrak imha EDİLEMEDİ; saklama süresi aşılmış durumda.");
+        }
 
         if ($aday === 0) {
             $this->info('İmha edilecek evrak yok.');

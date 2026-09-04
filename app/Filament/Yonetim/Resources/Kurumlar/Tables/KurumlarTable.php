@@ -19,10 +19,20 @@ use Illuminate\Database\Eloquent\Builder;
 
 class KurumlarTable
 {
+    /**
+     * ⚠️ `iptal` ile `iptal_edildi` AYRI (M1-A):
+     *   iptal        = akredite edilmiş kurumun akreditasyonu KALDIRILDI;
+     *                  "Akreditasyonu geri ver" eylemi yalnız buna açılır.
+     *   iptal_edildi = kurumsal BAŞVURU düşürüldü, kurum hiç akredite olmadı.
+     *   reddedildi   = kurumsal başvuru reddedildi.
+     * Son ikisi eskiden yazılmıyordu; kurum sonsuza kadar "Beklemede" kalıyordu.
+     */
     private const DURUMLAR = [
         'beklemede' => 'Beklemede',
         'akredite' => 'Akredite',
         'iptal' => 'İptal',
+        'reddedildi' => 'Reddedildi',
+        'iptal_edildi' => 'Başvuru iptal edildi',
     ];
 
     public static function configure(Table $table): Table
@@ -55,7 +65,8 @@ class KurumlarTable
                     ->badge()
                     ->color(fn (string $state) => match ($state) {
                         'akredite' => 'success',
-                        'iptal' => 'danger',
+                        'iptal', 'reddedildi' => 'danger',
+                        'beklemede' => 'warning',
                         default => 'gray',
                     })
                     ->formatStateUsing(fn (string $state) => self::DURUMLAR[$state] ?? $state),
