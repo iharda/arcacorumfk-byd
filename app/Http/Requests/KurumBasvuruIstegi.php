@@ -108,7 +108,16 @@ class KurumBasvuruIstegi extends FormRequest
     public function messages(): array
     {
         return [
-            'vergi_no.unique' => 'Bu vergi numarasıyla kayıtlı bir kurum zaten var. Kurumunuz başvurduysa yetkilisiyle görüşün.',
+            /*
+             * 🪤 M9 №4: eski mesaj "yetkilisiyle görüşün" diyordu ve ÇIKMAZ
+             * SOKAKTI -- kurumun yetkilisi değişmiş ya da işten ayrılmış
+             * olabilir; başvuran ulaşamayacağı birine yönlendiriliyordu.
+             * Yeni mesaj kulübü işaret ediyor: yetkili değişikliğini çözecek
+             * merci zaten orası.
+             */
+            'vergi_no.unique' => 'Bu vergi numarasıyla kayıtlı bir kurum zaten var. '
+                .'Kurumunuz daha önce başvurduysa ve yetkili kişi değiştiyse, kayıt '
+                .'bilgilerinin güncellenmesi için kulüple iletişime geçin.',
             'kvkk_aydinlatma.accepted' => 'Aydınlatma metnini okuduğunuzu onaylamalısınız.',
             'kvkk_riza.accepted' => 'Başvurunun değerlendirilebilmesi için açık rıza gereklidir.',
             'yayin_platformlari.min' => 'En az bir yayın adresi girmelisiniz.',

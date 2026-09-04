@@ -213,9 +213,24 @@ class Basvuru extends Model
     public function durumaGec(BasvuruDurumu $hedef): void
     {
         if (! $this->durum->gecebilirMi($hedef)) {
-            throw new RuntimeException(
-                "Geçersiz durum geçişi: {$this->durum->value} → {$hedef->value}"
-            );
+            /*
+             * 💀 M9 №8: BU MESAJ EKRANA ÇIKIYOR.
+             *
+             * İki yetkili aynı başvuruyu aynı anda açtığında ikincisi karar
+             * verince tam olarak buraya düşüyor -- ve "Geçersiz durum geçişi:
+             * incelemede → onaylandi" yazan ham bir hata görüyordu. Ne olduğunu
+             * anlatmıyor, ne yapacağını hiç söylemiyor.
+             *
+             * Durum adları kullanıcının listede gördüğü etiketlerle aynı
+             * (BasvuruDurumu::etiket) ve cümle "birisi senden önce davrandı"
+             * ihtimalini açıkça söylüyor -- en sık sebebi bu.
+             */
+            throw new RuntimeException(sprintf(
+                'Bu başvuru artık "%s" durumunda; "%s" adımı uygulanamaz. '
+                .'Başka bir yetkili sizden önce işlem yapmış olabilir — sayfayı yenileyin.',
+                $this->durum->etiket(),
+                $hedef->etiket(),
+            ));
         }
 
         $this->durum = $hedef;

@@ -3,6 +3,7 @@
 namespace App\Filament\Yonetim\Widgets;
 
 use App\Enums\AkreditasyonDurumu;
+use App\Enums\BasvuruDurumu;
 use App\Enums\DegerlendirmePuani;
 use App\Models\Akreditasyon;
 use App\Models\Basvuru;
@@ -48,6 +49,7 @@ class DikkatGerektirenler extends Widget
             ->concat(self::kontenjaniDolanlar())
             ->concat(self::suresizKartlar())
             ->concat(self::suresiBitecekler())
+            ->concat(self::biletiDolanlar())
             ->concat(self::dusukDegerlendirmeler())
             ->concat(self::kartiUretilemeyenler())
             ->concat(self::kurulmamisKapilar());
@@ -93,6 +95,49 @@ class DikkatGerektirenler extends Widget
                 'adres' => route('filament.yonetim.resources.kurumlar.index'),
             ])
             ->values();
+
+        /** @var Collection<int, array<string, mixed>> $satirlar */
+        return $satirlar;
+    }
+
+    /**
+     * 💀 SÜRESİ DOLMUŞ DÜZELTME BAĞLANTISI -- Tutarsızlık incelemesi M9 №7.
+     *
+     * Eksik evrak istenen başvuru `eksik_evrak` durumunda bekler ve başvuran
+     * yalnızca kendisine gönderilen bağlantıyla belge yükleyebilir. Bağlantının
+     * süresi dolduğunda başvuran sayfada "kulüple iletişime geçin" mesajını
+     * görüyor -- ama kulüp tarafında bunu GÖSTEREN HİÇBİR ŞEY YOKTU.
+     * "Bağlantıyı yeniden gönder" eylemi inceleme ekranında duruyor, kimse
+     * basmıyor: başvuru ne başvuranın ne yetkilinin elinde, ortada kalıyor.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private static function biletiDolanlar(): Collection
+    {
+        $satirlar = Basvuru::query()
+            ->where('durum', BasvuruDurumu::EksikEvrak->value)
+            /*
+             * 🪤 "Kullanılabilir bileti olmayan" demek: hiç bileti olmayan da
+             * dahil değil -- süresi dolmuş ya da iptal edilmiş olanlar. Açık
+             * (kullanılabilir) bileti olan başvuru beklemede sayılmaz.
+             */
+            ->whereDoesntHave('biletler', fn ($sorgu) => $sorgu
+                ->whereNull('kullanildi_at')
+                ->whereNull('iptal_at')
+                ->where('gecerlilik_bitis', '>', now()))
+            ->orderBy('gonderildi_at')
+            ->limit(self::SEBEP_BASINA)
+            ->get()
+            ->map(fn (Basvuru $b) => [
+                'sebep' => 'Düzeltme bağlantısı geçersiz',
+                'renk' => 'danger',
+                'baslik' => $b->basvuranAdi(),
+                'ayrinti' => implode(' · ', array_filter([
+                    $b->basvuru_no,
+                    'Başvuran belge yükleyemiyor; bağlantıyı yeniden gönderin',
+                ])),
+                'adres' => route('filament.yonetim.resources.basvurular.inceleme', ['record' => $b->ulid]),
+            ]);
 
         /** @var Collection<int, array<string, mixed>> $satirlar */
         return $satirlar;

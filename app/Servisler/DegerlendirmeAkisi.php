@@ -30,6 +30,43 @@ class DegerlendirmeAkisi
         return filled($eposta) ? Str::lower(trim($eposta)) : null;
     }
 
+    /**
+     * Kişi değerlendirmesini yeni e-posta adresine taşır -- M9 №9.
+     *
+     * 💀 `degerlendirmeler.eposta` kişi hedefinin KALICI anahtarı; puan hesap
+     * açılmadan önce de verilebiliyor. Ama yetkili "E-posta değiştir" dediğinde
+     * yalnız `users.email` taşınıyordu: değerlendirme ESKİ adreste kalıyor,
+     * kişinin puan ve not geçmişi kopuyordu. Ekranda "değerlendirilmemiş"
+     * görünüyor, yetkili aynı kişiyi ikinci kez puanlıyordu.
+     *
+     * ⚠️ Yeni adreste ZATEN bir değerlendirme varsa taşınmaz: iki geçmişi
+     * birleştirmek hangi notun kalacağına karar vermek demektir ve o kararı
+     * sessizce vermeyiz. Böyle bir durumda ikisi de yerinde kalır.
+     */
+    public function epostayiTasi(string $eski, string $yeni): ?Degerlendirme
+    {
+        $eskiAnahtar = self::epostaAnahtari($eski);
+        $yeniAnahtar = self::epostaAnahtari($yeni);
+
+        if ($eskiAnahtar === null || $yeniAnahtar === null || $eskiAnahtar === $yeniAnahtar) {
+            return null;
+        }
+
+        $kayit = $this->kisiIcin($eskiAnahtar);
+
+        if ($kayit === null || $this->kisiIcin($yeniAnahtar) !== null) {
+            return null;
+        }
+
+        $kayit->update(['eposta' => $yeniAnahtar]);
+
+        $this->denetim->yaz('degerlendirme.eposta_tasindi', $kayit,
+            eski: ['eposta' => $eskiAnahtar],
+            yeni: ['eposta' => $yeniAnahtar]);
+
+        return $kayit;
+    }
+
     public function kurumIcin(?Kurum $kurum): ?Degerlendirme
     {
         if ($kurum === null) {

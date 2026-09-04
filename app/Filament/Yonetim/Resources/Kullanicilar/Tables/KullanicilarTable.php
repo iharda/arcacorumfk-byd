@@ -8,6 +8,7 @@ use App\Filament\Yonetim\Resources\Kullanicilar\KullaniciResource;
 use App\Models\Degerlendirme;
 use App\Models\User;
 use App\Notifications\EpostaAdresiDegisti;
+use App\Servisler\DegerlendirmeAkisi;
 use App\Servisler\DenetimYazici;
 use App\Support\Telefon;
 use Filament\Actions\Action;
@@ -174,6 +175,16 @@ class KullanicilarTable
                         app(DenetimYazici::class)->yaz('kullanici.eposta_degistirildi', $record,
                             eski: ['email' => $eski],
                             yeni: ['email' => $yeni]);
+
+                        /*
+                         * 💀 M9 №9: değerlendirme kişiye E-POSTAYLA bağlı (puan
+                         * hesap açılmadan da verilebiliyor). Yalnız
+                         * `users.email` taşınınca puan ve not geçmişi eski
+                         * adreste kalıyor, kişi ekranda "değerlendirilmemiş"
+                         * görünüyor ve yetkili aynı kişiyi ikinci kez
+                         * puanlıyordu.
+                         */
+                        app(DegerlendirmeAkisi::class)->epostayiTasi($eski, $yeni);
 
                         /*
                          * 🔒 Eski adrese haber: kişi kapısının değiştiğini

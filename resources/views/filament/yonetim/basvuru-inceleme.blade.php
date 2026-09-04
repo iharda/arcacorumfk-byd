@@ -25,7 +25,17 @@
                     @php $rozet = $this->getDurumRozeti(); @endphp
                     <x-filament::badge :color="$rozet['renk']" size="lg">{{ $rozet['etiket'] }}</x-filament::badge>
                     @if ($record->inceleyen)
-                        <span style="font-size:.78rem; opacity:.65;">İnceleyen: {{ $record->inceleyen->name }}</span>
+                        {{-- 💀 M9 №8: iki yetkili aynı başvuruyu aynı anda açtığında
+                             ikincisine hiçbir uyarı yoktu; karar verince ham bir
+                             hata mesajı alıyordu. Kimin elinde olduğu artık
+                             karar vermeden ÖNCE, göze çarpacak şekilde yazıyor. --}}
+                        @if ($record->inceleyen_id === auth()->id())
+                            <span style="font-size:.78rem; opacity:.65;">İnceleyen: siz</span>
+                        @else
+                            <x-filament::badge color="warning" icon="heroicon-m-exclamation-triangle">
+                                {{ $record->inceleyen->name }} inceliyor
+                            </x-filament::badge>
+                        @endif
                     @endif
                 </div>
 

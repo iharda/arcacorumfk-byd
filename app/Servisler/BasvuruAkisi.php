@@ -14,6 +14,7 @@ use App\Notifications\BasvuruOnaylandi;
 use App\Notifications\BasvuruReddedildi;
 use App\Notifications\EksikEvrakTalebi;
 use App\Notifications\KurumTeyidiIstendi;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -95,18 +96,55 @@ class BasvuruAkisi
             return false;
         }
 
-        return (bool) ($basvuru->kurum->teyit_istensin ?? Ayar::al('kurum_teyidi_istensin', false));
+        if (! ($basvuru->kurum->teyit_istensin ?? Ayar::al('kurum_teyidi_istensin', false))) {
+            return false;
+        }
+
+        /*
+         * 💀 M9 №5: ULAŞILAMAYAN KURUM = KAYIP BAŞVURU.
+         *
+         * Teyit isteği yalnızca AKTİF kurum yetkililerine gidiyordu. Kurumun
+         * tek yetkilisinin hesabı pasife alınmışsa hiçbir bildirim gitmiyor,
+         * başvuru da `scopeKuyrukta()` dışında kaldığı için kulübün listesinde
+         * HİÇ GÖRÜNMÜYORDU. Kimse beklediğini bilmiyor, kimse fark etmiyor:
+         * başvuru sessizce kayboluyordu.
+         *
+         * 🔑 Cevaplayacak kimse yoksa TEYİT İSTENMEZ; başvuru doğrudan kulüp
+         * kuyruğuna düşer. Teyit bir kolaylık, kapı değil -- kararı zaten kulüp
+         * veriyor. Atlama denetime yazılır ki "bu başvuruda neden teyit
+         * sorulmadı" sorusunun cevabı olsun.
+         */
+        if ($this->teyitHedefleri($basvuru)->isEmpty()) {
+            $this->denetim->yaz('basvuru.kurum_teyidi_atlandi', $basvuru,
+                yeni: ['kurum_id' => $basvuru->kurum_id],
+                not: 'Kurumun teyit verebilecek aktif yetkilisi yok; başvuru doğrudan kuyruğa alındı.',
+                aktorTip: 'sistem');
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Teyidi verebilecek kişiler. Boşsa teyit istenmez (bkz. yukarısı).
+     *
+     * @return Collection<int, User>
+     */
+    private function teyitHedefleri(Basvuru $basvuru): Collection
+    {
+        return $basvuru->kurum
+            ?->calisanlar()
+            ->role(User::ROL_KURUM)
+            ->where('aktif', true)
+            ->whereNull('ayrildi_at')
+            ->get()
+            ?? new Collection;
     }
 
     private function kurumYetkililerineHaberVer(Basvuru $basvuru): void
     {
-        $basvuru->kurum
-            ?->calisanlar()
-            ->role(User::ROL_KURUM)
-            ->where('aktif', true)
-            ->get()
-            ->each
-            ->notify(new KurumTeyidiIstendi($basvuru));
+        $this->teyitHedefleri($basvuru)->each->notify(new KurumTeyidiIstendi($basvuru));
     }
 
     /**
