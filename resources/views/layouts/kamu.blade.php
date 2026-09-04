@@ -10,7 +10,11 @@
     <link rel="apple-touch-icon" href="{{ asset('marka/apple-touch-icon.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="flex min-h-full flex-col bg-neutral-50 font-sans text-koyu antialiased">
+{{-- Doğrulama hatasından sonra ilk hatalı alana kaydırma (bkz. resources/js/app.js).
+     Yollar KURAL sırasındadır, ekrandaki sıra değildir; sıralamayı JS tarafı
+     DOM'a bakarak yapar. Tüm kamu formları bu düzeni kullandığı için tek yer yeter. --}}
+<body class="flex min-h-full flex-col bg-neutral-50 font-sans text-koyu antialiased"
+      @if ($errors->any()) data-hata-alanlari="{{ json_encode($errors->keys()) }}" @endif>
 
 <header class="border-b border-neutral-200 bg-white">
     <div class="mx-auto flex max-w-5xl items-center gap-4 px-5 py-4">
