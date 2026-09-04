@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Basvuru;
+use App\Notifications\Concerns\PostaKuyrugu;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -17,7 +18,7 @@ use Illuminate\Notifications\Notification;
  */
 class BasvuruAlindi extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use PostaKuyrugu, Queueable;
 
     /**
      * 🔑 Bildirimler POSTA kuyruğunda: kart üretimi onları bekletmesin

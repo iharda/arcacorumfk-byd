@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Akreditasyon;
 use App\Models\Kart;
+use App\Notifications\Concerns\PostaKuyrugu;
 use Filament\Notifications\Notification as FilamentBildirim;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -21,7 +22,7 @@ use Illuminate\Notifications\Notification;
  */
 class KartUretimiTamamlandi extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use PostaKuyrugu, Queueable;
 
     /** @return array<string, string> */
     public function viaQueues(): array

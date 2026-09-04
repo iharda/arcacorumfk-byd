@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Concerns\PostaKuyrugu;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,7 @@ use Illuminate\Notifications\Notification;
 /** Plan v1.0 md.9 — yeni duyuru / bülten / takvim değişikliği. */
 class YeniIcerik extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use PostaKuyrugu, Queueable;
 
     /**
      * 🔑 Bildirimler POSTA kuyruğunda: kart üretimi onları bekletmesin

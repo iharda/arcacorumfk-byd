@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Enums\AkreditasyonDurumu;
 use App\Models\Akreditasyon;
+use App\Notifications\Concerns\PostaKuyrugu;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -12,7 +13,7 @@ use Illuminate\Notifications\Notification;
 /** Plan v1.0 md.9 — iptal / askı / yeniden aktifleştirme bildirimi. */
 class AkreditasyonDurumuDegisti extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use PostaKuyrugu, Queueable;
 
     /**
      * 🔑 Bildirimler POSTA kuyruğunda: kart üretimi onları bekletmesin

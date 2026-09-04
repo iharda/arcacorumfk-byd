@@ -165,5 +165,21 @@ class AppServiceProvider extends ServiceProvider
 
         // Evrak görüntüleme: inceleme ekranı hızlı gezinir, bol bırakılır.
         RateLimiter::for('evrak-goruntule', fn (Request $r) => Limit::perMinute(120)->by($r->user()?->id ?: $r->ip()));
+
+        /*
+         * GİDEN POSTA. Yukarıdakilerden farklı: bu bir HTTP sınırı değil,
+         * kuyruk sınırı (App\Notifications\Concerns\PostaKuyrugu).
+         *
+         * 🔑 Anahtar sabit ('smtp'): kova kullanıcı ya da IP başına değil,
+         * SUNUCU başına. Sağlayıcı da bizi tek gönderici olarak görüyor;
+         * sekiz işçinin sekiz ayrı kovası olsaydı sınır hiç işlemezdi.
+         *
+         * İki kova birden: dakikalık olan ani patlamayı (bülten), saatlik
+         * olan uzun süreli akışı tutar.
+         */
+        RateLimiter::for('posta', fn () => [
+            Limit::perMinute(config('bys.posta.dakikada'))->by('smtp'),
+            Limit::perHour(config('bys.posta.saatte'))->by('smtp'),
+        ]);
     }
 }

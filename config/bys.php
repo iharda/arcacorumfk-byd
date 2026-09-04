@@ -38,6 +38,19 @@ return [
         'yukseklik_mm' => 130,
     ],
 
+    /*
+     * Giden posta hızı. Sağlayıcının (Hostinger) kendi sınırına ÇARPMADAN
+     * kalmak için kova bizde tutulur -- 03.09'da sınıra çarpıp 34 bildirim
+     * düşmüştü. Sayılar sağlayıcı planı değişirse birlikte güncellenmeli;
+     * kova Redis'te olduğu için bütün işçiler AYNI sayacı paylaşır.
+     */
+    'posta' => [
+        'dakikada' => (int) env('BYS_POSTA_DAKIKADA', 20),
+        'saatte' => (int) env('BYS_POSTA_SAATTE', 400),
+        // Bu süre boyunca gönderilemeyen bildirim başarısız sayılır.
+        'pes_etme_saati' => (int) env('BYS_POSTA_PES_ETME_SAATI', 2),
+    ],
+
     // Yükleme sınırları -- php-fpm havuzundaki upload_max_filesize'ı AŞMAMALI (16M)
     'yukleme' => [
         'maks_kb' => 8192,

@@ -26,10 +26,35 @@ Sistem canlıya çıkmadan önce buradaki her maddenin **evet** olması gerekir.
 
 ## 3 · Posta
 
-- [x] SMTP çalışıyor *(Google Workspace, `arcacorumfk@ordolive.com`)*
-- [ ] Gönderen adresi kulübün kendi alan adına taşındı
-- [ ] **SPF · DKIM · DMARC** yeni alan adı için tanımlandı
+*Durum 04.09.2026'da DNS'e ve `.env`'e bakılarak güncellendi.*
+
+- [x] SMTP çalışıyor *(Hostinger, `smtp.hostinger.com:465`, `noreply@corumfk.com.tr`)*
+- [x] Gönderen adresi kulübün kendi alan adına taşındı
+      *(eskiden Google Workspace / `arcacorumfk@ordolive.com` idi)*
+- [x] **SPF** tanımlı — `v=spf1 include:_spf.mail.hostinger.com ~all`
+- [ ] ⚠️ **DKIM YOK.** `hostingermail1/2/3`, `default`, `mail`, `selector1/2`
+      selektörlerinin hiçbirinde kayıt dönmüyor. Gmail ve Yahoo'nun toplu
+      gönderici kuralları SPF + DKIM + hizalı DMARC istiyor; imzasız posta
+      doğrudan spam adayı. Hostinger panelinden DKIM açılıp verilen CNAME'ler
+      DNS'e girilmeli — **kulüp/DNS tarafında yapılacak iş**
+- [ ] ⚠️ **DMARC var ama dişi sökülmüş**: `v=DMARC1; p=none`, `rua=` yok.
+      Ne uygulama var ne rapor toplanıyor. Sıra: önce DKIM, sonra
+      `p=none; rua=mailto:…` ile raporu aç, raporlar temiz çıkınca
+      `p=quarantine`
 - [ ] Bir test başvurusuyla e-postanın **spam'e düşmediği** doğrulandı
+      *(DKIM kurulmadan yapılması anlamsız — sonucu bilgi vermez)*
+- [x] **Giden posta hız sınırı** kuruldu *(04.09)* — `config/bys.php`'deki
+      `posta.dakikada` / `posta.saatte` kovaları ve
+      `App\Notifications\Concerns\PostaKuyrugu`. 03.09'da sekiz işçi aynı
+      anda SMTP'ye yüklenince sağlayıcı `451 Ratelimit` dedi ve **34 bildirim
+      düştü**; artık kova dolduğunda iş başarısız olmuyor, kuyruğa geri
+      bırakılıyor
+- [ ] Sayılar sağlayıcının **gerçek** sınırıyla eşitlendi. Şu an temkinli
+      varsayılan: dakikada 20, saatte 400. Hostinger planının sınırı
+      öğrenilip `BYS_POSTA_DAKIKADA` / `BYS_POSTA_SAATTE` ona göre ayarlanmalı
+- [ ] `php artisan queue:failed` **boş**. Şu an 39 kayıt var (36'sı 03.09
+      hız sınırından, 3'ü daha eski); canlıya çıkmadan incelenip
+      `queue:flush` ile temizlenmeli — bunlar test verisi
 
 ## 4 · Güvenlik
 

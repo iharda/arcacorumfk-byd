@@ -260,7 +260,14 @@ return [
     'environments' => [
         'production' => [
             'supervisor-kart' => ['maxProcesses' => 3, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
-            'supervisor-posta' => ['maxProcesses' => 8, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
+            /*
+             * 🪤 Eskiden 8'di. Sekiz işçi aynı anda SMTP'ye bağlanınca
+             * sağlayıcının hız sınırına çarpıyorduk (03.09, 34 düşen
+             * bildirim). Hız sınırı artık kuyruk tarafında da var
+             * (PostaKuyrugu) ama EŞZAMANLI BAĞLANTI ayrı bir sınır:
+             * sekiz işçi kovayı bekleyip boşuna dönüyordu.
+             */
+            'supervisor-posta' => ['maxProcesses' => 3, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
             'supervisor-default' => ['maxProcesses' => 4, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
         ],
 
