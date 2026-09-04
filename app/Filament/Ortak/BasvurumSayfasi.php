@@ -59,10 +59,30 @@ abstract class BasvurumSayfasi extends Page
         return Basvuru::where('kullanici_id', Auth::id())->exists();
     }
 
-    /** @return Collection<int, EvrakTuru> */
+    /**
+     * BU BAŞVURUYA ait evrak türleri.
+     *
+     * 💀 Eskiden o anki BÜTÜN aktif türler listeleniyordu. Sonradan yeni bir
+     * zorunlu belge eklendiğinde (imza sirküleri, M7) ONAYLANMIŞ eski
+     * başvurularda o satır "Bekliyor" diye beliriyordu: kurum kendi panelinde
+     * hiç istenmemiş bir belgeyi eksik görüyor, yükleyecek bir yer de yok
+     * (yükleme yalnız düzeltme biletiyle açılır). Çıkmaz sokak ve yanlış bilgi.
+     *
+     * 🔑 Gösterilecek iki küme: (1) bu başvuruda GERÇEKTEN yüklenmiş belgeler,
+     * (2) bu başvuru için hâlâ zorunlu olanlar -- düzeltme turundaki biri neyi
+     * tamamlaması gerektiğini görmeye devam etsin. Sonradan eklenmiş ve bu
+     * başvuruyu ilgilendirmeyen türler listeye hiç girmez.
+     *
+     * @return Collection<int, EvrakTuru>
+     */
     public function getEvrakTurleriProperty()
     {
-        return EvrakTuru::turIcin($this->basvuru->tur);
+        $yuklenenler = $this->basvuru->evraklar->pluck('evrak_turu_id')->all();
+
+        return EvrakTuru::turIcin($this->basvuru->tur)
+            ->filter(fn (EvrakTuru $tur) => in_array($tur->id, $yuklenenler, true)
+                || $tur->basvuruIcinZorunluMu($this->basvuru))
+            ->values();
     }
 
     /**

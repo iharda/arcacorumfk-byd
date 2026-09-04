@@ -141,6 +141,65 @@ class ImzaSirkuleriTest extends TestCase
         $this->akis()->gonder($basvuru);
     }
 
+    /**
+     * 💀 ONAYLANMIŞ ESKİ BAŞVURUDA "BEKLİYOR" YAZMAMALI.
+     *
+     * Kurum kendi panelindeki "Başvurum" ekranında o anki BÜTÜN evrak
+     * türlerini görüyordu. İmza sirküleri eklenince 24.08'de onaylanmış bir
+     * kurum, hiç istenmemiş bir belgeyi "Bekliyor" diye gördü -- üstelik
+     * yükleyebileceği bir yer de yok (yükleme yalnız düzeltme biletiyle
+     * açılır). Çıkmaz sokak ve yanlış bilgi.
+     */
+    public function test_sonradan_zorunlu_olan_belge_eski_basvuruda_gorunmez(): void
+    {
+        // Kural yarından yürürlükte (migration'daki gibi).
+        EvrakTuru::where('kod', 'imza_sirkuleri')
+            ->update(['zorunlu_baslangic' => now()->addDay()->toDateString()]);
+
+        $basvuru = $this->kurumBasvurusu();
+        $basvuru->forceFill(['durum' => BasvuruDurumu::Onaylandi])->save();
+
+        $turler = EvrakTuru::turIcin(BasvuruTuru::Kurum)
+            ->filter(fn (EvrakTuru $t) => $basvuru->evraklar->contains('evrak_turu_id', $t->id)
+                || $t->basvuruIcinZorunluMu($basvuru));
+
+        $this->assertFalse(
+            $turler->contains('kod', 'imza_sirkuleri'),
+            'Bu başvuruda istenmemiş belge listeye girmemeli.',
+        );
+
+        // Gerçekten yüklenmiş belgeler görünmeye devam etmeli.
+        $this->assertTrue($turler->contains('kod', 'ticaret_sicil_gazetesi'));
+    }
+
+    /** Yüklenmişse görünür: sonradan zorunlu olsa bile kayıt kaybolmaz. */
+    public function test_yuklenmis_belge_her_halukarda_gorunur(): void
+    {
+        $basvuru = $this->kurumBasvurusu();
+
+        $imza = EvrakTuru::where('kod', 'imza_sirkuleri')->sole();
+        $imza->update(['zorunlu_baslangic' => now()->addYear()->toDateString()]);
+
+        Evrak::create([
+            'basvuru_id' => $basvuru->id,
+            'evrak_turu_id' => $imza->id,
+            'disk' => 'evrak',
+            'yol' => 'basvuru/x/imza.pdf',
+            'orijinal_ad' => 'imza.pdf',
+            'mime' => 'application/pdf',
+            'boyut' => 1024,
+            'sifreli' => false,
+        ]);
+
+        $basvuru->load('evraklar');
+
+        $turler = EvrakTuru::turIcin(BasvuruTuru::Kurum)
+            ->filter(fn (EvrakTuru $t) => $basvuru->evraklar->contains('evrak_turu_id', $t->id)
+                || $t->basvuruIcinZorunluMu($basvuru));
+
+        $this->assertTrue($turler->contains('kod', 'imza_sirkuleri'));
+    }
+
     /** Bireysel başvuru bu belgeden hiç etkilenmemeli. */
     public function test_bireysel_basvuru_imza_sirkulerinden_etkilenmez(): void
     {

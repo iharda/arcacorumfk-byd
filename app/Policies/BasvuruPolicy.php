@@ -76,6 +76,23 @@ class BasvuruPolicy
             && in_array($basvuru->durum, BasvuruDurumu::kuyruk(), true);
     }
 
+    /**
+     * Kararı geri alabilir mi? -- Cüneyt Bey revizyonu (05.09.2026).
+     *
+     * 💀 Karara bağlanmış başvuruda yetkilinin elinde HİÇBİR aksiyon
+     * kalmıyordu; yanlış karar verildiğinde tek çıkış veritabanına elle
+     * müdahaleydi. Karar verme yetkisi olan, verdiği kararı geri de alabilmeli.
+     */
+    public function karariGeriAl(User $user, Basvuru $basvuru): bool
+    {
+        return $user->can('basvuru.karar')
+            && in_array($basvuru->durum, [
+                BasvuruDurumu::Onaylandi,
+                BasvuruDurumu::Reddedildi,
+                BasvuruDurumu::IptalEdildi,
+            ], true);
+    }
+
     /** Başvuran kendi başvurusunu gönderebilir/düzeltebilir mi? */
     public function gonder(User $user, Basvuru $basvuru): bool
     {

@@ -176,13 +176,74 @@ class Inceleme extends Page
         return 'Kart şu bölgelere yetkili olacak: '.($adlar ?: implode(', ', $varsayilan)).'.';
     }
 
+    /**
+     * Uygulanamayan aksiyonun SEBEBİ -- Cüneyt Bey revizyonu (05.09.2026).
+     *
+     * 💀 Aksiyonlar duruma göre EKRANDAN KALKIYORDU: yetkili karara bağlanmış
+     * bir başvuruyu açtığında hiçbir düğme göremiyor, "ben bunu neden
+     * yapamıyorum" sorusunun cevabı hiçbir yerde yazmıyordu. Düğmeler artık
+     * hep duruyor; uygulanamıyorsa pasif ve sebebi fare üstüne gelince yazılı.
+     */
+    public function pasifSebebi(string $kural): ?string
+    {
+        if (auth()->user()->can($kural, $this->record)) {
+            return null;   // uygulanabiliyor; açıklamaya gerek yok
+        }
+
+        return match (true) {
+            in_array($this->record->durum, [
+                BasvuruDurumu::Onaylandi,
+                BasvuruDurumu::Reddedildi,
+                BasvuruDurumu::IptalEdildi,
+            ], true) => 'Başvuru karara bağlandı ('.$this->record->durum->etiket()
+                .'). Yeniden işlem yapmak için önce "Kararı geri al" deyin.',
+
+            $kural === 'incele' => 'Başvuru zaten incelemeye alınmış.',
+            $kural === 'eksikEvrakIste' => 'Belge istemek için başvuru "İnceleniyor" durumunda olmalı.',
+            $kural === 'kararVer' => 'Karar vermek için başvuruyu önce incelemeye alın.',
+
+            default => 'Bu adım başvurunun şu anki durumunda uygulanamıyor.',
+        };
+    }
+
     protected function getHeaderActions(): array
     {
         return [
+            /*
+             * 🔑 KARARI GERİ AL. Onaylandı/Reddedildi/İptal edildi eskiden
+             * bitiş durumuydu; yanlış karar verildiğinde tek çıkış
+             * veritabanına elle müdahaleydi. Kart iptali, rol geri alma ve
+             * kurum durumunun düzeltilmesi servis tarafında TEK işlemde
+             * (BasvuruAkisi::karariGeriAl).
+             */
+            Action::make('karariGeriAl')
+                ->label('Kararı geri al')
+                ->icon('heroicon-m-arrow-uturn-left')
+                ->color('danger')
+                ->visible(fn () => auth()->user()->can('karariGeriAl', $this->record))
+                ->schema([
+                    Textarea::make('gerekce')
+                        ->label('Gerekçe')
+                        ->required()
+                        ->rows(3)
+                        ->maxLength(500),
+                ])
+                ->modalHeading('Kararı geri al')
+                ->modalDescription('Başvuru "İnceleniyor" durumuna döner ve yeniden karar verilebilir. '
+                    .'Üretilmiş kart İPTAL EDİLİR, verilen akreditasyon rolü geri alınır; kurumsal '
+                    .'başvuruda kurumun akreditasyonu da düşer. Hesap silinmez, erişimi kapanır.')
+                ->modalSubmitActionLabel('Kararı geri al')
+                ->action(fn (array $data) => $this->calistir(
+                    fn () => app(BasvuruAkisi::class)->karariGeriAl($this->record, $data['gerekce']),
+                    'Karar geri alındı; başvuru yeniden incelemenizde.',
+                )),
+
             Action::make('incelemeyeAl')
                 ->label('İncelemeye al')
                 ->icon('heroicon-m-eye')
-                ->visible(fn () => auth()->user()->can('incele', $this->record))
+                ->visible(fn () => auth()->user()->can('basvuru.incele'))
+                ->disabled(fn () => ! auth()->user()->can('incele', $this->record))
+                ->tooltip(fn () => $this->pasifSebebi('incele'))
                 ->action(fn () => $this->calistir(
                     fn () => app(BasvuruAkisi::class)->incelemeyeAl($this->record),
                     'Başvuru incelemenize alındı.',
@@ -196,7 +257,9 @@ class Inceleme extends Page
                 ->modalHeading('Başvurandan belge veya bilgi isteyin')
                 ->modalSubmitActionLabel('Talebi gönder')
                 ->modalCancelActionLabel('Vazgeç')
-                ->visible(fn () => auth()->user()->can('eksikEvrakIste', $this->record))
+                ->visible(fn () => auth()->user()->can('basvuru.incele'))
+                ->disabled(fn () => ! auth()->user()->can('eksikEvrakIste', $this->record))
+                ->tooltip(fn () => $this->pasifSebebi('eksikEvrakIste'))
                 ->schema([
                     Repeater::make('notlar')
                         ->label('Düzeltilmesi istenen alanlar')
@@ -330,7 +393,9 @@ class Inceleme extends Page
                     ? 'Kuruluşu onayla'
                     : 'Başvuruyu onayla')
                 ->modalCancelActionLabel('Vazgeç')
-                ->visible(fn () => auth()->user()->can('kararVer', $this->record))
+                ->visible(fn () => auth()->user()->can('basvuru.karar'))
+                ->disabled(fn () => ! auth()->user()->can('kararVer', $this->record))
+                ->tooltip(fn () => $this->pasifSebebi('kararVer'))
                 ->action(fn () => $this->calistir(
                     fn () => app(BasvuruAkisi::class)->onayla($this->record),
                     'Başvuru onaylandı.',
@@ -343,7 +408,9 @@ class Inceleme extends Page
                 ->modalHeading('Başvuruyu reddetmek istiyor musunuz?')
                 ->modalSubmitActionLabel('Başvuruyu reddet')
                 ->modalCancelActionLabel('Vazgeç')
-                ->visible(fn () => auth()->user()->can('kararVer', $this->record))
+                ->visible(fn () => auth()->user()->can('basvuru.karar'))
+                ->disabled(fn () => ! auth()->user()->can('kararVer', $this->record))
+                ->tooltip(fn () => $this->pasifSebebi('kararVer'))
                 ->schema([
                     Textarea::make('gerekce')
                         ->label('Red gerekçesi')
@@ -373,7 +440,9 @@ class Inceleme extends Page
                     .'Başvurana bildirim GİTMEZ; iptali kendisine siz haber vermelisiniz.')
                 ->modalSubmitActionLabel('Başvuruyu iptal et')
                 ->modalCancelActionLabel('Vazgeç')
-                ->visible(fn () => auth()->user()->can('iptalEt', $this->record))
+                ->visible(fn () => auth()->user()->can('basvuru.karar'))
+                ->disabled(fn () => ! auth()->user()->can('iptalEt', $this->record))
+                ->tooltip(fn () => $this->pasifSebebi('iptalEt'))
                 ->schema([
                     Textarea::make('gerekce')
                         ->label('İptal sebebi')

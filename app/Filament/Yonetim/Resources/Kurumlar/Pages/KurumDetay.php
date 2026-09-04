@@ -8,6 +8,7 @@ use App\Filament\Yonetim\Ortak\DegerlendirmeEylemi;
 use App\Filament\Yonetim\Ortak\DetaySayfasi;
 use App\Filament\Yonetim\Resources\Kurumlar\KurumResource;
 use App\Models\Kurum;
+use App\Models\User;
 use App\Support\Telefon;
 use Filament\Actions\Action;
 
@@ -79,7 +80,25 @@ class KurumDetay extends DetaySayfasi
     {
         $k = $this->kayit();
 
-        $calisanlar = $k->calisanlar()->orderBy('name')->get();
+        /*
+         * 💀 KURUMUN KENDİ HESABI ÇALIŞAN DEĞİL (Cüneyt Bey revizyonu
+         * 05.09.2026). Kurum panelini kullanan yetkilinin hesabı da
+         * `kurum_id` taşıdığı için çalışan listesinde görünüyordu; kulüp
+         * "bu kurumun 4 çalışanı var" sanıyordu, oysa biri kurumun kendisiydi.
+         *
+         * ⚠️ Yalnızca SADECE kurum rolü olanlar ayıklanır. Bir kişi hem kurum
+         * yetkilisi hem basın mensubu olabilir (gazetenin sahibi maça giden
+         * muhabir); onun kartı var ve listede DURMALI.
+         *
+         * Akreditasyon durumu satırda görünsün diye ilişki de yükleniyor.
+         */
+        $calisanlar = $k->calisanlar()
+            ->with(['roles', 'akreditasyon'])
+            ->orderBy('name')
+            ->get()
+            ->reject(fn (User $c) => $c->roles->count() === 1
+                && $c->roles->first()?->name === User::ROL_KURUM)
+            ->values();
         $akreditasyonlar = $k->akreditasyonlar()->with('kullanici')->latest('id')->get();
         $basvurular = $k->basvurular()->latest('id')->limit(20)->get();
 
@@ -154,11 +173,22 @@ class KurumDetay extends DetaySayfasi
                 ->icon('heroicon-m-pencil-square')
                 ->visible(fn () => auth()->user()?->can('update', $this->kayit()) ?? false)
                 ->url(fn () => KurumResource::getUrl('duzenle', ['record' => $this->kayit()])),
-
-            // Puanlama Kurumlar TABLOSUNDA vardı, detayda yoktu: yetkili kurumu
-            // inceledikten sonra listeye dönmek zorunda kalıyordu (M2.4 md.2).
-            DegerlendirmeEylemi::kurumSayfasi(fn () => $this->kayit()),
         ];
+    }
+
+    /**
+     * Değerlendirme eylemi -- SEKMENİN İÇİNDE (Cüneyt Bey revizyonu 05.09.2026).
+     *
+     * Düğme sayfanın sağ üstündeydi; puanı gösteren şerit ise Değerlendirme
+     * sekmesinin içinde. Yetkili puanı okuduğu yerden değil, ekranın öbür
+     * ucundan puanlıyordu. İkisi artık aynı yerde.
+     *
+     * Blade `{{ $this->degerlendirAction }}` ile çizer (Inceleme sayfasındaki
+     * kalıbın aynısı); sekmeler `@include` ile geldiği için `$this` erişilebilir.
+     */
+    public function degerlendirAction(): Action
+    {
+        return DegerlendirmeEylemi::kurumSayfasi(fn () => $this->kayit());
     }
 
     /**

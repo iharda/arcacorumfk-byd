@@ -2,8 +2,10 @@
 
 namespace App\Servisler;
 
+use App\Enums\AkreditasyonDurumu;
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
+use App\Models\Akreditasyon;
 use App\Models\Ayar;
 use App\Models\Basvuru;
 use App\Models\BasvuruDuzeltmesi;
@@ -28,6 +30,13 @@ use RuntimeException;
  */
 class BasvuruAkisi
 {
+    /** Kararı geri alınabilecek durumlar -- hepsi bir karar sonucudur. */
+    private const GERI_ALINABILIR = [
+        BasvuruDurumu::Onaylandi,
+        BasvuruDurumu::Reddedildi,
+        BasvuruDurumu::IptalEdildi,
+    ];
+
     public function __construct(
         private DenetimYazici $denetim,
         private AkreditasyonAkisi $akreditasyon,
@@ -176,6 +185,96 @@ class BasvuruAkisi
                 $this->reddet($basvuru, $not ?: 'Kurum, başvuranın çalışanı olduğunu teyit etmedi.');
             }
         });
+    }
+
+    /**
+     * Kararı geri alır -- Cüneyt Bey revizyonu (05.09.2026).
+     *
+     * 💀 Onaylandı / Reddedildi / İptal edildi BİTİŞ durumuydu: yanlış karar
+     * verildiğinde tek çıkış veritabanına elle müdahaleydi.
+     *
+     * 🔑 Bu bir DURUM DEĞİŞİKLİĞİ DEĞİL, kararın SONUÇLARINI toplamaktır.
+     * Onay üç şey birden yapar (kart üretir, hesap açar, rol verir; kurumsalda
+     * kurumu akredite eder). Yalnızca durumu çevirmek kartı turnikede geçerli,
+     * hesabı panelde açık bırakırdı -- en tehlikeli yarım iş. Hepsi tek işlemde
+     * geri alınır.
+     *
+     * ⚠️ HESAP SİLİNMEZ. Kişinin geçmişi (başvuruları, denetim izi, geçiş
+     * kayıtları) ona bağlı; silmek o izi koparır. Yapılan şey erişimi
+     * kapatmaktır: akreditasyon rolü alınır, başka bir dayanağı kalmadıysa
+     * hesap pasife çekilir. Yetkili kararını düzeltip yeniden onaylarsa
+     * `HesapAcici` aynı hesabı yeniden kullanır.
+     */
+    public function karariGeriAl(Basvuru $basvuru, string $gerekce): void
+    {
+        if (! in_array($basvuru->durum, self::GERI_ALINABILIR, true)) {
+            throw new RuntimeException('Yalnızca karara bağlanmış başvurunun kararı geri alınabilir.');
+        }
+
+        $onceki = $basvuru->durum;
+
+        DB::transaction(function () use ($basvuru, $gerekce, $onceki) {
+            // 1) Kartlar: turnike erişimi ANINDA kapanmalı.
+            /** @var Akreditasyon $akreditasyon */
+            foreach ($basvuru->akreditasyon()->get() as $akreditasyon) {
+                $this->akreditasyon->iptalEt(
+                    $akreditasyon,
+                    'Başvuru kararı geri alındı — '.$gerekce,
+                );
+            }
+
+            // 2) Kurumsal onay kurumu akredite etmişti; o da geri alınır.
+            if ($basvuru->tur === BasvuruTuru::Kurum
+                && $basvuru->kurum
+                && $basvuru->kurum->akreditasyon_durumu === 'akredite') {
+                $basvuru->kurum->update(['akreditasyon_durumu' => 'beklemede']);
+            }
+
+            // 3) Onayla verilen bireysel rol geri alınır; hesap kalır.
+            $this->erisimiKapat($basvuru);
+
+            // 4) Durum: yeniden karar verilebilsin diye İnceleniyor.
+            $this->gecir($basvuru, BasvuruDurumu::Incelemede, 'basvuru.karar_geri_alindi', [
+                'karar_at' => null,
+                'karar_veren_id' => null,
+                'karar_gerekcesi' => null,
+                'incelemeye_alindi_at' => now(),
+                'inceleyen_id' => Auth::id(),
+            ]);
+
+            $this->denetim->yaz('basvuru.karar_geri_alindi', $basvuru,
+                eski: ['durum' => $onceki->value],
+                yeni: ['durum' => BasvuruDurumu::Incelemede->value],
+                not: $gerekce);
+        });
+    }
+
+    /** Karar geri alınırken kişinin akreditasyon erişimini kapatır. */
+    private function erisimiKapat(Basvuru $basvuru): void
+    {
+        $kullanici = $basvuru->kullanici;
+
+        if ($kullanici === null || $basvuru->tur === BasvuruTuru::Kurum) {
+            return;
+        }
+
+        $kullanici->removeRole($basvuru->tur === BasvuruTuru::BasinMensubu
+            ? User::ROL_BASIN
+            : User::ROL_ICERIK);
+
+        /*
+         * Hesap yalnızca DAYANAĞI KALMADIYSA pasife alınır: kişi aynı zamanda
+         * kurum yetkilisi olabilir ya da başka bir aktif akreditasyonu
+         * bulunabilir. Onları da kapatmak, ilgisiz bir erişimi koparmak olurdu.
+         */
+        $baskaDayanak = $kullanici->fresh()->roles()->exists()
+            || $kullanici->akreditasyonlar()
+                ->where('durum', '!=', AkreditasyonDurumu::Iptal->value)
+                ->exists();
+
+        if (! $baskaDayanak) {
+            $kullanici->forceFill(['aktif' => false])->save();
+        }
     }
 
     public function incelemeyeAl(Basvuru $basvuru): void

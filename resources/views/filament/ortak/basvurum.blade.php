@@ -98,7 +98,9 @@
                             {{-- Ek talep belgesinin başlığı burada; iki ek belge
                                  artık "Ek talep belgesi" diye aynı görünmüyor. --}}
                             {{ $yuklu?->ekranBasligi() ?? $tur->ad }}
-                            @if ($tur->zorunlu)<span style="color:rgb(var(--danger-600));">*</span>@endif
+                            {{-- Zorunluluk BU BAŞVURUYA göre: sonradan zorunlu olan bir
+                                 belge eski başvuruda kırmızı yıldızla "eksik" görünmesin. --}}
+                            @if ($tur->basvuruIcinZorunluMu($basvuru))<span style="color:rgb(var(--danger-600));">*</span>@endif
                         </div>
                         <div style="font-size:.75rem; opacity:.6; margin-top:.15rem;">
                             {{ strtoupper(implode(' · ', $tur->izinli_formatlar ?? [])) }}

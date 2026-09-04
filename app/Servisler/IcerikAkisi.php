@@ -30,7 +30,27 @@ class IcerikAkisi
             ->where('aktif', true)
             ->whereNull('ayrildi_at')
             ->where(fn (Builder $alt) => $alt
-                ->whereHas('akreditasyon', fn (Builder $a) => $a->where('durum', AkreditasyonDurumu::Aktif->value))
+                ->whereHas('akreditasyon', fn (Builder $a) => $a
+                    ->where('durum', AkreditasyonDurumu::Aktif->value)
+                    /*
+                     * 🔑 SÜRE DE SORULUR (Cüneyt Bey revizyonu 05.09.2026:
+                     * "mutlak status kontrolü, sadece akredite edildi olanlar").
+                     *
+                     * `durum` tek başına yetmiyor: sezon bitince kart "aktif"
+                     * kalır ama geçerliliği düşer -- turnike `gecerliMi()` ile
+                     * tarihlere de bakıyor, bülten bakmıyordu. Sezon alanları
+                     * artık dolduruluyor, yani bu gerçek bir fark: süresi dolmuş
+                     * karta bülten gitmemeli.
+                     *
+                     * NULL tarih "süresiz" demektir ve geçerli sayılır --
+                     * `gecerliMi()` ile aynı kural.
+                     */
+                    ->where(fn (Builder $t) => $t
+                        ->whereNull('gecerlilik_baslangic')
+                        ->orWhere('gecerlilik_baslangic', '<=', now()))
+                    ->where(fn (Builder $t) => $t
+                        ->whereNull('gecerlilik_bitis')
+                        ->orWhere('gecerlilik_bitis', '>=', now())))
                 /*
                  * 💥 Kurum dalına ROL şartı ŞART. Yalnızca `kurum` ilişkisine
                  * bakmak, akredite bir kurumun BAŞVURUSU HENÜZ ONAYLANMAMIŞ

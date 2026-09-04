@@ -41,7 +41,14 @@ enum BasvuruDurumu: string
             self::Incelemede => 'İnceleniyor',
             self::EksikEvrak => 'Belge bekleniyor',
             self::YenidenInceleme => 'Yeniden inceleme bekliyor',
-            self::Onaylandi => 'Onaylandı',
+            /*
+             * 🔤 "Akredite edildi" (Cüneyt Bey revizyonu 05.09.2026): sistemde
+             * ayrı bir "akredite" başvuru durumu YOK; onay zaten akreditasyonu
+             * doğuran adım (bireyselde kart, kurumsalda kurumun akredite
+             * olması). İki ekranda iki farklı kelime görmek karışıklık
+             * yaratıyordu; tek kelime kullanılıyor.
+             */
+            self::Onaylandi => 'Akredite edildi',
             self::Reddedildi => 'Reddedildi',
             self::IptalEdildi => 'İptal edildi',
         };
@@ -86,7 +93,21 @@ enum BasvuruDurumu: string
             self::Incelemede => [self::EksikEvrak, self::Onaylandi, self::Reddedildi, self::IptalEdildi],
             self::EksikEvrak => [self::YenidenInceleme, self::IptalEdildi],
             self::YenidenInceleme => [self::Incelemede, self::IptalEdildi],
-            self::Onaylandi, self::Reddedildi, self::IptalEdildi => [],
+            /*
+             * 🔑 KARAR GERİ ALINABİLİR (Cüneyt Bey revizyonu 05.09.2026):
+             * "Başvurular onaylansa bile aksiyonlar gerçekleştirilebilir."
+             *
+             * Bu üçü eskiden BİTİŞ durumuydu (`=> []`) ve yetkili yanlış karar
+             * verdiğinde tek çıkış veritabanına elle müdahaleydi. Artık tek
+             * hedefleri var: İnceleniyor'a dönüş. Oradan normal karar akışı
+             * yeniden işler.
+             *
+             * ⚠️ Geri dönüş SERBEST BİR DURUM DEĞİŞİKLİĞİ DEĞİL: onayda kart
+             * üretilmiş, hesap açılmış ve rol verilmiş olabilir. Bunları da
+             * toplayan tek kapı `BasvuruAkisi::karariGeriAl()`; durum buradan
+             * elle çevrilmemeli.
+             */
+            self::Onaylandi, self::Reddedildi, self::IptalEdildi => [self::Incelemede],
         };
     }
 

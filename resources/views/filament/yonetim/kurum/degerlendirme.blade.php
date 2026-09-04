@@ -13,4 +13,8 @@
     <x-parcalar.degerlendirme-serit
         :degerlendirme="$degerlendirme"
         baslik="Kurum değerlendirmesi" />
+
+    {{-- Puanlama düğmesi ŞERİDİN YANINDA: eskiden sayfanın sağ üstündeydi,
+         yetkili puanı okuduğu yerden değil ekranın öbür ucundan puanlıyordu. --}}
+    <div style="margin-top:.9rem;">{{ $this->degerlendirAction }}</div>
 </x-filament::section>

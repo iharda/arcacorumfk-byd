@@ -53,7 +53,10 @@ class BasvuruDurumuTest extends TestCase
             'incelemede' => 'İnceleniyor',
             'eksik_evrak' => 'Belge bekleniyor',
             'yeniden_inceleme' => 'Yeniden inceleme bekliyor',
-            'onaylandi' => 'Onaylandı',
+            // 🔤 "Akredite edildi" (Cüneyt Bey revizyonu 05.09.2026): sistemde
+            // ayrı bir "akredite" başvuru durumu yok; onay zaten akreditasyonu
+            // doğuran adım. İki ekranda iki kelime karışıklık yaratıyordu.
+            'onaylandi' => 'Akredite edildi',
             'reddedildi' => 'Reddedildi',
             'iptal_edildi' => 'İptal edildi',
         ];

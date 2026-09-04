@@ -280,6 +280,55 @@ class DetayEvrakDegerlendirmeTest extends TestCase
     }
 
     /**
+     * 💀 KURUMUN KENDİ HESABI ÇALIŞAN DEĞİL -- Cüneyt Bey revizyonu 05.09.2026.
+     *
+     * Kurum panelini kullanan yetkilinin hesabı da `kurum_id` taşıdığı için
+     * çalışan listesinde görünüyordu; kulüp "bu kurumun N çalışanı var"
+     * sanıyordu, oysa biri kurumun kendisiydi.
+     *
+     * 🔒 Ama ÇİFT ROLLÜ kişi listede KALMALI: gazetenin sahibi hem kurum
+     * yetkilisi hem maça giden muhabir olabilir; onun kartı var.
+     */
+    public function test_kurum_detayinda_kurumun_kendi_hesabi_calisan_sayilmaz(): void
+    {
+        $kurum = Kurum::create([
+            'resmi_unvan' => 'Çorum Haber Ajansı',
+            'akreditasyon_durumu' => 'akredite',
+        ]);
+
+        // Yalnızca kurum rolü: listede GÖRÜNMEMELİ.
+        $yetkiliHesap = User::create([
+            'name' => 'Kurum Yetkilisi', 'email' => 'yetkili@ajans.test',
+            'password' => bcrypt('x'), 'aktif' => true, 'kurum_id' => $kurum->id,
+        ]);
+        $yetkiliHesap->assignRole(User::ROL_KURUM);
+
+        // Çift rollü: hem yetkili hem basın mensubu -- GÖRÜNMELİ.
+        $ciftRollu = User::create([
+            'name' => 'Sahip Muhabir', 'email' => 'sahip@ajans.test',
+            'password' => bcrypt('x'), 'aktif' => true, 'kurum_id' => $kurum->id,
+        ]);
+        $ciftRollu->assignRole(User::ROL_KURUM);
+        $ciftRollu->assignRole(User::ROL_BASIN);
+
+        // Sıradan çalışan: GÖRÜNMELİ.
+        $calisan = User::create([
+            'name' => 'Muhabir Kişi', 'email' => 'muhabir@ajans.test',
+            'password' => bcrypt('x'), 'aktif' => true, 'kurum_id' => $kurum->id,
+        ]);
+        $calisan->assignRole(User::ROL_BASIN);
+
+        $govde = $this->actingAs($this->yetkili())
+            ->get(KurumResource::getUrl('detay', ['record' => $kurum]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('yetkili@ajans.test', $govde);
+        $this->assertStringContainsString('sahip@ajans.test', $govde);
+        $this->assertStringContainsString('muhabir@ajans.test', $govde);
+    }
+
+    /**
      * 🔒 Değerlendirme sekmesi yetkiye bağlı. Yetkisi OLMAYAN bir hesapta
      * sekme hiç çizilmemeli -- puan ve not kulüp dışına çıkmaz.
      */

@@ -10,10 +10,12 @@ use App\Servisler\BasvuruAkisi;
 use App\Servisler\CsvDisaAktar;
 use App\Support\TopluIslem;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
@@ -22,6 +24,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Throwable;
 
 class BasvurusTable
 {
@@ -134,8 +137,15 @@ class BasvurusTable
                     ->label('Durum')
                     ->multiple()
                     ->options(fn () => collect(BasvuruDurumu::cases())
-                        ->mapWithKeys(fn ($d) => [$d->value => $d->etiket()])->all())
-                    ->default(BasvuruDurumu::degerleri(...BasvuruDurumu::kuyruk())),
+                        ->mapWithKeys(fn ($d) => [$d->value => $d->etiket()])->all()),
+                /*
+                     * 🔑 VARSAYILAN SÜZGEÇ YOK (Cüneyt Bey revizyonu 05.09.2026).
+                     * Liste eskiden yalnızca KUYRUKTAKİLERİ gösteriyordu; karara
+                     * bağlanmış başvurular süzgeç elle temizlenmedikçe hiç
+                     * görünmüyordu. "Kurumlarda var, başvurularda yok" tablosunun
+                     * yarısı buydu. Artık her zaman tüm veriler gelir; yetkili
+                     * daraltmak isterse kendisi seçer.
+                     */
 
                 SelectFilter::make('tur')
                     ->label('Tür')
@@ -279,7 +289,55 @@ class BasvurusTable
              * hem de fareyle üzerine gelince adres çubuğunda görünür.
              */
             ->recordUrl(fn (Basvuru $record) => BasvuruResource::getUrl('inceleme', ['record' => $record]))
-            ->recordActions([])
+            /*
+             * 🔑 SATIR AKSİYONLARI AÇILIR MENÜDE (Cüneyt Bey revizyonu
+             * 05.09.2026). Liste eskiden hiç aksiyon taşımıyordu: her iş için
+             * önce inceleme ekranını açmak gerekiyordu. Düğmeleri satıra
+             * yaymak yerine tek menüde toplandı -- satırın kendisi zaten
+             * detayı açıyor, aksiyonlar onu bastırmamalı.
+             *
+             * ⚠️ Onay ve red burada YOK: evrakı görmeden verilecek kararlar
+             * değil. Listeden yapılabilenler incelemeye alma ve kararı geri
+             * alma -- ikisi de belgeye bakmayı gerektirmiyor.
+             */
+            ->recordActions([
+                ActionGroup::make([
+                    Action::make('incele')
+                        ->label('İnceleme ekranını aç')
+                        ->icon('heroicon-m-magnifying-glass')
+                        ->url(fn (Basvuru $record) => BasvuruResource::getUrl('inceleme', ['record' => $record])),
+
+                    Action::make('incelemeyeAl')
+                        ->label('İncelemeye al')
+                        ->icon('heroicon-m-eye')
+                        ->visible(fn () => auth()->user()->can('basvuru.incele'))
+                        ->disabled(fn (Basvuru $record) => ! auth()->user()->can('incele', $record))
+                        ->action(fn (Basvuru $record) => self::calistir(
+                            fn () => app(BasvuruAkisi::class)->incelemeyeAl($record),
+                            'Başvuru incelemenize alındı.',
+                        )),
+
+                    Action::make('karariGeriAl')
+                        ->label('Kararı geri al')
+                        ->icon('heroicon-m-arrow-uturn-left')
+                        ->color('danger')
+                        ->visible(fn (Basvuru $record) => auth()->user()->can('karariGeriAl', $record))
+                        ->schema([
+                            Textarea::make('gerekce')->label('Gerekçe')->required()->rows(3)->maxLength(500),
+                        ])
+                        ->modalDescription('Başvuru "İnceleniyor" durumuna döner. Üretilmiş kart İPTAL '
+                            .'EDİLİR, akreditasyon rolü geri alınır; kurumsal başvuruda kurumun '
+                            .'akreditasyonu da düşer.')
+                        ->modalSubmitActionLabel('Kararı geri al')
+                        ->action(fn (Basvuru $record, array $data) => self::calistir(
+                            fn () => app(BasvuruAkisi::class)->karariGeriAl($record, $data['gerekce']),
+                            'Karar geri alındı.',
+                        )),
+                ])
+                    ->label('İşlemler')
+                    ->icon('heroicon-m-ellipsis-vertical')
+                    ->button(),
+            ])
             /*
              * 🧷 Kuyruk temizliği (saha notları E4): sezon sonunda kuyrukta
              * cevapsız kalmış başvurular tek tek düşürülüyordu.
@@ -313,5 +371,19 @@ class BasvurusTable
             ])
             ->emptyStateHeading('Kuyrukta başvuru yok')
             ->emptyStateDescription('Yeni başvurular buraya düşer.');
+    }
+
+    /** Servis hatası bildirime dönsün, ekran 500 vermesin (Akreditasyonlar kalıbı). */
+    private static function calistir(callable $is, string $mesaj): void
+    {
+        try {
+            $is();
+        } catch (Throwable $e) {
+            Notification::make()->title($e->getMessage())->danger()->send();
+
+            return;
+        }
+
+        Notification::make()->title($mesaj)->success()->send();
     }
 }
