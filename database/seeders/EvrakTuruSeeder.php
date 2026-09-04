@@ -40,6 +40,21 @@ class EvrakTuruSeeder extends Seeder
                 'hassas' => false, 'sira' => 10,
             ],
             [
+                /*
+                 * M7: kurumsal başvurunun üçüncü zorunlu belgesi.
+                 * 🪤 `zorunlu_baslangic` BURADA yok (null): sıfırdan kurulan
+                 * sistemde kuyruk da yoktur. Canlıda yürürlük tarihi
+                 * migration'dan geliyor (2026_09_04_190000) ki yoldaki
+                 * başvurular "Eksik zorunlu evrak" ile kilitlenmesin.
+                 */
+                'kod' => 'imza_sirkuleri', 'ad' => 'İmza sirküleri',
+                'aciklama' => 'Yetkiliyi temsile yetkili kıldığını gösteren, '
+                    .'geçerli imza sirküleri veya imza beyannamesi',
+                'basvuru_turleri' => [$kurum], 'zorunlu' => true,
+                'izinli_formatlar' => ['pdf', 'jpg', 'jpeg', 'png', 'webp'], 'maks_boyut_kb' => 8192,
+                'hassas' => false, 'sira' => 15,
+            ],
+            [
                 'kod' => 'vergi_levhasi', 'ad' => 'Vergi levhası',
                 'basvuru_turleri' => [$kurum], 'zorunlu' => true,
                 'izinli_formatlar' => ['pdf', 'jpg', 'jpeg', 'png', 'webp'], 'maks_boyut_kb' => 8192,

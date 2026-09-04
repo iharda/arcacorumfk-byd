@@ -45,21 +45,50 @@ class EvrakYukleyici
         // Ad tahmin edilemez ve kullanıcı girdisi içermez.
         $yol = sprintf('basvuru/%s/%s.%s', $basvuru->ulid, Str::ulid(), $uzanti);
 
-        $icerik = file_get_contents($dosya->getRealPath());
-        $sha = hash('sha256', $icerik);
+        $kaynakYolu = $dosya->getRealPath();
+
         /*
+         * 🔑 PARMAK İZİ ve BOYUT DOSYADAN, BELLEKTEN DEĞİL (M5.3-A).
+         * Eskiden `file_get_contents` bütün dosyayı belleğe alıyordu; 8 MB'lık
+         * bir belge için tepe bellek ~30 MB'a çıkıyordu (ham + base64 + şifreli
+         * kopya). `hash_file` dosyayı parça parça okur, `filesize` hiç okumaz.
+         *
          * 💣 BOYUT ŞİFRELEMEDEN ÖNCE ölçülür (Düzeltme listesi md.16).
          * Sonra ölçülünce `Crypt` + base64 şişmesi kayda geçiyordu: ekranda
          * "2,3 MB" yazan bir kimlik fotoğrafı aslında 1,3 MB'tı.
          */
-        $boyut = strlen($icerik);
+        $sha = hash_file('sha256', $kaynakYolu);
+        $boyut = filesize($kaynakYolu);
 
         if ($tur->hassas) {
-            $icerik = Crypt::encryptString(base64_encode($icerik));
+            /*
+             * ⚠️ HASSAS EVRAK HÂLÂ BELLEKTEN GEÇİYOR ve bu bilerek böyle.
+             * `Crypt::encryptString` akış desteklemez; akışa çevirmek DEPOLAMA
+             * BİÇİMİNİ değiştirmek, yani canlıdaki şifreli belgeleri yeniden
+             * şifrelemek demek. Onlar gerçek kimlik belgeleri; biçim geçişi
+             * ayrı ve bilinçli bir iş (M5 F1'in kalan yarısı).
+             * Sınır zaten tür başına 5-8 MB olduğu için tepe bellek sınırlı.
+             */
+            $icerik = Crypt::encryptString(base64_encode(file_get_contents($kaynakYolu)));
             $yol .= '.sifreli';
-        }
 
-        Storage::disk($disk)->put($yol, $icerik);
+            Storage::disk($disk)->put($yol, $icerik);
+        } else {
+            /*
+             * Şifresiz evrak (evrakların %79'u ve en büyük dosyalar) hiç
+             * belleğe alınmaz: kaynaktan hedefe akar.
+             */
+            $akis = fopen($kaynakYolu, 'rb');
+
+            try {
+                Storage::disk($disk)->writeStream($yol, $akis);
+            } finally {
+                // Akışı Flysystem kapatmış olabilir; iki kez kapatmak uyarı üretir.
+                if (is_resource($akis)) {
+                    fclose($akis);
+                }
+            }
+        }
 
         // Eskiyi arşivleme + yeni kaydı yazma TEK işlemde: kayıt yazılamazsa
         // başvuran önceki evrakını da kaybetmesin.
@@ -125,6 +154,32 @@ class EvrakYukleyici
         $ham = Storage::disk($evrak->disk)->get($evrak->yol);
 
         return $evrak->sifreli ? base64_decode(Crypt::decryptString($ham)) : $ham;
+    }
+
+    /**
+     * Şifresiz evrakı AKIŞ olarak verir; şifreli evrakta `null` döner (M5.3-A).
+     *
+     * 🔑 Neden yalnızca şifresiz: `Crypt::decryptString` bütün gövdeyi ister,
+     * akış hâlinde çözülemez. Şifreli evrakı akışa almak depolama biçimini
+     * değiştirmek demek ve canlıdaki kimlik belgelerinin yeniden şifrelenmesini
+     * gerektirir -- ayrı ve bilinçli bir iş.
+     *
+     * Çağıran `null` gelirse `icerik()`e düşer; yani davranış her iki durumda
+     * da aynı, değişen yalnızca bellek profili.
+     *
+     * @return resource|null
+     */
+    public function akis(Evrak $evrak)
+    {
+        if ($evrak->imhaEdildiMi()) {
+            throw new RuntimeException('Evrakın saklama süresi doldu; dosya imha edilmiş.');
+        }
+
+        if ($evrak->sifreli) {
+            return null;
+        }
+
+        return Storage::disk($evrak->disk)->readStream($evrak->yol);
     }
 
     private function dogrula(EvrakTuru $tur, UploadedFile $dosya, string $mime): void

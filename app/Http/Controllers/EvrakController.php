@@ -13,6 +13,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Evrak görüntüleme -- Plan v1.0 md.11.
@@ -123,7 +124,7 @@ class EvrakController extends Controller
             ->exists();
     }
 
-    public function goster(Evrak $evrak): Response
+    public function goster(Evrak $evrak): SymfonyResponse
     {
         $this->authorize('view', $evrak);
 
@@ -146,11 +147,38 @@ class EvrakController extends Controller
             ]);
         }
 
-        return response($this->yukleyici->icerik($evrak), 200, [
+        $basliklar = [
             'Content-Type' => $evrak->mime,
             'Content-Disposition' => 'inline; filename="'.addslashes($evrak->orijinal_ad).'"',
             'Cache-Control' => 'private, no-store, max-age=0',
             'X-Content-Type-Options' => 'nosniff',
+        ];
+
+        /*
+         * 🔑 ŞİFRESİZ EVRAK AKIŞLA (M5.3-A). Gövde hiç belleğe alınmaz;
+         * `Content-Length` sayesinde tarayıcı ilerlemeyi gösterebilir ve
+         * PDF iframe'i dosyayı parça parça isteyebilir (`Accept-Ranges`).
+         * Eskiden bütün dosya PHP belleğine okunuyor, `Content-Length` de
+         * yazılmadığı için büyük PDF sayfa sayfa ilerleyemiyordu.
+         *
+         * ⚠️ Şifreli evrak eski yolda: `Crypt` akış hâlinde çözülemez
+         * (bkz. EvrakYukleyici::akis). Davranış aynı, yalnızca bellek farklı.
+         */
+        $akis = $this->yukleyici->akis($evrak);
+
+        if ($akis === null) {
+            return response($this->yukleyici->icerik($evrak), 200, $basliklar);
+        }
+
+        return new StreamedResponse(function () use ($akis) {
+            fpassthru($akis);
+
+            if (is_resource($akis)) {
+                fclose($akis);
+            }
+        }, 200, $basliklar + [
+            'Content-Length' => (string) $evrak->boyut,
+            'Accept-Ranges' => 'bytes',
         ]);
     }
 }

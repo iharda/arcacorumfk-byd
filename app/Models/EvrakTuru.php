@@ -6,6 +6,7 @@ use App\Enums\BasvuruTuru;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property ?string $aciklama
  * @property array $basvuru_turleri
  * @property bool $zorunlu
+ * @property ?Carbon $zorunlu_baslangic
  * @property ?array $izinli_formatlar
  * @property int $maks_boyut_kb
  * @property bool $hassas
@@ -33,9 +35,32 @@ class EvrakTuru extends Model
             'basvuru_turleri' => 'array',
             'izinli_formatlar' => 'array',
             'zorunlu' => 'boolean',
+            'zorunlu_baslangic' => 'date',
             'hassas' => 'boolean',
             'aktif' => 'boolean',
         ];
+    }
+
+    /**
+     * Bu belge, VERİLEN başvuru için zorunlu mu? -- M7.2 mimari notu.
+     *
+     * 💀 Düz `zorunlu` bayrağı YOLDAKİ başvuruları da vurur: düzeltme turundan
+     * dönen eski bir başvuru "Eksik zorunlu evrak" ile durur ve başvuran o
+     * belgeyi YÜKLEYEMEZ -- düzeltme bileti yalnız yetkilinin işaretlediği
+     * alanları açar. Çıkmaz sokak.
+     *
+     * `zorunlu_baslangic` bu yüzden var: kural yalnızca o tarihten sonra
+     * AÇILAN başvurulara işler. NULL ise (mevcut türlerin hepsi) her zaman
+     * geçerli -- eski davranış birebir korunur.
+     */
+    public function basvuruIcinZorunluMu(Basvuru $basvuru): bool
+    {
+        if (! $this->zorunlu) {
+            return false;
+        }
+
+        return $this->zorunlu_baslangic === null
+            || $this->zorunlu_baslangic->lte($basvuru->created_at ?? now());
     }
 
     public function evraklar(): HasMany

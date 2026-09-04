@@ -378,7 +378,13 @@ class BasvuruAkisi
 
     private function eksikZorunluEvrakVarsaDurdur(Basvuru $basvuru): void
     {
-        $gereken = EvrakTuru::turIcin($basvuru->tur)->where('zorunlu', true);
+        /*
+         * ⚠️ `where('zorunlu', true)` DEĞİL: yeni bir belge zorunlu yapıldığında
+         * kuyrukta bekleyen başvurular kilitlenmemeli (bkz.
+         * EvrakTuru::basvuruIcinZorunluMu -- M7.2 mimari notu).
+         */
+        $gereken = EvrakTuru::turIcin($basvuru->tur)
+            ->filter(fn (EvrakTuru $t) => $t->basvuruIcinZorunluMu($basvuru));
         $yuklenen = $basvuru->evraklar()->pluck('evrak_turu_id')->all();
 
         $eksik = $gereken->reject(fn ($t) => in_array($t->id, $yuklenen, true));

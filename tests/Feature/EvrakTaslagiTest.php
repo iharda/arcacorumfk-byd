@@ -123,11 +123,14 @@ class EvrakTaslagiTest extends TestCase
         $kurumEvraklari = EvrakTuru::turIcin(BasvuruTuru::Kurum)
             ->mapWithKeys(fn (EvrakTuru $t) => [$t->id => $this->png($t->kod.'.png')])->all();
 
-        // Kurum formu yarım kaldı: iki belge taslakta.
+        // Kurum formu yarım kaldı: yüklenen her belge taslakta.
+        // 🪤 Sayı SABİT YAZILMAZ: kurumsal başvurunun belge listesi büyüyebilir
+        // (imza sirküleri M7'de eklendi) ve test o gün kırılırdı. Ölçülen şey
+        // belge SAYISI değil, taslağın gerçekten yazılmış olması.
         $this->post(route('basvuru.kurum.kaydet'), ['evraklar' => $kurumEvraklari])
             ->assertSessionHasErrors('resmi_unvan');
 
-        $this->assertCount(2, Storage::disk('local')->files('evrak-taslagi'));
+        $this->assertCount(count($kurumEvraklari), Storage::disk('local')->files('evrak-taslagi'));
 
         // Aynı oturumda bireysel forma geçiliyor: kurum belgeleri sayılmamalı,
         // yani zorunlu belgeler HÂLÂ eksik.

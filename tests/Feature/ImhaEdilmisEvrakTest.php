@@ -10,6 +10,7 @@ use App\Models\EvrakTuru;
 use App\Models\User;
 use App\Servisler\EvrakYukleyici;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Tests\TestCase;
@@ -124,6 +125,56 @@ class ImhaEdilmisEvrakTest extends TestCase
         $this->expectExceptionMessage('imha edilmiş');
 
         app(EvrakYukleyici::class)->icerik($evrak);
+    }
+
+    /**
+     * 🔑 Şifresiz evrak AKIŞLA sunulur -- M5.3-A.
+     *
+     * 💀 Eskiden dosya bütünüyle PHP belleğine okunuyordu ve `Content-Length`
+     * yazılmadığı için büyük bir PDF iframe'de sayfa sayfa ilerleyemiyor,
+     * her seferinde tamamı iniyordu. Sınırı gevşetmek de doğrudan
+     * `memory_limit`'i vuruyordu.
+     */
+    public function test_sifresiz_evrak_akisla_ve_uzunlukla_sunulur(): void
+    {
+        Storage::fake('evrak');
+        Storage::disk('evrak')->put('basvuru/x/y.jpg', str_repeat('a', 4096));
+
+        [$kullanici, , $evrak] = $this->evrakKur();
+        $evrak->forceFill(['boyut' => 4096])->save();
+
+        $yanit = $this->actingAs($kullanici)->get(route('evrak.goster', $evrak));
+
+        $yanit->assertOk()
+            ->assertHeader('Content-Length', '4096')
+            ->assertHeader('Accept-Ranges', 'bytes');
+
+        $this->assertSame(4096, strlen($yanit->streamedContent()));
+    }
+
+    /**
+     * ⚠️ Şifreli evrak BİLEREK eski yolda: `Crypt` akış hâlinde çözülemez.
+     * Davranış aynı kalmalı -- biçim değişikliği canlıdaki kimlik belgelerinin
+     * yeniden şifrelenmesini gerektirir, o ayrı bir iş.
+     */
+    public function test_sifreli_evrak_hala_okunabiliyor(): void
+    {
+        Storage::fake('evrak');
+
+        [$kullanici, , $evrak] = $this->evrakKur(yol: 'basvuru/x/y.jpg.sifreli');
+        $evrak->forceFill(['sifreli' => true])->save();
+
+        Storage::disk('evrak')->put(
+            'basvuru/x/y.jpg.sifreli',
+            Crypt::encryptString(base64_encode('gizli icerik')),
+        );
+
+        $this->assertNull(app(EvrakYukleyici::class)->akis($evrak), 'Şifreli evrak akış vermez.');
+        $this->assertSame('gizli icerik', app(EvrakYukleyici::class)->icerik($evrak));
+
+        $this->actingAs($kullanici)
+            ->get(route('evrak.goster', $evrak))
+            ->assertOk();
     }
 
     /** İmha komutu imha ANINI yazmalı; ekran tarihi oradan okuyor. */
