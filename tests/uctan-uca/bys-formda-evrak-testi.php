@@ -120,6 +120,8 @@ try {
     $kurumTurleri = EvrakTuru::turIcin(BasvuruTuru::Kurum)->keyBy('kod');
     $bireyTurleri = EvrakTuru::turIcin(BasvuruTuru::IcerikUreticisi)->keyBy('kod');
     $ticaret = $kurumTurleri['ticaret_sicil_gazetesi'];
+    // M7: kurumsal başvurunun üçüncü zorunlu belgesi.
+    $imza = $kurumTurleri['imza_sirkuleri'];
     $vergi = $kurumTurleri['vergi_levhasi'];
     $foto = $bireyTurleri['biyometrik_fotograf'];
     $kimlik = $bireyTurleri['kimlik_gorseli'];
@@ -135,6 +137,7 @@ try {
 
     $yanit = $gonder($kavanoz, '/basvuru/kurum', $kurumAlanlari($eposta, $tokenBul($sayfa->body()), '5486177004'), [
         'evraklar['.$ticaret->id.']' => ["{$belge}/ticaret-sicil.pdf", 'ticaret-sicil.pdf'],
+        'evraklar['.$imza->id.']' => ["{$belge}/imza-sirkuleri.pdf", 'imza-sirkuleri.pdf'],
         'evraklar['.$vergi->id.']' => ["{$belge}/vergi-levhasi.pdf", 'vergi-levhasi.pdf'],
     ]);
 
@@ -158,8 +161,14 @@ try {
     $kontrol('Başvuru HESAPSIZ: kullanici_id boş ve users tablosunda kayıt yok',
         $basvuru->kullanici_id === null
         && User::withTrashed()->where('email', $eposta)->doesntExist());
-    $kontrol('İki zorunlu evrak da başvuruya bağlandı',
-        $basvuru->evraklar()->count() === 2, (string) $basvuru->evraklar()->count());
+    /*
+     * 🪤 Sayı SABİT YAZILMAZ: kurumsal başvurunun zorunlu belge listesi
+     * büyüyebilir (imza sirküleri M7'de eklendi) ve test o gün kırılırdı.
+     * Ölçülen şey belge SAYISI değil, gönderilen her belgenin bağlanmış olması.
+     */
+    $gonderilen = 3;
+    $kontrol('Zorunlu evrakların hepsi başvuruya bağlandı',
+        $basvuru->evraklar()->count() === $gonderilen, (string) $basvuru->evraklar()->count());
 
     $diskteVar = $basvuru->evraklar->every(fn (Evrak $e) => Storage::disk($e->disk)->exists($e->yol));
     $kontrol('Evrak dosyaları diskte', $diskteVar);
@@ -195,6 +204,9 @@ try {
     // işlem geri sarar, birincinin dosyası diskte kalmamalı.
     $bozukYanit = $gonder($kavanoz3, '/basvuru/kurum', $kurumAlanlari($bozukEposta, $tokenBul($sayfa3->body()), '8976910380'), [
         'evraklar['.$ticaret->id.']' => ["{$belge}/ticaret-sicil.pdf", 'ticaret-sicil.pdf'],
+        // 🪤 Diğer zorunlu belgeler TAM gönderilir: eksik belge hatası çıkarsa
+        // ölçmek istediğimiz "içerik uymuyor" hatası hiç görünmez.
+        'evraklar['.$imza->id.']' => ["{$belge}/imza-sirkuleri.pdf", 'imza-sirkuleri.pdf'],
         'evraklar['.$vergi->id.']' => ["{$belge}/sahte-belge.pdf", 'vergi-levhasi.pdf'],
     ]);
 
@@ -214,6 +226,7 @@ try {
     [$kavanoz4, $sayfa4] = $formAc('/basvuru/kurum');
     $tekrarYanit = $gonder($kavanoz4, '/basvuru/kurum', $kurumAlanlari($eposta, $tokenBul($sayfa4->body()), '5486177004'), [
         'evraklar['.$ticaret->id.']' => ["{$belge}/ticaret-sicil.pdf", 'ticaret-sicil.pdf'],
+        'evraklar['.$imza->id.']' => ["{$belge}/imza-sirkuleri.pdf", 'imza-sirkuleri.pdf'],
         'evraklar['.$vergi->id.']' => ["{$belge}/vergi-levhasi.pdf", 'vergi-levhasi.pdf'],
     ]);
     $tekrarSayfa = $istemci($kavanoz4)->get("{$kok}/basvuru/kurum");

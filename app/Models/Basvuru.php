@@ -84,9 +84,31 @@ class Basvuru extends Model
         return $this->belongsTo(User::class, 'karar_veren_id');
     }
 
+    /**
+     * Başvurunun evrakları -- FORMDAKİ SIRAYLA.
+     *
+     * 💀 Sıralama YOKTU: Postgres satırları hangi sırada verirse o sırada
+     * geliyordu. İki zorunlu belge varken kimse fark etmiyordu; imza sirküleri
+     * eklenip üçe çıkınca inceleme ekranında listenin ve ilk açılan
+     * önizlemenin sırası rastgeleleşti. Yetkili her başvuruda belgeleri farklı
+     * dizilimde görüyordu.
+     *
+     * 🔑 Sıra evrak TÜRÜNÜN sırasından geliyor: başvuran formu hangi sırayla
+     * doldurduysa yetkili de o sırayla görür. Eşitlikte `id` (ek talep
+     * belgeleri aynı türü paylaşır, aralarında yükleme sırası korunur).
+     *
+     * @return HasMany<Evrak, $this>
+     */
     public function evraklar(): HasMany
     {
-        return $this->hasMany(Evrak::class, 'basvuru_id');
+        return $this->hasMany(Evrak::class, 'basvuru_id')
+            ->orderBy(
+                EvrakTuru::query()
+                    ->select('sira')
+                    ->whereColumn('evrak_turleri.id', 'evraklar.evrak_turu_id')
+                    ->limit(1),
+            )
+            ->orderBy('evraklar.id');
     }
 
     public function akreditasyon(): HasOne

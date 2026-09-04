@@ -35,6 +35,7 @@ const damga = Date.now();
 // Evrak kutusu id'si (`evrak-{tür}`) → ekranda anlamlı duran örnek dosya.
 const BELGELER = {
   1: 'ticaret-sicil.pdf',   // Ticaret Sicili Gazetesi
+  15: 'imza-sirkuleri.pdf', // İmza sirküleri (M7)
   2: 'vergi-levhasi.pdf',   // Vergi levhası
   3: 'foto.jpg',            // Biyometrik fotoğraf
   4: 'kimlik.jpg',          // Kimlik belgesi

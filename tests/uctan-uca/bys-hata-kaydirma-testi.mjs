@@ -70,7 +70,7 @@ async function formuDoldur(s, { bozuk = {}, evraksiz = false } = {}) {
 
   if (! evraksiz) {
     const girisler = await s.$$('input[type="file"]');
-    const evraklar = [`${D}/ticaret-sicil.pdf`, `${D}/vergi-levhasi.pdf`];
+    const evraklar = [`${D}/ticaret-sicil.pdf`, `${D}/imza-sirkuleri.pdf`, `${D}/vergi-levhasi.pdf`];
     for (let i = 0; i < girisler.length; i++) await girisler[i].uploadFile(evraklar[i]);
   }
 

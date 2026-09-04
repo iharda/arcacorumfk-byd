@@ -213,6 +213,73 @@ class DetayEvrakDegerlendirmeTest extends TestCase
     }
 
     /**
+     * 🔒 ÖNİZLEME SEÇİLENE KADAR YÜKLENMEZ -- M6.3 + KVKK erişim izi.
+     *
+     * 💀 Tüm önizlemeleri `x-show` ile çizmek, sayfayı AÇMAK demek her belgenin
+     * adresini istemek demekti. `EvrakController` hassas evrakta
+     * "evrak.goruntulendi" denetim kaydı yazdığı için bu, BAKILMAYAN kimlik
+     * belgeleri için de erişim kaydı üretir ve KVKK izini kullanılamaz hâle
+     * getirirdi. Aynı sebeple hassas evrakta küçük resim de yok.
+     */
+    public function test_hassas_evrakin_onizlemesi_ve_kucuk_resmi_pesin_yuklenmez(): void
+    {
+        $tur = EvrakTuru::create([
+            'kod' => 'kimlik_gorseli',
+            'ad' => 'Kimlik belgesi',
+            'basvuru_turleri' => [BasvuruTuru::BasinMensubu->value],
+            'zorunlu' => true,
+            'izinli_formatlar' => ['jpg'],
+            'maks_boyut_kb' => 8192,
+            'hassas' => true,
+            'sira' => 40,
+            'aktif' => true,
+        ]);
+
+        $basvuru = Basvuru::create([
+            'tur' => BasvuruTuru::BasinMensubu,
+            'durum' => BasvuruDurumu::Gonderildi,
+            'basvuru_no' => '2026-BV-0021',
+            'basvuran_eposta' => 'muhabir@ornek.test',
+            'basvuran_ad' => 'Muhabir',
+            'gonderildi_at' => now(),
+        ]);
+
+        $evrak = Evrak::create([
+            'basvuru_id' => $basvuru->id,
+            'evrak_turu_id' => $tur->id,
+            'disk' => 'evrak',
+            'yol' => 'basvuru/x/kimlik.jpg',
+            'orijinal_ad' => 'kimlik.jpg',
+            'mime' => 'image/jpeg',
+            'boyut' => 2048,
+            'sifreli' => true,
+        ]);
+
+        $html = $this->actingAs($this->yetkili())
+            ->get(BasvuruResource::getUrl('inceleme', ['record' => $basvuru]))
+            ->assertOk()
+            ->getContent();
+
+        $adres = route('evrak.goster', $evrak);
+
+        /*
+         * Önizleme `<template x-if>` içinde. ⚠️ `<template>` GÖVDESİ HTML
+         * kaynağında yine görünür -- tarayıcı onu yalnızca çalıştırmaz ve
+         * içindeki adresi İSTEMEZ. Bu yüzden "adres metinde geçmesin" diye
+         * bakılamaz; bakılacak şey adresin `template` dışında, peşin yüklenen
+         * bir konumda olup olmadığı.
+         */
+        $this->assertStringContainsString('<template x-if=', $html);
+
+        // Hassas evrakta küçük resim YOK. Küçük resim tek `loading="lazy"`
+        // görselidir; imzası budur.
+        $this->assertStringNotContainsString('src="'.$adres.'" alt="" loading="lazy"', $html);
+
+        // Sunucu tarafında da "görüntülendi" kaydı DÜŞMEMELİ.
+        $this->assertDatabaseMissing('denetim_kaydi', ['olay' => 'evrak.goruntulendi']);
+    }
+
+    /**
      * 🔒 Değerlendirme sekmesi yetkiye bağlı. Yetkisi OLMAYAN bir hesapta
      * sekme hiç çizilmemeli -- puan ve not kulüp dışına çıkmaz.
      */

@@ -2,21 +2,47 @@
      ⚠️ Panelde kendi Tailwind sınıflarımız derlenmez → yerleşim satır içi stille. --}}
 <x-filament-panels::page>
 
-    {{-- 🪤 Yerleşim MEDYA SORGUSUYLA: panelde kendi Tailwind sınıflarımız
+    {{-- 🔑 YENİ YERLEŞİM (Tutarsızlık incelemesi M6.2/M6.3).
+
+         💀 Eskiden evrak listesi SOL sütunun ALTINCI bloğuydu: yetkilinin en
+         çok kullandığı liste, en çok kaydırılan yerdeydi. Müşterinin cümlesi
+         teşhisin kendisiydi -- "sol en alttan seçip sağ en üstte görüntülenmesini
+         sağlıyoruz, zorlu bir yöntem bu."
+
+         Artık BELGELER ÖNCE: liste ve önizleme birlikte, sayfanın solunda ve
+         sabit (sticky). Künye bilgileri sağda, kaydırılan sütunda -- onlara
+         bir kez bakılır, belgelere onlarca kez.
+
+         🪤 Yerleşim MEDYA SORGUSUYLA: panelde kendi Tailwind sınıflarımız
          derlenmiyor, Alpine ile pencere genişliğine bakmak da ilk çizimde
          gecikiyordu. Satır içi <style> hem çalışıyor hem CSP'ye uygun
          (style-src 'self' 'unsafe-inline'). --}}
     <style>
         .bys-inceleme { display:grid; gap:1.25rem; grid-template-columns:minmax(0,1fr); align-items:start; }
         @media (min-width: 1280px) {
-            .bys-inceleme { grid-template-columns:minmax(0,23rem) minmax(0,1fr); }
-            .bys-inceleme__onizleme { position:sticky; top:1rem; }
+            .bys-inceleme { grid-template-columns:minmax(0,1fr) minmax(0,22rem); }
+            .bys-inceleme__belgeler { position:sticky; top:1rem; }
         }
     </style>
 
     <div class="bys-inceleme">
 
-        {{-- ── SOL: başvuru verisi + evrak listesi ─────────────── --}}
+        {{-- ── SOL: EVRAKLAR + ÖNİZLEME (sabit) ────────────────── --}}
+        <div class="bys-inceleme__belgeler" style="min-width:0;">
+            <x-filament::section>
+                <x-slot name="heading">Evraklar</x-slot>
+
+                {{-- Liste, küçük resim, klavye gezinmesi, imha dalı ve
+                     önizleme bileşenin içinde (M2.4 md.7). --}}
+                <x-parcalar.evrak-listesi
+                    :evraklar="$record->evraklar"
+                    bos-mesaj="Henüz evrak yüklenmemiş."
+                    sutunlar="minmax(0,15rem) minmax(0,1fr)"
+                    yukseklik="min(72vh, 820px)" />
+            </x-filament::section>
+        </div>
+
+        {{-- ── SAĞ: künye ve karar geçmişi (kaydırılır) ────────── --}}
         <div style="display:flex; flex-direction:column; gap:1.25rem; min-width:0;">
 
             <x-filament::section compact>
@@ -263,42 +289,6 @@
                 </x-filament::section>
             @endif
 
-            <x-filament::section compact>
-                <x-slot name="heading">Evraklar</x-slot>
-                @if ($record->evraklar->isEmpty())
-                    <p style="font-size:.82rem; opacity:.6;">Henüz evrak yüklenmemiş.</p>
-                @else
-                    <div style="display:flex; flex-direction:column; gap:.4rem;">
-                        @foreach ($record->evraklar as $evrak)
-                            @php $secili = $evrak->ulid === $seciliEvrak; @endphp
-                            <button type="button" wire:click="evrakSec('{{ $evrak->ulid }}')"
-                                    style="text-align:start; padding:.6rem .75rem; border-radius:.55rem; border:1px solid;
-                                           border-color:{{ $secili ? 'rgb(var(--primary-600))' : 'rgb(var(--gray-200))' }};
-                                           background:{{ $secili ? 'rgb(var(--primary-50))' : 'transparent' }};
-                                           cursor:pointer;">
-                                <span style="display:block; font-size:.83rem; font-weight:600;">
-                                    {{-- Ek talep belgesinin başlığı da burada (M2.3): yetkili
-                                         iki ayrı belge istediyse listede ayırt edebilmeli. --}}
-                                    {{ $evrak->ekranBasligi() }}
-                                    {{-- İmha edilmiş evrak listede de belli olsun: yetkili
-                                         tıklamadan önce dosyanın gitmiş olduğunu görmeli (M2.2). --}}
-                                    @if ($evrak->imhaEdildiMi())
-                                        <x-filament::badge color="gray" size="xs" style="display:inline-flex; vertical-align:middle;">
-                                            İmha edildi
-                                        </x-filament::badge>
-                                    @endif
-                                </span>
-                                <span style="display:block; font-size:.72rem; opacity:.6; margin-top:.1rem;">
-                                    {{ $evrak->orijinal_ad }} ·
-                                    {{ $evrak->boyut < 1024 ? $evrak->boyut . ' B' : number_format($evrak->boyut / 1024, 0, ',', '.') . ' KB' }}
-                                    @if ($evrak->sifreli) · şifreli @endif
-                                </span>
-                            </button>
-                        @endforeach
-                    </div>
-                @endif
-            </x-filament::section>
-
             @if (filled($record->duzeltme_notlari))
                 <x-filament::section compact>
                     <x-slot name="heading">İstenen düzeltmeler</x-slot>
@@ -390,28 +380,6 @@
                     </div>
                 </x-filament::section>
             @endif
-        </div>
-
-        {{-- ── SAĞ: evrak önizleme ─────────────────────────────── --}}
-        <div class="bys-inceleme__onizleme" style="min-width:0;">
-            <x-filament::section>
-                <x-slot name="heading">
-                    {{ $this->seciliEvrakModeli?->ekranBasligi() ?? 'Evrak önizleme' }}
-                </x-slot>
-                @php $e = $this->seciliEvrakModeli; @endphp
-                @if (! $e)
-                    <p style="font-size:.85rem; opacity:.6;">Soldan bir evrak seçin.</p>
-                @else
-                    {{-- Tür ayrımı, imha dalı ve araç şeridi bileşenin içinde (S2). --}}
-                    <x-parcalar.dosya-onizleme
-                        :kaynak="route('evrak.goster', $e)"
-                        :mime="$e->mime"
-                        :ad="$e->orijinal_ad"
-                        :boyut="$e->boyut"
-                        :imha="$e->imhaEdildiMi()"
-                        :imha-tarihi="$e->imha_edildi_at" />
-                @endif
-            </x-filament::section>
         </div>
     </div>
 

@@ -76,7 +76,7 @@
     </div>
 @else
 <div {{ $attributes->merge(['style' => 'min-width:0;']) }}
-     x-data="{ tamEkran: false, metin: null, metinHata: false }">
+     x-data="{ tamEkran: false, metin: null, metinHata: false, aci: 0, olcek: 1 }">
 
     {{-- ── Araç şeridi: her türde aynı yerde ───────────────────── --}}
     <div style="display:flex; gap:.75rem; align-items:center; justify-content:flex-end;
@@ -86,21 +86,50 @@
                   style="margin-right:auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
                          white-space:nowrap; opacity:.75;">{{ $ad }}</span>
         @endif
+
+        @if ($tur === 'gorsel')
+            {{-- 🔑 DÖNDÜR ve YAKINLAŞTIR (M6.3 md.5). Kimlik belgeleri
+                 telefonla, çoğu zaman YAN çekiliyor; yetkili başını çevirerek
+                 okumak zorunda kalıyordu. Tam ekran vardı ama döndürme yoktu.
+                 Salt görüntüleme: dosya diskte olduğu gibi kalır. --}}
+            <button type="button" @click="aci = (aci + 90) % 360" title="90° döndür"
+                    style="border:0; background:none; padding:0; cursor:pointer; text-decoration:underline;">
+                Döndür
+            </button>
+            <button type="button" @click="olcek = Math.min(olcek + 0.25, 4)" title="Yakınlaştır"
+                    style="border:0; background:none; padding:0; cursor:pointer; text-decoration:underline;">+</button>
+            <button type="button" @click="olcek = Math.max(olcek - 0.25, 0.5)" title="Uzaklaştır"
+                    style="border:0; background:none; padding:0; cursor:pointer; text-decoration:underline;">−</button>
+            <button type="button" x-show="aci !== 0 || olcek !== 1" x-cloak
+                    @click="aci = 0; olcek = 1" title="Görünümü sıfırla"
+                    style="border:0; background:none; padding:0; cursor:pointer; text-decoration:underline; opacity:.7;">
+                Sıfırla
+            </button>
+        @endif
+
         <span style="opacity:.6;">{{ $boyutMetni }}</span>
         <a href="{{ $kaynak }}" target="_blank" rel="noopener noreferrer">Yeni sekmede aç</a>
         <a href="{{ $indirAdresi }}" download>İndir</a>
     </div>
 
     @if ($tur === 'gorsel')
-        <img src="{{ $kaynak }}" alt="{{ $ad ?? 'Önizleme' }}" @click="tamEkran = true"
-             style="max-width:100%; height:auto; border-radius:.5rem; display:block;
-                    margin-inline:auto; cursor:zoom-in;">
+        {{-- 🪤 Döndürme kapsayıcının yüksekliğini DEĞİŞTİRMEZ (transform akışı
+             etkilemez); 90°'de görsel taşmasın diye kapsayıcı overflow'lu. --}}
+        <div style="overflow:auto; border-radius:.5rem;">
+            <img src="{{ $kaynak }}" alt="{{ $ad ?? 'Önizleme' }}" @click="tamEkran = true"
+                 :style="`transform: rotate(${aci}deg) scale(${olcek}); transition: transform .15s;`"
+                 style="max-width:100%; height:auto; border-radius:.5rem; display:block;
+                        margin-inline:auto; cursor:zoom-in;">
+        </div>
 
-        {{-- Tam ekran: büyütmek için yeni sekmeye gitmek gerekmesin. --}}
+        {{-- Tam ekran: büyütmek için yeni sekmeye gitmek gerekmesin.
+             Döndürme burada da geçerli -- yan çekilmiş kimliği tam ekranda
+             düzeltmek en sık yapılan iş. --}}
         <div x-show="tamEkran" x-cloak @click="tamEkran = false" @keydown.escape.window="tamEkran = false"
              style="position:fixed; inset:0; z-index:60; background:rgba(0,0,0,.85);
                     display:flex; align-items:center; justify-content:center; padding:2rem; cursor:zoom-out;">
             <img src="{{ $kaynak }}" alt="{{ $ad ?? 'Önizleme' }}"
+                 :style="`transform: rotate(${aci}deg);`"
                  style="max-width:100%; max-height:100%; object-fit:contain;">
         </div>
 

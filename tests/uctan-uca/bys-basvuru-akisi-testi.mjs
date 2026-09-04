@@ -95,11 +95,18 @@ try {
   await s.click('[name="kvkk_aydinlatma"]');
   await s.click('[name="kvkk_riza"]');
 
-  // Evrak artık AYNI formda: iki zorunlu evrak da burada seçilir.
+  /*
+   * Evrak artık AYNI formda: zorunlu evrakların hepsi burada seçilir.
+   * 🪤 SIRA ÖNEMLİ: alanlar `evrak_turleri.sira` ile diziliyor ve imza
+   * sirküleri (15) ticaret sicili (10) ile vergi levhası (20) ARASINA giriyor.
+   * Dosyaları indeksle doldurduğumuz için araya yeni bir tür eklendiğinde
+   * burası da güncellenmeli, yoksa dosyalar yanlış alana gider.
+   */
   const girisler = await s.$$('input[type="file"]');
-  kontrol('Evrak alanları başvuru formunda', girisler.length >= 2, `${girisler.length} alan`);
+  kontrol('Evrak alanları başvuru formunda', girisler.length >= 3, `${girisler.length} alan`);
   await girisler[0]?.uploadFile(`${DOSYA}/ticaret-sicil.pdf`);
-  await girisler[1]?.uploadFile(`${DOSYA}/vergi-levhasi.jpg`);
+  await girisler[1]?.uploadFile(`${DOSYA}/imza-sirkuleri.pdf`);
+  await girisler[2]?.uploadFile(`${DOSYA}/vergi-levhasi.jpg`);
   temizlenecekEposta = EPOSTA;
 
   await Promise.all([
@@ -119,8 +126,10 @@ $b = App\\Models\\Basvuru::where('basvuran_eposta','${EPOSTA}')->latest('id')->f
 echo 'DURUM:' . ($b?->durum->value ?? 'yok')
    . ' EVRAK:' . ($b?->evraklar()->count() ?? 0)
    . ' HESAP:' . (App\\Models\\User::withTrashed()->where('email','${EPOSTA}')->exists() ? 'var' : 'yok');`);
-  kontrol('Başvuru doğrudan "İnceleme bekliyor" ve iki evrakı var',
-    /DURUM:gonderildi/.test(ilkDurum) && /EVRAK:2/.test(ilkDurum),
+  // 🪤 Sayı SABİT YAZILMAZ: kurumsal zorunlu belge listesi büyüyebilir
+  // (imza sirküleri M7'de eklendi). Yüklenen kadarı bağlanmış olmalı.
+  kontrol('Başvuru doğrudan "İnceleme bekliyor" ve evrakları bağlandı',
+    /DURUM:gonderildi/.test(ilkDurum) && /EVRAK:3/.test(ilkDurum),
     (ilkDurum.match(/DURUM:\w+ EVRAK:\d+/) || ['?'])[0]);
   kontrol('Onaydan önce HESAP AÇILMADI', /HESAP:yok/.test(ilkDurum));
   kontrol('"Başvurunuz alındı" e-postası kuyrukta işlendi',
@@ -155,6 +164,20 @@ echo 'DURUM:' . ($b?->durum->value ?? 'yok')
   /* ───────── 4) Kuyrukta görünüyor mu ───────── */
   await y.goto(`${KOK}/yonetim/basvurular`, { waitUntil: 'networkidle2' });
   await bekle(1200);
+
+  /*
+   * 🪤 SAYFALAMA: kuyruk en ESKİDEN sıralı, sayfa başına 10 satır. Kuyruk
+   * 10'u geçtiğinde yeni gönderilen başvuru son sayfaya düşüyor ve "1. sayfada
+   * metin var mı" kontrolü veri yüzünden kırılıyordu. Arama kutusuyla süzüyoruz.
+   * (`?tableSearch=` adresten çalışmaz: Filament'te `#[Url]` değil.)
+   */
+  const aramaKutusu = await y.evaluateHandle(() => [...document.querySelectorAll('input')]
+    .find(i => [...i.attributes].some(a => a.name.startsWith('wire:model') && a.value.includes('tableSearch'))));
+  if (aramaKutusu.asElement()) {
+    await aramaKutusu.asElement().type(UNVAN.slice(0, 24), { delay: 20 });
+    await bekle(1500);
+  }
+
   const kuyruk = await y.evaluate(() => document.body.innerText);
   kontrol('Başvuru yetkili kuyruğunda', kuyruk.includes(UNVAN.slice(0, 24)), 'kuyrukta');
 

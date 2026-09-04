@@ -49,9 +49,6 @@ class Inceleme extends Page
 
     protected static ?string $title = 'Başvuru incelemesi';
 
-    /** Sağ bölmede gösterilen evrakın ULID'i. */
-    public ?string $seciliEvrak = null;
-
     public function mount(string|int $record): void
     {
         $this->record = $this->resolveRecord($record);
@@ -59,7 +56,6 @@ class Inceleme extends Page
         $this->authorize('view', $this->record);
 
         $this->record->load(['kurum', 'kullanici', 'evraklar.turu', 'inceleyen', 'kararVeren']);
-        $this->seciliEvrak = $this->record->evraklar->first()?->ulid;
     }
 
     public function getTitle(): string|Htmlable
@@ -74,15 +70,12 @@ class Inceleme extends Page
         return implode(' · ', array_filter([$this->record->tur->etiket(), $this->record->basvuru_no]));
     }
 
-    public function evrakSec(string $ulid): void
-    {
-        $this->seciliEvrak = $ulid;
-    }
-
-    public function getSeciliEvrakModeliProperty()
-    {
-        return $this->record->evraklar->firstWhere('ulid', $this->seciliEvrak);
-    }
+    /*
+     * 🗑️ `evrakSec()` / `seciliEvrakModeli` KALDIRILDI (M6.3 md.3).
+     * Evrak seçimi Livewire gidiş-dönüşüyle yapılıyordu: her tıklama sunucuya
+     * gidiyor, sayfa yeniden çiziliyordu. Seçim artık `<x-parcalar.evrak-listesi>`
+     * içinde Alpine ile ve anında; ok tuşlarıyla da geziliyor.
+     */
 
     /**
      * Aynı kişinin ÖNCEKİ başvuruları. Reddedilen ya da ayrılan biri yeniden

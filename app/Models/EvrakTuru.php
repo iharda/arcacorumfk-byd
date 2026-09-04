@@ -55,12 +55,30 @@ class EvrakTuru extends Model
      */
     public function basvuruIcinZorunluMu(Basvuru $basvuru): bool
     {
+        return $this->zorunluMu($basvuru->created_at ?? now());
+    }
+
+    /**
+     * ŞİMDİ açılan bir başvuru için zorunlu mu? -- form kuralı bunu sorar.
+     *
+     * 🪤 Form kuralı ile akış kuralı AYNI KAYNAKTAN gelmeli. Form düz
+     * `zorunlu` bayrağına baksaydı belge yürürlük tarihinden ÖNCE de zorunlu
+     * olurdu: kamuya açık form "İmza sirküleri yüklemelisiniz" derken servis
+     * "gerek yok" diyecekti. Uçtan uca test bu ayrışmayı yakaladı.
+     */
+    public function yeniBasvuruIcinZorunluMu(): bool
+    {
+        return $this->zorunluMu(now());
+    }
+
+    private function zorunluMu(\DateTimeInterface $an): bool
+    {
         if (! $this->zorunlu) {
             return false;
         }
 
         return $this->zorunlu_baslangic === null
-            || $this->zorunlu_baslangic->lte($basvuru->created_at ?? now());
+            || $this->zorunlu_baslangic->lte($an);
     }
 
     public function evraklar(): HasMany

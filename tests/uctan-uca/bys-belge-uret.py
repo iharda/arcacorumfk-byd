@@ -99,6 +99,36 @@ _ts = filigran(img)
 _ts.save(HEDEF / 'ticaret-sicil.pdf', resolution=150.0)
 _ts.save(HEDEF / 'ticaret-sicil.jpg', quality=85)
 
+# ─────────── 2b) Imza sirküleri ───────────
+# M7: kurumsal basvurunun UCUNCU zorunlu belgesi. Sirasi 15, yani formda
+# ticaret sicili ile vergi levhasi ARASINA giriyor -- dosyalari SIRAYLA
+# dolduran uctan uca betikleri bu yuzden guncellendi.
+img, d = a4(baslik_bandi=False)
+d.rectangle([40, 40, 1200, 150], fill=(245, 246, 248))
+d.text((70, 62), 'İMZA SİRKÜLERİ', font=f(26, True), fill=KOYU)
+d.text((70, 104), 'Noter Yevmiye No: 04812  ·  Tarih: 19.02.2026', font=f(19), fill=GRI)
+d.line([70, 200, 1170, 200], fill=KIRMIZI, width=3)
+d.text((70, 230), 'ÇORUM 3. NOTERLİĞİ', font=f(21, True), fill=KIRMIZI)
+y = satirlar(d, 70, 290, [
+    ('Ticaret unvanı', 'Kızılırmak Medya ve Yayıncılık Ltd. Şti.'),
+    ('Vergi numarası', '4720315896'),
+    ('Temsile yetkili', 'Selim Aydoğan'),
+    ('Görevi', 'Şirket Müdürü'),
+    ('Yetki süresi', '14.03.2019 - 14.03.2029'),
+    ('Temsil şekli', 'Münferiden'),
+])
+d.text((70, y + 30), 'Yetki kapsamı:', font=f(21, True), fill=KOYU)
+metin = ('Şirketi temsil ve ilzama, şirket unvanı altına atacağı imzasıyla\n'
+         'münferiden yetkili kılınmıştır. İşbu sirküler, yetkilinin resmî\n'
+         'kurumlar nezdinde şirketi temsil ettiğini gösterir.')
+d.multiline_text((70, y + 76), metin, font=f(21), fill=KOYU, spacing=12)
+d.text((70, 1500), 'İmza örneği:', font=f(20, True), fill=KOYU)
+d.line([70, 1580, 420, 1580], fill=KOYU, width=2)
+d.text((70, 1620), 'Bu sayfa test amacıyla üretilmiş bir örnektir.', font=f(18), fill=GRI)
+_isk = filigran(img)
+_isk.save(HEDEF / 'imza-sirkuleri.pdf', resolution=150.0)
+_isk.save(HEDEF / 'imza-sirkuleri.jpg', quality=85)
+
 # ─────────── 3) Çalışma belgesi ───────────
 img, d = a4(baslik_bandi=False)
 d.rectangle([40, 40, 1200, 190], fill=(250, 250, 251))

@@ -49,46 +49,10 @@ parameters:
 			path: app/Servisler/AkreditasyonAkisi.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$boyut\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Servisler/EvrakYukleyici.php
-
-		-
-			message: '#^Method App\\Servisler\\EvrakYukleyici\:\:yukle\(\) should return App\\Models\\Evrak but returns Illuminate\\Database\\Eloquent\\Model\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Servisler/EvrakYukleyici.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$bildirim_gonderildi\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Servisler/IcerikAkisi.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$turu\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Servisler/KapiDogrulama.php
-
-		-
-			message: '#^Parameter \#1 \$evrak of method App\\Servisler\\EvrakYukleyici\:\:icerik\(\) expects App\\Models\\Evrak, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Servisler/KapiDogrulama.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$mime\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Servisler/KartUretici.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$turu\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Servisler/KartUretici.php
 
 		-
 			message: '#^Method App\\Servisler\\KartUretici\:\:uret\(\) should return App\\Models\\Kart but returns Illuminate\\Database\\Eloquent\\Model\.$#'
@@ -98,12 +62,6 @@ parameters:
 
 		-
 			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:each\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: mixed, Closure\(App\\Models\\Kart\)\: void given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Servisler/KartUretici.php
-
-		-
-			message: '#^Parameter \#1 \$evrak of method App\\Servisler\\EvrakYukleyici\:\:icerik\(\) expects App\\Models\\Evrak, Illuminate\\Database\\Eloquent\\Model given\.$#'
 			identifier: argument.type
 			count: 1
 			path: app/Servisler/KartUretici.php

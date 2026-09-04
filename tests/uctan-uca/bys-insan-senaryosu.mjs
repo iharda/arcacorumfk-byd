@@ -243,9 +243,32 @@ async function yetkiliGiris() {
 }
 
 /** Kuyruktan unvana göre inceleme bağlantısını bul. */
+/**
+ * 🪤 SAYFALAMA: kuyruk en ESKİDEN sıralı ve sayfa başına 10 satır. Kuyruk
+ * 10'u geçtiğinde YENİ gönderilen başvuru son sayfaya düşüyor ve "1. sayfada
+ * metin var mı" kontrolü VERİ YÜZÜNDEN kırılıyordu. Aranan kaydı arama
+ * kutusuyla süzüyoruz: kontrol kuyruk uzunluğundan bağımsız olsun.
+ *
+ * 🪤 `?tableSearch=` ADRESTEN ÇALIŞMAZ (Filament'te `#[Url]` değil); kutuya
+ * gerçekten yazmak gerekir ki Livewire tetiklensin.
+ */
+async function tabloyaAra(y, terim) {
+  const kutu = await y.evaluateHandle(() => [...document.querySelectorAll('input')]
+    .find(i => [...i.attributes].some(a => a.name.startsWith('wire:model') && a.value.includes('tableSearch'))));
+
+  if (!kutu.asElement()) return false;
+
+  await kutu.asElement().click({ clickCount: 3 });
+  await kutu.asElement().type(terim, { delay: 20 });
+  await bekle(1500);   // debounce (500 ms) + Livewire gidiş-dönüşü
+
+  return true;
+}
+
 async function incelemeBaglantisi(y, unvanParca) {
   await y.goto(`${KOK}/yonetim/basvurular`, { waitUntil: 'networkidle2' });
   await bekle(1500);
+  await tabloyaAra(y, unvanParca);
   return y.evaluate(p => {
     const tr = [...document.querySelectorAll('tr')].find(t => t.innerText.includes(p));
     return tr?.querySelector('a[href*="/inceleme"]')?.href ?? null;
@@ -268,9 +291,15 @@ try {
   const s1 = await c1.newPage();
   await s1.setViewport({ width: 1440, height: 1000 });
 
-  // İnsan hatası: ticaret sicil yerine PDF sandığı bozuk dosyayı seçer.
+  /*
+   * İnsan hatası: ticaret sicil yerine PDF sandığı bozuk dosyayı seçer.
+   * 🪤 DİĞER ZORUNLU BELGELER TAM VERİLİR: biri eksik kalırsa doğrulama önce
+   * "… yüklemelisiniz" der ve ölçmek istediğimiz "içerik uymuyor" hatası hiç
+   * görünmez. Sıra `evrak_turleri.sira` ile: ticaret sicili · imza sirküleri ·
+   * vergi levhası.
+   */
   await kurumBasvurusu(s1, K1, 'Gazi Caddesi No: 48/3', '6971435586', true,
-    [`${D}/sahte-belge.pdf`, `${D}/vergi-levhasi.pdf`]);
+    [`${D}/sahte-belge.pdf`, `${D}/imza-sirkuleri.pdf`, `${D}/vergi-levhasi.pdf`]);
   const hata1 = await govde(s1);
   kontrol('Sahte PDF (magic byte) formda reddedildi',
     s1.url().includes('/basvuru/kurum') && /kabul edilmiyor/i.test(hata1),
@@ -280,7 +309,7 @@ try {
   await foto(s1, 'sahte-dosya-reddi');
 
   // Doğru dosyaları seçip yeniden gönderir: yalnızca dosyalar yeniden seçilir.
-  await evraklariSec(s1, [`${D}/ticaret-sicil.pdf`, `${D}/vergi-levhasi.pdf`]);
+  await evraklariSec(s1, [`${D}/ticaret-sicil.pdf`, `${D}/imza-sirkuleri.pdf`, `${D}/vergi-levhasi.pdf`]);
   await dusun(400, 800);
   await formuGonder(s1);
   kontrol('Kurum başvurusu evraklarıyla tek adımda gönderildi',
@@ -293,8 +322,10 @@ try {
 $b = App\\Models\\Basvuru::where('basvuran_eposta','${K1.yetkiliEposta}')->latest('id')->first();
 echo 'DURUM:' . ($b?->durum->value ?? 'yok') . ' EVRAK:' . ($b?->evraklar()->count() ?? 0)
    . ' HESAP:' . (App\\Models\\User::withTrashed()->where('email','${K1.yetkiliEposta}')->exists() ? 'var' : 'yok');`);
-  kontrol('Başvuru iki evrakıyla kuyruğa düştü',
-    /DURUM:gonderildi/.test(k1Durum) && /EVRAK:2/.test(k1Durum), cek(k1Durum, 'DURUM'));
+  // 🪤 Sayı sabit yazılmaz: kurumsal zorunlu belge listesi büyüyebilir
+  // (imza sirküleri M7'de eklendi).
+  kontrol('Başvuru evraklarıyla kuyruğa düştü',
+    /DURUM:gonderildi/.test(k1Durum) && /EVRAK:3/.test(k1Durum), cek(k1Durum, 'DURUM'));
   kontrol('Onaydan önce hesap AÇILMADI', /HESAP:yok/.test(k1Durum), cek(k1Durum, 'HESAP'));
 
   /* ═══════════ PERDE 2 — İkinci kurum (reddedilecek) ═══════════ */
@@ -303,7 +334,7 @@ echo 'DURUM:' . ($b?->durum->value ?? 'yok') . ' EVRAK:' . ($b?->evraklar()->cou
   const s2 = await c2.newPage();
   await s2.setViewport({ width: 1440, height: 1000 });
   await kurumBasvurusu(s2, K2, 'İnönü Caddesi No: 7', '1721541811', false,
-    [`${D}/ticaret-sicil.pdf`, `${D}/vergi-levhasi.jpg`]);
+    [`${D}/ticaret-sicil.pdf`, `${D}/imza-sirkuleri.pdf`, `${D}/vergi-levhasi.jpg`]);
   kontrol('İkinci kurum başvurusu gönderildi', s2.url().includes('/basvuru/gonderildi'),
     s2.url().replace(KOK, ''));
   const k2Durum = artisan(`

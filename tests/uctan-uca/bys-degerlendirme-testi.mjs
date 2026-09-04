@@ -160,7 +160,24 @@ try {
   });
   kontrol('Kişi puanı e-posta anahtarıyla yazıldı', kisiPuani === '4', `puan=${kisiPuani ?? 'YOK'}`);
 
+  /*
+   * 🪤 SAYFALAMA: liste ada göre sıralı ve sayfa başına 10 satır. Kullanıcı
+   * sayısı büyüdükçe aranan kişi 2. sayfaya kayıyor ve "sayfada metin var mı"
+   * kontrolü VERİ YÜZÜNDEN kırılıyordu -- değerlendirme sütunuyla ilgisi yok.
+   * Kişiyi arama kutusuyla süzüyoruz: kontrol satır sayısından bağımsız olsun.
+   *
+   * 🪤 `?tableSearch=` ADRESTEN ÇALIŞMAZ: Filament'te o özellik `#[Url]` ile
+   * işaretli değil. Kutuya gerçekten yazmak gerekiyor ki Livewire tetiklensin.
+   */
   await y.goto(`${KOK}/yonetim/kullanicilar`, { waitUntil: 'networkidle2' });
+
+  const aramaKutusu = await y.evaluateHandle(() => [...document.querySelectorAll('input')]
+    .find(i => [...i.attributes].some(a => a.name.startsWith('wire:model') && a.value.includes('tableSearch'))));
+
+  if (aramaKutusu.asElement()) {
+    await aramaKutusu.asElement().type(UYE, { delay: 20 });
+    await bekle(1500);   // debounce (500 ms) + Livewire gidiş-dönüşü
+  }
   kontrol('Kullanıcılar tablosunda değerlendirme sütunu dolu',
     await tekrarDene(async () =>
       /4\s*·\s*Olumlu/.test(await y.evaluate(() => document.body.innerText)) || null) === true);

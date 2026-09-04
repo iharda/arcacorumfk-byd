@@ -38,7 +38,10 @@ trait EvrakKurallari
 
         foreach ($this->evrakTurleri($tur) as $evrakTuru) {
             $kurallar["evraklar.{$evrakTuru->id}"] = [
-                $evrakTuru->zorunlu ? 'required' : 'nullable',
+                // ⚠️ `zorunlu` bayrağına DOĞRUDAN bakma: zorunluluğun yürürlük
+                // tarihi olabilir (M7.2). Form ve akış AYNI kaynaktan sorsun,
+                // yoksa form "yüklemelisiniz" derken servis "gerek yok" der.
+                $evrakTuru->yeniBasvuruIcinZorunluMu() ? 'required' : 'nullable',
                 'file',
                 // Boyut sınırı türden; içerik (magic byte) doğrulaması yükleyicide.
                 'max:'.$evrakTuru->maks_boyut_kb,
