@@ -16,6 +16,7 @@ use App\Servisler\BasvuruUygunlugu;
 use App\Servisler\DavetAkisi;
 use App\Servisler\DenetimYazici;
 use App\Servisler\EvrakTaslagi;
+use App\Servisler\KurumAkreditasyonu;
 use App\Support\Telefon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
@@ -324,13 +325,21 @@ class BasvuruController extends Controller
         // Aynı arama vergi no tekillik kuralında da kullanılıyor: tek kaynak.
         $onceki = Kurum::yetkilininOncekiKurumu($eposta);
 
-        if ($onceki) {
-            $onceki->update($veri);
-
-            return $onceki;
+        if (! $onceki) {
+            return Kurum::create($veri);
         }
 
-        return Kurum::create($veri);
+        $eskiDurum = $onceki->akreditasyon_durumu;
+
+        $onceki->update($veri);
+
+        /*
+         * 💀 M1-C: karara bağlanmış kurum yeni başvuruyla sessizce "Beklemede"ye
+         * dönüyordu. Kural ve gerekçe serviste (tek yer, sınanabilir).
+         */
+        app(KurumAkreditasyonu::class)->yenidenDegerlendirmeyeAlindi($onceki, $eskiDurum);
+
+        return $onceki;
     }
 
     /** @return Collection<int, Kurum> */

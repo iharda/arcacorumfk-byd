@@ -248,6 +248,8 @@ class BasvuruAkisi
      */
     public function onayla(Basvuru $basvuru): void
     {
+        $this->kontenjaniDogrula($basvuru);
+
         [$kullanici, $sifreBelirlenecek] = DB::transaction(function () use ($basvuru) {
             $this->gecir($basvuru, BasvuruDurumu::Onaylandi, 'basvuru.onaylandi', [
                 'karar_at' => now(),
@@ -374,6 +376,46 @@ class BasvuruAkisi
                 ),
             );
         });
+    }
+
+    /**
+     * Kurum kontenjanı -- Tutarsızlık incelemesi M9 №6.
+     *
+     * 💀 `Kurum::kontenjanDoldu()` VARDI ama hiçbir yerden çağrılmıyordu:
+     * başvuru alınıyor, onayda da engel çıkmıyor, kontenjan sessizce
+     * aşılıyordu. 10 kişilik kontenjanı olan kurumdan 12 kart çıkabiliyordu;
+     * panodaki "kontenjanı dolan kurum" kutusu da olan biteni ancak İŞ
+     * OLDUKTAN SONRA gösteriyordu.
+     *
+     * 🔑 Kontrol ONAY anında: kontenjanı tüketen şey başvuru değil, üretilen
+     * KART. İşlemin dışında ve başında -- yetkili "onayla" der demez sebebi
+     * öğrensin, yarım kalmış bir işlem geri sarılmasın.
+     *
+     * ⚠️ Sert engel bilerek: kontenjan Kurumlar ekranından değiştirilebiliyor
+     * (KurumFormu). Kararı kulüp verir; sistem sessizce aşmaz.
+     */
+    private function kontenjaniDogrula(Basvuru $basvuru): void
+    {
+        // Kurumsal onayda kart çıkmaz; kontenjan çalışanların kartları içindir.
+        if ($basvuru->tur === BasvuruTuru::Kurum || ! $basvuru->kurum) {
+            return;
+        }
+
+        // Yeniden onayda yeni kart doğmaz (AkreditasyonAkisi mükerrer üretmez),
+        // yani kontenjandan da bir şey eksilmez.
+        if ($basvuru->akreditasyon()->exists()) {
+            return;
+        }
+
+        if (! $basvuru->kurum->kontenjanDoldu()) {
+            return;
+        }
+
+        throw new RuntimeException(
+            $basvuru->kurum->resmi_unvan.' kontenjanı dolu ('
+            .$basvuru->kurum->kontenjan.' kart). Onaylamak için Kurumlar '
+            .'ekranından kontenjanı artırın ya da bir kartı iptal edin.',
+        );
     }
 
     private function eksikZorunluEvrakVarsaDurdur(Basvuru $basvuru): void

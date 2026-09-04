@@ -10,6 +10,7 @@ use App\Models\Ayar;
 use App\Models\Basvuru;
 use App\Models\User;
 use App\Notifications\AkreditasyonDurumuDegisti;
+use App\Support\Sezon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -53,8 +54,17 @@ class AkreditasyonAkisi
                      * varsayılanı Ayarlar'dan doldurur.
                      */
                     'bolge_yetkileri' => (array) Ayar::al('varsayilan_bolgeler', []) ?: null,
-                    // Sezon/geçerlilik Faz 2 — alanlar boş bırakılıyor (md.4).
-                ]),
+                    /*
+                     * 💀 SEZON ve GEÇERLİLİK (M9 №2). Bu alanlar "Faz 2" diye
+                     * boş bırakılmıştı ve `gecerliMi()` boş bitiş tarihini
+                     * "süresiz geçerli" sayıyor: üretilen HER kart süresizdi,
+                     * geçen sezonun kartı bu sezon da turnikeden geçerdi.
+                     *
+                     * Sezon tanımlı DEĞİLSE alanlar yine boş kalır -- yarım
+                     * yapılandırma yüzünden kart üretimini durdurmak kulübü
+                     * maç günü kilitlerdi. Eksiklik panoda uyarı olarak çıkar.
+                     */
+                ] + Sezon::alanlar()),
             );
 
             // 🪤 syncRoles DEĞİL: kişi aynı zamanda kurum yetkilisi olabilir,
@@ -112,6 +122,45 @@ class AkreditasyonAkisi
                 ->get()
                 ->each(fn (Akreditasyon $akreditasyon) => $this->iptalEt($akreditasyon, $neden));
         });
+    }
+
+    /**
+     * Sezon ve geçerlilik tarihlerini yazar -- M9 №2 / M8 №8.
+     *
+     * 🔑 Ayrı bir metot çünkü DURUM DEĞİŞTİRMİYOR: kart aktif kalır, yalnızca
+     * ne zamana kadar geçerli olduğu belirlenir. `durumaGec()` kullanılsaydı
+     * kişiye gereksiz bir "akreditasyon durumunuz değişti" bildirimi giderdi.
+     *
+     * ⚠️ Geçmişe bir bitiş tarihi yazmak kartı ANINDA geçersizleştirir
+     * (`gecerliMi()` bugüne bakar) -- turnikede karşılığı olan bir işlem, bu
+     * yüzden denetime yazılıyor.
+     */
+    public function gecerliligiYaz(
+        Akreditasyon $akreditasyon,
+        ?string $sezon,
+        ?string $baslangic,
+        ?string $bitis,
+    ): void {
+        $eski = [
+            'sezon' => $akreditasyon->sezon,
+            'gecerlilik_baslangic' => $akreditasyon->gecerlilik_baslangic?->toDateString(),
+            'gecerlilik_bitis' => $akreditasyon->gecerlilik_bitis?->toDateString(),
+        ];
+
+        $yeni = [
+            'sezon' => filled($sezon) ? $sezon : null,
+            'gecerlilik_baslangic' => filled($baslangic) ? $baslangic : null,
+            'gecerlilik_bitis' => filled($bitis) ? $bitis : null,
+        ];
+
+        if ($eski === $yeni) {
+            return;   // gerçek bir değişiklik yoksa denetimde gürültü olmasın
+        }
+
+        $akreditasyon->fill($yeni)->save();
+
+        $this->denetim->yaz('akreditasyon.gecerlilik_degisti', $akreditasyon,
+            eski: $eski, yeni: $yeni);
     }
 
     public function askiyaAl(Akreditasyon $akreditasyon, string $gerekce): void

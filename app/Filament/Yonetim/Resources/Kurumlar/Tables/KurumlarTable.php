@@ -13,6 +13,7 @@ use App\Servisler\KurumAkreditasyonu;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
@@ -215,12 +216,39 @@ class KurumlarTable
                             ->required()
                             ->rows(3)
                             ->maxLength(500),
-                    ])
-                    ->modalDescription('Kurumun çalışanları yeni başvuru yapamaz. Mevcut kartlar bu adımla İPTAL OLMAZ; onları ayrıca askıya alın.')
-                    ->action(function (Kurum $record, array $data) {
-                        app(KurumAkreditasyonu::class)->kaldir($record, $data['gerekce']);
 
-                        Notification::make()->title('Akreditasyon kaldırıldı.')->success()->send();
+                        /*
+                         * 💀 M9 №1: uyarı metni doğruydu ama YAPILACAK ŞEYİ
+                         * vermiyordu. Kaç kartın etkilendiği hiçbir yerde
+                         * yazmıyor, askıya alma da ayrı ekrandaydı; pratikte
+                         * kimse yapmıyor ve akreditasyonu kaldırılmış
+                         * kuruluşun muhabiri turnikeden geçmeye devam ediyordu.
+                         * Karar aynı ekranda ve sayıyla birlikte veriliyor.
+                         */
+                        Toggle::make('kartlari_askiya_al')
+                            ->label('Çalışanların kartlarını da askıya al')
+                            ->helperText(fn (Kurum $record) => ($adet = app(KurumAkreditasyonu::class)
+                                ->aktifKartSayisi($record)) === 0
+                                    ? 'Bu kurumun aktif kartı yok.'
+                                    : "Bu kurumun {$adet} aktif kartı var; kapatılmazsa turnikeden geçmeye "
+                                        .'devam ederler. Askı geri alınabilir, iptalden farklı olarak kalıcı değildir.')
+                            ->default(fn (Kurum $record) => app(KurumAkreditasyonu::class)
+                                ->aktifKartSayisi($record) > 0)
+                            ->disabled(fn (Kurum $record) => app(KurumAkreditasyonu::class)
+                                ->aktifKartSayisi($record) === 0),
+                    ])
+                    ->modalDescription('Kurumun çalışanları yeni başvuru yapamaz.')
+                    ->action(function (Kurum $record, array $data) {
+                        $askiya = (bool) ($data['kartlari_askiya_al'] ?? false);
+                        $adet = app(KurumAkreditasyonu::class)->aktifKartSayisi($record);
+
+                        app(KurumAkreditasyonu::class)->kaldir($record, $data['gerekce'], $askiya);
+
+                        Notification::make()
+                            ->title($askiya && $adet > 0
+                                ? "Akreditasyon kaldırıldı, {$adet} kart askıya alındı."
+                                : 'Akreditasyon kaldırıldı.')
+                            ->success()->send();
                     }),
 
                 // 🔁 SİMETRİ ŞART: kaldırma eylemi durumu 'iptal' yapıp kendini

@@ -9,6 +9,7 @@ use App\Models\Basvuru;
 use App\Models\Degerlendirme;
 use App\Models\KapiIstemcisi;
 use App\Models\Kurum;
+use App\Support\Sezon;
 use Filament\Widgets\Widget;
 use Illuminate\Support\Collection;
 
@@ -45,6 +46,7 @@ class DikkatGerektirenler extends Widget
         return self::$onbellek ??= collect()
             ->concat(self::uzunBekleyenler())
             ->concat(self::kontenjaniDolanlar())
+            ->concat(self::suresizKartlar())
             ->concat(self::suresiBitecekler())
             ->concat(self::dusukDegerlendirmeler())
             ->concat(self::kartiUretilemeyenler())
@@ -91,6 +93,42 @@ class DikkatGerektirenler extends Widget
                 'adres' => route('filament.yonetim.resources.kurumlar.index'),
             ])
             ->values();
+
+        /** @var Collection<int, array<string, mixed>> $satirlar */
+        return $satirlar;
+    }
+
+    /**
+     * 💀 SÜRESİZ KARTLAR -- Tutarsızlık incelemesi M9 №2.
+     *
+     * `gecerliMi()` boş `gecerlilik_bitis` değerini "süresiz geçerli" sayar.
+     * Sütun hiçbir ekrandan doldurulmadığı için sistemdeki BÜTÜN aktif kartlar
+     * süresizdi: sezon bitse de geçen sezonun kartı turnikeden geçerdi. Üstelik
+     * aşağıdaki `suresiBitecekler()` kutusu da bu sütuna baktığı için hiç
+     * çizilmiyordu -- eksiklik kendini göstermiyordu bile. Artık gösteriyor.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private static function suresizKartlar(): Collection
+    {
+        $adet = Akreditasyon::query()
+            ->where('durum', AkreditasyonDurumu::Aktif->value)
+            ->whereNull('gecerlilik_bitis')
+            ->count();
+
+        if ($adet === 0) {
+            return collect();
+        }
+
+        $satirlar = collect([[
+            'sebep' => 'Süresiz kart',
+            'renk' => 'danger',
+            'baslik' => $adet.' aktif kartın bitiş tarihi yok',
+            'ayrinti' => Sezon::tanimliMi()
+                ? 'Bu kartlar sezon sonunda geçersizleşmez. Akreditasyonlar ekranından seçip "Sezonu uygula" deyin.'
+                : 'Bu kartlar sezon sonunda geçersizleşmez. Önce Ayarlar > Sezon bölümünü doldurun.',
+            'adres' => route('filament.yonetim.resources.akreditasyonlar.index'),
+        ]]);
 
         /** @var Collection<int, array<string, mixed>> $satirlar */
         return $satirlar;

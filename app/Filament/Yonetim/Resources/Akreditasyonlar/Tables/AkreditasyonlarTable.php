@@ -12,6 +12,7 @@ use App\Models\Ayar;
 use App\Servisler\AkreditasyonAkisi;
 use App\Servisler\CsvDisaAktar;
 use App\Servisler\DenetimYazici;
+use App\Support\Sezon;
 use App\Support\Telefon;
 use App\Support\TopluIslem;
 use Filament\Actions\Action;
@@ -21,6 +22,7 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
@@ -311,6 +313,50 @@ class AkreditasyonlarTable
                                     ->success()->send();
                             }),
 
+                        /*
+                         * 💀 M9 №2: sezon ve geçerlilik sütunları VARDI ama
+                         * onları yazan hiçbir ekran yoktu. `gecerliMi()` boş
+                         * bitiş tarihini "süresiz geçerli" saydığı için her
+                         * kart süresizdi; panodaki "süresi bitecekler" kutusu
+                         * da bu sütuna baktığı için hiç çizilmiyordu.
+                         */
+                        Action::make('gecerliligiDuzenle')
+                            ->label('Geçerliliği düzenle')
+                            ->icon('heroicon-m-calendar-days')
+                            ->visible(fn () => auth()->user()->can('akreditasyon.aski'))
+                            ->fillForm(fn (Akreditasyon $record) => [
+                                'sezon' => $record->sezon ?? Sezon::ad(),
+                                'gecerlilik_baslangic' => $record->gecerlilik_baslangic ?? Sezon::baslangic(),
+                                'gecerlilik_bitis' => $record->gecerlilik_bitis ?? Sezon::bitis(),
+                            ])
+                            ->schema([
+                                TextInput::make('sezon')
+                                    ->label('Sezon')
+                                    ->placeholder('2026 / 2027')
+                                    ->maxLength(20),
+
+                                DatePicker::make('gecerlilik_baslangic')
+                                    ->label('Geçerlilik başlangıcı')
+                                    ->native(false),
+
+                                DatePicker::make('gecerlilik_bitis')
+                                    ->label('Geçerlilik bitişi')
+                                    ->helperText('Boş bırakılırsa kart SÜRESİZ geçerli olur.')
+                                    ->native(false)
+                                    ->afterOrEqual('gecerlilik_baslangic'),
+                            ])
+                            ->modalDescription('Geçmiş bir bitiş tarihi kartı ANINDA geçersizleştirir; '
+                                .'turnike bir sonraki okutmada geçiş vermez.')
+                            ->action(fn (Akreditasyon $record, array $data) => self::calistir(
+                                fn () => app(AkreditasyonAkisi::class)->gecerliligiYaz(
+                                    $record,
+                                    $data['sezon'] ?? null,
+                                    $data['gecerlilik_baslangic'] ?? null,
+                                    $data['gecerlilik_bitis'] ?? null,
+                                ),
+                                'Geçerlilik güncellendi.',
+                            )),
+
                         Action::make('kartYenidenUret')
                             ->label('Kartı yeniden üret')
                             ->icon('heroicon-m-arrow-path')
@@ -396,6 +442,40 @@ class AkreditasyonlarTable
                             '%d akreditasyon yeniden etkin.',
                             fn (Akreditasyon $a) => app(AkreditasyonAkisi::class)->yenidenAktiflestir($a),
                             fn (Akreditasyon $a) => $a->durum === AkreditasyonDurumu::Askida,
+                        ))
+                        ->deselectRecordsAfterCompletion(),
+
+                    /*
+                     * 🧷 Sezon geçişinin asıl aracı: canlıda 7 aktif kartın
+                     * 7'sinde de geçerlilik tarihi YOKTU, yani hiçbiri sona
+                     * ermiyordu. Tek tek düzeltmek yerine Ayarlar'daki sezon
+                     * seçilenlere bir kerede yazılır.
+                     */
+                    BulkAction::make('topluSezonUygula')
+                        ->label('Sezonu uygula')
+                        ->icon('heroicon-m-calendar-days')
+                        ->requiresConfirmation()
+                        ->visible(fn () => auth()->user()->can('akreditasyon.aski'))
+                        ->modalHeading('Ayarlardaki sezonu seçilenlere uygula')
+                        ->modalDescription(fn () => Sezon::tanimliMi()
+                            ? 'Sezon: '.(Sezon::ad() ?: '—')
+                                .' · Geçerlilik: '.(Sezon::baslangic()?->format('d.m.Y') ?? '—')
+                                .' – '.Sezon::bitis()?->format('d.m.Y')
+                                .'. İptal edilmiş satırlar atlanır.'
+                            : '⚠️ Ayarlar > Sezon bölümünde geçerlilik BİTİŞ tarihi tanımlı değil. '
+                                .'Önce onu doldurun, yoksa kartlar süresiz kalmaya devam eder.')
+                        ->modalSubmitActionLabel('Uygula')
+                        ->disabled(fn () => ! Sezon::tanimliMi())
+                        ->action(fn (Collection $records) => TopluIslem::calistir(
+                            $records,
+                            '%d akreditasyonun geçerliliği güncellendi.',
+                            fn (Akreditasyon $a) => app(AkreditasyonAkisi::class)->gecerliligiYaz(
+                                $a,
+                                Sezon::ad(),
+                                Sezon::baslangic()?->toDateString(),
+                                Sezon::bitis()?->toDateString(),
+                            ),
+                            fn (Akreditasyon $a) => $a->durum !== AkreditasyonDurumu::Iptal,
                         ))
                         ->deselectRecordsAfterCompletion(),
 

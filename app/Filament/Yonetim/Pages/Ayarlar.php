@@ -10,6 +10,7 @@ use App\Servisler\KartNoUretici;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\TextInput;
@@ -54,6 +55,9 @@ class Ayarlar extends Page
             'duzeltme_bileti_gun' => (int) Ayar::al('duzeltme_bileti_gun', 14),
             'yeniden_basvuru_bekleme_gun' => (int) Ayar::al('yeniden_basvuru_bekleme_gun', 0),
             'kart_yil' => Ayar::al('kart_yil'),
+            'sezon' => Ayar::al('sezon'),
+            'sezon_baslangic' => Ayar::al('sezon_baslangic'),
+            'sezon_bitis' => Ayar::al('sezon_bitis'),
             'mukerrer_okutma_saniye' => (int) Ayar::al('mukerrer_okutma_saniye', 30),
             'kart_paylasimi_saniye' => (int) Ayar::al('kart_paylasimi_saniye', 120),
             'kart_kodu_basin' => KartNoUretici::kod(BasvuruTuru::BasinMensubu),
@@ -105,6 +109,35 @@ class Ayarlar extends Page
                             ->required()
                             ->minValue(0)
                             ->maxValue(365),
+                    ]),
+
+                /*
+                 * 💀 M9 №2: `gecerlilik_bitis` hiçbir ekrandan doldurulmuyordu
+                 * ve `gecerliMi()` boş tarihi "süresiz geçerli" sayıyor. Yani
+                 * sistemdeki bütün kartlar süresizdi -- sezon bitse de geçen
+                 * sezonun kartı turnikeden geçerdi. Sezonun evi burası.
+                 */
+                Section::make('Sezon')
+                    ->description('Yeni akreditasyonlara yazılacak sezon ve geçerlilik tarihi. '
+                        .'Bitiş tarihi girilmezse kartlar SÜRESİZ geçerli olur.')
+                    ->schema([
+                        TextInput::make('sezon')
+                            ->label('Sezon adı')
+                            ->helperText('Kartta ve akreditasyon künyesinde görünür.')
+                            ->placeholder('2026 / 2027')
+                            ->maxLength(20),
+
+                        DatePicker::make('sezon_baslangic')
+                            ->label('Geçerlilik başlangıcı')
+                            ->helperText('Bu tarihten önce kart turnikede geçmez. Boş bırakılabilir.')
+                            ->native(false),
+
+                        DatePicker::make('sezon_bitis')
+                            ->label('Geçerlilik bitişi')
+                            ->helperText('⚠️ Boş bırakılırsa yeni kartlar SÜRESİZ olur ve sezon sonunda '
+                                .'kendiliğinden geçersizleşmez.')
+                            ->native(false)
+                            ->afterOrEqual('sezon_baslangic'),
                     ]),
 
                 Section::make('Kart ve bölgeler')
