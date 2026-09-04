@@ -58,6 +58,45 @@ class DegerlendirmeEylemi
     }
 
     /**
+     * Kurum DETAY SAYFASI başlık aksiyonu -- M2.4 md.2.
+     *
+     * 🪤 `kurum()` ile aynı işi yapar ama kaydı kapanıştan alır: sayfa
+     * aksiyonuna Filament `$record` enjekte etmez (bkz. `basvuru()`).
+     * Tablo satırında `kurum()`, detay sayfasında bu kullanılır.
+     *
+     * @param  Closure(): Kurum  $kurum
+     */
+    public static function kurumSayfasi(Closure $kurum, string $ad = 'degerlendir'): Action
+    {
+        return self::temel($ad)
+            ->label(fn () => self::etiket(self::akis()->kurumIcin($kurum())))
+            ->modalHeading(fn () => $kurum()->resmi_unvan.' — değerlendirme')
+            ->fillForm(fn () => self::doldur(self::akis()->kurumIcin($kurum())))
+            ->action(fn (array $data) => self::calistir(
+                fn () => self::akis()->kurumaYaz($kurum(), (int) $data['puan'], $data['not'] ?? null),
+            ));
+    }
+
+    /**
+     * Kullanıcı DETAY SAYFASI başlık aksiyonu -- M2.4 md.3.
+     * Hedef E-POSTA'dır, hesap değil (bkz. `kisi()`).
+     *
+     * @param  Closure(): User  $kisi
+     */
+    public static function kisiSayfasi(Closure $kisi, string $ad = 'degerlendir'): Action
+    {
+        return self::temel($ad)
+            ->label(fn () => self::etiket(self::akis()->kisiIcin($kisi()->email)))
+            ->modalHeading(fn () => $kisi()->name.' — değerlendirme')
+            ->fillForm(fn () => self::doldur(self::akis()->kisiIcin($kisi()->email)))
+            ->action(fn (array $data) => self::calistir(
+                fn () => self::akis()->kisiyeYaz(
+                    $kisi()->email, $kisi()->name, (int) $data['puan'], $data['not'] ?? null,
+                ),
+            ));
+    }
+
+    /**
      * Başvuru inceleme sayfası aksiyonu.
      *
      * 🪤 Sayfa aksiyonuna Filament `$record` ENJEKTE ETMEZ (tablo satır

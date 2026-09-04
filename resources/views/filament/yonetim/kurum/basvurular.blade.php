@@ -16,6 +16,15 @@
                     <span style="margin-left:auto;">
                         <x-filament::badge :color="$b->durum->renk()">{{ $b->durum->etiket() }}</x-filament::badge>
                     </span>
+
+                    {{-- Red/iptal GEREKÇESİ (M3 №6): yalnızca inceleme ekranındaki
+                         "Önceki başvuruları" bloğunda görünüyordu. "Bu neden
+                         reddedilmiş" sorusu tam da bu listede soruluyor. --}}
+                    @if (filled($b->karar_gerekcesi))
+                        <p style="flex:1 1 100%; margin:.15rem 0 0; font-size:.78rem; opacity:.7;">
+                            {{ $b->karar_gerekcesi }}
+                        </p>
+                    @endif
                 </div>
             @endforeach
         </div>

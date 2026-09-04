@@ -14,6 +14,13 @@ class ListAkreditasyonlar extends ListRecords
         return 'Akreditasyonlar';
     }
 
+    /** Kurumlar ekranındaki açıklamanın diğer yarısı (M4.4 md.4). */
+    public function getSubheading(): ?string
+    {
+        return 'Bu liste GERÇEK KİŞİ kartlarıdır: kurum çalışanları ve bağımsızlar. '
+            .'Kurumların kendi akreditasyonu Kurumlar ekranındadır.';
+    }
+
     protected function getHeaderActions(): array
     {
         return [];

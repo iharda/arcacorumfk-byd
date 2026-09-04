@@ -1,0 +1,249 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Enums\BasvuruDurumu;
+use App\Enums\BasvuruTuru;
+use App\Filament\Yonetim\Resources\Basvurus\BasvuruResource;
+use App\Filament\Yonetim\Resources\Kullanicilar\KullaniciResource;
+use App\Filament\Yonetim\Resources\Kurumlar\KurumResource;
+use App\Models\Basvuru;
+use App\Models\Evrak;
+use App\Models\EvrakTuru;
+use App\Models\Kurum;
+use App\Models\User;
+use Database\Seeders\RolYetkiSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
+use Tests\TestCase;
+
+/**
+ * Kurum ve Kullanıcı detayında evrak + değerlendirme -- Tutarsızlık
+ * incelemesi M2 (Sprint 2 kabul ölçütü).
+ *
+ * 💀 Onaylanmış bir kurumun Ticaret Sicili Gazetesi'ne ulaşmanın tek yolu
+ * Kurumlar → detay → Başvuru geçmişi → numaraya tıkla → inceleme ekranı idi.
+ * Kurumsal onayda akreditasyon kaydı doğmadığı için (AkreditasyonAkisi:33)
+ * bu evrakların başka bir evi de yoktu.
+ *
+ * 🔒 İkinci koruma: değerlendirme sekmesi YETKİYE bağlı. Puan ve not kulüp
+ * dışına çıkmaz; yetkisiz kullanıcı sekmeyi hiç görmemeli.
+ */
+class DetayEvrakDegerlendirmeTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(RolYetkiSeeder::class);
+    }
+
+    private function yetkili(): User
+    {
+        $u = User::create([
+            'name' => 'Yetkili', 'email' => 'yetkili@kulup.test',
+            'password' => bcrypt('x'), 'aktif' => true,
+        ]);
+        $u->assignRole(User::ROL_YETKILI);
+
+        return $u;
+    }
+
+    /**
+     * ⚠️ Kullanıcı detayı `kullanici.yonet` ister ve o yetki BİLEREK yalnızca
+     * super'de (RolYetkiSeeder: "Kullanici/rol yonetimi ... super'de").
+     */
+    private function super(): User
+    {
+        $u = User::create([
+            'name' => 'Süper', 'email' => 'super@kulup.test',
+            'password' => bcrypt('x'), 'aktif' => true,
+        ]);
+        $u->assignRole(User::ROL_SUPER);
+
+        return $u;
+    }
+
+    private function evrakTuru(): EvrakTuru
+    {
+        return EvrakTuru::create([
+            'kod' => 'ticaret_sicil_gazetesi',
+            'ad' => 'Ticaret Sicili Gazetesi',
+            'basvuru_turleri' => [BasvuruTuru::Kurum->value],
+            'zorunlu' => true,
+            'izinli_formatlar' => ['pdf'],
+            'maks_boyut_kb' => 8192,
+            'hassas' => false,
+            'sira' => 10,
+            'aktif' => true,
+        ]);
+    }
+
+    private function evrak(Basvuru $basvuru, ?string $ekEtiket = null): Evrak
+    {
+        return Evrak::create([
+            'basvuru_id' => $basvuru->id,
+            'evrak_turu_id' => $this->evrakTuru()->id,
+            'disk' => 'evrak',
+            'yol' => 'basvuru/x/'.uniqid().'.pdf',
+            'orijinal_ad' => 'sicil.pdf',
+            'mime' => 'application/pdf',
+            'boyut' => 2048,
+            'sifreli' => false,
+            'ek_etiket' => $ekEtiket,
+        ]);
+    }
+
+    /** 💀 Asıl eksik: onaylanmış kurumun evrakı detayda görünmüyordu. */
+    public function test_kurum_detayinda_onaylanmis_basvurunun_evraklari_gorunur(): void
+    {
+        $kurum = Kurum::create([
+            'resmi_unvan' => 'Çorum Haber Ajansı',
+            'akreditasyon_durumu' => 'akredite',
+        ]);
+
+        $basvuru = Basvuru::create([
+            'tur' => BasvuruTuru::Kurum,
+            'durum' => BasvuruDurumu::Onaylandi,
+            'kurum_id' => $kurum->id,
+            'basvuru_no' => '2026-KV-0001',
+            'basvuran_eposta' => 'iletisim@ornek.test',
+        ]);
+
+        $this->evrak($basvuru);
+
+        $this->actingAs($this->yetkili())
+            ->get(KurumResource::getUrl('detay', ['record' => $kurum]))
+            ->assertOk()
+            ->assertSee('Evraklar')
+            ->assertSee('Ticaret Sicili Gazetesi')
+            ->assertSee('2026-KV-0001');
+    }
+
+    /** Ek talep belgesinin başlığı basılmalı (M2.3): iki belge ayırt edilebilsin. */
+    public function test_ek_etiket_evrak_basliginda_gorunur(): void
+    {
+        $kurum = Kurum::create([
+            'resmi_unvan' => 'Çorum Haber Ajansı',
+            'akreditasyon_durumu' => 'akredite',
+        ]);
+
+        $basvuru = Basvuru::create([
+            'tur' => BasvuruTuru::Kurum,
+            'durum' => BasvuruDurumu::Onaylandi,
+            'kurum_id' => $kurum->id,
+            'basvuru_no' => '2026-KV-0002',
+            'basvuran_eposta' => 'iletisim@ornek.test',
+        ]);
+
+        $evrak = $this->evrak($basvuru, ekEtiket: 'Yayın sözleşmesi');
+
+        $this->assertSame('Ticaret Sicili Gazetesi · Yayın sözleşmesi', $evrak->ekranBasligi());
+
+        $this->actingAs($this->yetkili())
+            ->get(KurumResource::getUrl('detay', ['record' => $kurum]))
+            ->assertOk()
+            ->assertSee('Yayın sözleşmesi');
+    }
+
+    /** Kişinin son başvurusunun evrakları kullanıcı detayında görünmeli. */
+    public function test_kullanici_detayinda_evraklar_gorunur(): void
+    {
+        $kisi = User::create([
+            'name' => 'Merve Kılıç', 'email' => 'merve@ornek.test',
+            'password' => bcrypt('x'), 'aktif' => true,
+        ]);
+
+        $basvuru = Basvuru::create([
+            'tur' => BasvuruTuru::BasinMensubu,
+            'durum' => BasvuruDurumu::Onaylandi,
+            'kullanici_id' => $kisi->id,
+            'basvuru_no' => '2026-BV-0007',
+            'basvuran_eposta' => 'merve@ornek.test',
+        ]);
+
+        $this->evrak($basvuru);
+
+        $this->actingAs($this->super())
+            ->get(KullaniciResource::getUrl('detay', ['record' => $kisi]))
+            ->assertOk()
+            ->assertSee('Evraklar')
+            ->assertSee('2026-BV-0007');
+    }
+
+    /**
+     * 💀 İnceleme ekranı HİÇBİR testte render edilmiyordu.
+     *
+     * Bu boşluk gerçek bir hatayı canlıya taşıdı: `dosya-onizleme`
+     * bileşenindeki bir yönerge kelimeye bitişik yazılınca derlenmiş Blade
+     * ParseError veriyordu ve bileşeni kullanan HER ekran 500 dönüyordu.
+     * Servis testleri bunu göremez -- sayfanın kendisi çizilmeli.
+     *
+     * Kurum teyidi bloğu da burada çiziliyor (M3).
+     */
+    public function test_inceleme_ekrani_evrak_ve_kurum_teyidiyle_cizilir(): void
+    {
+        $kurum = Kurum::create([
+            'resmi_unvan' => 'Çorum Haber Ajansı',
+            'akreditasyon_durumu' => 'akredite',
+        ]);
+
+        $basvuru = Basvuru::create([
+            'tur' => BasvuruTuru::Kurum,
+            'durum' => BasvuruDurumu::Gonderildi,
+            'kurum_id' => $kurum->id,
+            'basvuru_no' => '2026-KV-0009',
+            'basvuran_eposta' => 'iletisim@ornek.test',
+            'gonderildi_at' => now()->subDays(3),
+            'kurum_teyidi_gerekli' => true,
+        ]);
+
+        $this->evrak($basvuru, ekEtiket: 'Muvafakatname');
+
+        $this->actingAs($this->yetkili())
+            ->get(BasvuruResource::getUrl('inceleme', ['record' => $basvuru]))
+            ->assertOk()
+            ->assertSee('Kurum teyidi')
+            ->assertSee('Bekleniyor')
+            // Yönerge derlenmemiş olsaydı ham "@if" metni sayfaya sızardı.
+            ->assertDontSee('@if')
+            ->assertSee('Muvafakatname');
+    }
+
+    /**
+     * 🔒 Değerlendirme sekmesi yetkiye bağlı. Yetkisi OLMAYAN bir hesapta
+     * sekme hiç çizilmemeli -- puan ve not kulüp dışına çıkmaz.
+     */
+    public function test_degerlendirme_sekmesi_yetkisiz_kullaniciya_gorunmez(): void
+    {
+        $kurum = Kurum::create([
+            'resmi_unvan' => 'Çorum Haber Ajansı',
+            'akreditasyon_durumu' => 'akredite',
+        ]);
+
+        $yetkili = $this->yetkili();
+
+        // Yetkili sekmeyi GÖRÜR.
+        $this->actingAs($yetkili)
+            ->get(KurumResource::getUrl('detay', ['record' => $kurum]))
+            ->assertOk()
+            ->assertSee('Değerlendirme');
+
+        /*
+         * Yetki ROLDEN geliyor; kullanıcıdan tek tek almak işe yaramaz.
+         * Rolü de düşürmek panel erişimini komple keserdi (KurumPolicy::view
+         * super/yetkili rolü arıyor) -- o zaman testin ölçtüğü şey sekme
+         * görünürlüğü değil, giriş olurdu. Bu yüzden yalnızca ilgili yetki
+         * rolden alınıyor. RefreshDatabase sayesinde etkisi bu teste özel.
+         */
+        Role::findByName(User::ROL_YETKILI)->revokePermissionTo('degerlendirme.yonet');
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $this->actingAs($yetkili->fresh())
+            ->get(KurumResource::getUrl('detay', ['record' => $kurum]))
+            ->assertOk()
+            ->assertDontSee('Değerlendirme');
+    }
+}

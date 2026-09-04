@@ -16,6 +16,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -116,7 +117,22 @@ class KullanicilarTable
                 Filter::make('pasif')
                     ->label('Yalnızca pasif hesaplar')
                     ->query(fn (Builder $query) => $query->where('aktif', false)),
+
+                /*
+                 * 🟠 M4.3: "kurumdan ayrılanları bulmak". Bir kurumun
+                 * akreditasyonu kalktığında ya da sezon bittiğinde o kuruma
+                 * bağlı hesapları listelemenin yolu yoktu.
+                 */
+                SelectFilter::make('kurum_id')
+                    ->label('Kurum')
+                    ->relationship('kurum', 'resmi_unvan')
+                    ->searchable()
+                    ->preload(),
             ])
+            // 🔑 M4.4: süzgeçler tablonun üstünde ve oturumda kalıcı.
+            ->filtersLayout(FiltersLayout::AboveContent)
+            ->filtersFormColumns(3)
+            ->persistFiltersInSession()
             ->recordActions([
                 DegerlendirmeEylemi::kisi(),
 

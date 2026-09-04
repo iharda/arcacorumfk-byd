@@ -83,14 +83,21 @@
 
         <div style="display:flex; flex-direction:column; gap:1rem;">
             @foreach ($this->evrakTurleri as $tur)
-                @php $yuklu = $basvuru->evraklar->firstWhere('evrak_turu_id', $tur->id); @endphp
+                {{-- 🪤 `firstWhere` DEĞİL. Ek talep belgeleri AYNI evrak türünü
+                     paylaşır ve birbirinden yalnızca `ek_etiket` ile ayrılır
+                     (EvrakYukleyici::yukle). Tek belge alınınca başvuran ikinci
+                     ek belgesini hiçbir yerde göremiyordu. (M2.3 / M2.4 md.6) --}}
+                @php $yuklenenler = $basvuru->evraklar->where('evrak_turu_id', $tur->id); @endphp
 
+                @foreach ($yuklenenler->isEmpty() ? [null] : $yuklenenler as $yuklu)
                 <div x-data="{ acik: false }"
                      style="display:flex; flex-wrap:wrap; align-items:center; gap:.75rem; padding:.85rem 1rem;
                             border:1px solid rgb(var(--gray-200)); border-radius:.6rem;">
                     <div style="flex:1 1 16rem; min-width:12rem;">
                         <div style="font-size:.9rem; font-weight:600;">
-                            {{ $tur->ad }}
+                            {{-- Ek talep belgesinin başlığı burada; iki ek belge
+                                 artık "Ek talep belgesi" diye aynı görünmüyor. --}}
+                            {{ $yuklu?->ekranBasligi() ?? $tur->ad }}
                             @if ($tur->zorunlu)<span style="color:rgb(var(--danger-600));">*</span>@endif
                         </div>
                         <div style="font-size:.75rem; opacity:.6; margin-top:.15rem;">
@@ -138,6 +145,7 @@
                         </div>
                     @endif
                 </div>
+                @endforeach
             @endforeach
         </div>
     </x-filament::section>

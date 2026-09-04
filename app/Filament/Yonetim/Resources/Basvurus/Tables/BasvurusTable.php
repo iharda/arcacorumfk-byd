@@ -12,11 +12,15 @@ use App\Support\TopluIslem;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 class BasvurusTable
@@ -165,7 +169,84 @@ class BasvurusTable
                         'gerekmez' => $query->where('kurum_teyidi_gerekli', false),
                         default => $query,
                     }),
+
+                /*
+                 * 🔴 M4.3: "Şu gazeteden kaç kişi başvurmuş?" sorusu bugüne
+                 * kadar cevaplanamıyordu -- kurum yalnızca ARAMA kutusundan
+                 * geçiyordu, süzgeci yoktu. Akreditasyonlar ekranındaki
+                 * kalıbın aynısı (relationship + searchable + preload).
+                 */
+                SelectFilter::make('kurum_id')
+                    ->label('Kurum')
+                    ->relationship('kurum', 'resmi_unvan')
+                    ->searchable()
+                    ->preload(),
+
+                // 🟠 M4.3: CSV çıktısı bugün ya hepsi ya hiç.
+                Filter::make('tarih')
+                    ->label('Gönderim tarihi')
+                    ->schema([
+                        DatePicker::make('baslangic')->label('Başlangıç')->native(false),
+                        DatePicker::make('bitis')->label('Bitiş')->native(false),
+                    ])
+                    ->columns(2)
+                    /*
+                     * 🪤 `whereDate` sütuna fonksiyon uygular ve indeksi
+                     * kullanamaz; sınırlar aralık olarak veriliyor. Bitiş günü
+                     * DAHİL olmalı -- kullanıcı "31'ine kadar" derken 31'i de
+                     * kastediyor. (Akreditasyonlar tablosundaki kalıbın aynısı.)
+                     */
+                    ->query(fn (Builder $query, array $data) => $query
+                        ->when($data['baslangic'] ?? null,
+                            fn (Builder $q, $t) => $q->where('gonderildi_at', '>=', Carbon::parse($t)->startOfDay()))
+                        ->when($data['bitis'] ?? null,
+                            fn (Builder $q, $t) => $q->where('gonderildi_at', '<=', Carbon::parse($t)->endOfDay()))),
+
+                /*
+                 * 🟠 M4.3: Genel bakış "en oldest bekleyen 14 gün" diyor ama
+                 * listede karşılığı yoktu. Yalnızca KUYRUKTAKİ başvuru sayılır:
+                 * karara bağlanmış başvurunun bekleme süresi bir şey anlatmaz
+                 * (BasvurusTable'daki `bekleyenSure()` sütunuyla aynı kural).
+                 */
+                SelectFilter::make('bekleme')
+                    ->label('Bekleme süresi')
+                    ->options([
+                        '7' => '7 günden fazla',
+                        '14' => '14 günden fazla',
+                        '30' => '30 günden fazla',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        if (blank($data['value'] ?? null)) {
+                            return $query;
+                        }
+
+                        /** @var Builder<Basvuru> $query */
+
+                        // Kuyruk tanımı TEK yerde (Basvuru::scopeKuyrukta):
+                        // kurum teyidi bekleyen başvuru da kuyrukta sayılmaz.
+                        return $query
+                            ->kuyrukta()
+                            ->whereNotNull('gonderildi_at')
+                            ->where('gonderildi_at', '<=', now()->subDays((int) $data['value']));
+                    }),
+
+                // 🟠 M4.3: "Bende olan başvurular".
+                SelectFilter::make('inceleyen_id')
+                    ->label('Sorumlu')
+                    ->relationship('inceleyen', 'name')
+                    ->searchable()
+                    ->preload(),
             ])
+            /*
+             * 🔑 M4.4: süzgeçler TABLONUN ÜSTÜNDE ve OTURUMDA KALICI.
+             * Akreditasyonlar ekranı bu kaliteyi zaten sunuyordu; başvuru
+             * kuyruğu günde onlarca kez süzülen liste olduğu hâlde her
+             * seferinde huniye tıklamak gerekiyordu. `persistFiltersInSession`
+             * "Maç günü görünümü" gibi kayıtlı kümelerin ilk adımı.
+             */
+            ->filtersLayout(FiltersLayout::AboveContent)
+            ->filtersFormColumns(3)
+            ->persistFiltersInSession()
             ->headerActions([
                 Action::make('disaAktar')
                     ->label('CSV olarak indir')

@@ -65,6 +65,26 @@ class Evrak extends Model
         return blank($this->yol);
     }
 
+    /**
+     * Ekranda görünecek belge başlığı -- Tutarsızlık incelemesi M2.3 / M3 №2.
+     *
+     * 🪤 `ek_etiket` ek talep belgesinin BAŞLIĞINI tutuyor ama kod tabanında
+     * onu basan tek bir Blade yoktu. Ekranlar `$evrak->turu?->ad` yazıyordu;
+     * o da her ek belge için "Ek talep belgesi". Yetkili "Yayın sözleşmesi" ve
+     * "Muvafakatname" istediyse listede aynı isimli İKİ SATIR görüyordu --
+     * hangisinin hangisi olduğu ancak dosya adından tahmin edilebiliyordu.
+     *
+     * Başlık artık TEK kaynaktan geliyor; dört ekran da buraya bakar.
+     */
+    public function ekranBasligi(): string
+    {
+        // `??` isset semantiğiyle çalışır: tür ilişkisi silinmiş/yüklenmemişse
+        // de patlamaz. (`?->` burada phpstan'a göre gereksiz.)
+        $tur = $this->turu->ad ?? 'Evrak';
+
+        return filled($this->ek_etiket) ? "{$tur} · {$this->ek_etiket}" : $tur;
+    }
+
     protected static function booted(): void
     {
         /*

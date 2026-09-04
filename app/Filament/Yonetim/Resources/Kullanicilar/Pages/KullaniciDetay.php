@@ -2,6 +2,7 @@
 
 namespace App\Filament\Yonetim\Resources\Kullanicilar\Pages;
 
+use App\Filament\Yonetim\Ortak\DegerlendirmeEylemi;
 use App\Filament\Yonetim\Ortak\DetaySayfasi;
 use App\Filament\Yonetim\Resources\Kullanicilar\KullaniciResource;
 use App\Models\User;
@@ -64,6 +65,10 @@ class KullaniciDetay extends DetaySayfasi
         $akreditasyonlar = $k->akreditasyonlar()->with('kurum')->latest('id')->get();
         $basvurular = $k->basvurular()->latest('id')->limit(20)->get();
 
+        // Evrak sekmesinin kaynağı kişinin EN SON başvurusu (M2.4 md.3).
+        $evrakBasvurusu = $basvurular->first();
+        $evraklar = $evrakBasvurusu?->evraklar()->with('turu')->get() ?? collect();
+
         return [
             'akreditasyonlar' => [
                 'baslik' => 'Akreditasyonları',
@@ -77,6 +82,33 @@ class KullaniciDetay extends DetaySayfasi
                 'view' => 'filament.yonetim.kullanici.basvurular',
                 'veri' => ['basvurular' => $basvurular],
             ],
+
+            /*
+             * 💀 M2: kişinin kimlik ve çalışma belgesi yalnızca başvuru inceleme
+             * ekranında görünüyordu. Onaydan sonra "bu kişi neyle akredite oldu"
+             * sorusunun cevabı hiçbir kullanıcı ekranında yoktu.
+             */
+            'evraklar' => [
+                'baslik' => 'Evraklar',
+                'rozet' => $evraklar->count() ?: null,
+                'view' => 'filament.yonetim.kullanici.evraklar',
+                'veri' => ['evraklar' => $evraklar, 'basvuru' => $evrakBasvurusu],
+            ],
+
+            /*
+             * 🔑 KİŞİ ve KURUM AYRI: kişi olumlu, çalıştığı kurum sorunlu
+             * olabilir. Tek rozet yetkiliyi yanlış karara götürür.
+             * 🔒 Yalnızca `degerlendirme.yonet`.
+             */
+            ...(auth()->user()?->can('degerlendirme.yonet') ? ['degerlendirme' => [
+                'baslik' => 'Değerlendirme',
+                'view' => 'filament.yonetim.kullanici.degerlendirme',
+                'veri' => [
+                    'kisi' => $k->degerlendirme,
+                    'kurum' => $k->kurum?->degerlendirme,
+                    'kurumAdi' => $k->kurum?->resmi_unvan,
+                ],
+            ]] : []),
         ];
     }
 
@@ -88,6 +120,9 @@ class KullaniciDetay extends DetaySayfasi
                 ->icon('heroicon-m-pencil-square')
                 ->visible(fn () => auth()->user()?->can('update', $this->kayit()) ?? false)
                 ->url(fn () => KullaniciResource::getUrl('duzenle', ['record' => $this->kayit()])),
+
+            // Puanlama Kullanıcılar TABLOSUNDA vardı, detayda yoktu (M2.4 md.3).
+            DegerlendirmeEylemi::kisiSayfasi(fn () => $this->kayit()),
         ];
     }
 

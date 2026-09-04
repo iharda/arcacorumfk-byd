@@ -159,6 +159,9 @@ class AkreditasyonlarTable
              */
             ->filtersLayout(FiltersLayout::AboveContent)
             ->filtersFormColumns(4)
+            // M4.4: seçilen süzgeç oturumda kalır; maç haftası aynı görünüm
+            // her ekran değişiminde yeniden kurulmasın.
+            ->persistFiltersInSession()
             ->filters([
                 SelectFilter::make('durum')
                     ->label('Durum')

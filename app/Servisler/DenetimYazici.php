@@ -42,11 +42,23 @@ class DenetimYazici
         ]);
     }
 
-    /** Modelin insan tarafından okunabilir kısa adı. */
+    /**
+     * Modelin insan tarafından okunabilir kısa adı.
+     *
+     * 🪤 SÜTUNLARA bakar, körlemesine `getAttribute()`e değil. Aradığımız
+     * adlardan biriyle aynı ada sahip bir METOT tanımlanırsa (`Evrak::baslik()`
+     * gibi) Laravel onu ilişki sanıp
+     * `LogicException: must return a relationship instance` fırlatır.
+     * Denetim yazımı evrak görüntüleme ve karar verme gibi kritik yollarda;
+     * oradaki istisna isteği 500'e düşürür ve sebebi bu fonksiyonda görünmez.
+     * Modelde ne tanımlanırsa tanımlansın burası kırılmamalı.
+     */
     private function etiket(Model $kayit): ?string
     {
+        $sutunlar = $kayit->getAttributes();
+
         foreach (['kart_no', 'resmi_unvan', 'name', 'baslik', 'ad', 'ulid'] as $alan) {
-            if (filled($kayit->getAttribute($alan))) {
+            if (array_key_exists($alan, $sutunlar) && filled($kayit->getAttribute($alan))) {
                 return (string) $kayit->getAttribute($alan);
             }
         }

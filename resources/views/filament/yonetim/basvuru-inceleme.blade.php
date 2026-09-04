@@ -71,14 +71,18 @@
                             @endif
                         </div>
 
-                        <p style="margin-top:.35rem; font-size:.75rem; opacity:.6;">
-                            @if ($record->kurum_teyidi === null)
-                                Kurum yanıtlayana kadar bu başvuru inceleme kuyruğunda görünmez@if ($record->gonderildi_at)
-                                    · {{ $record->gonderildi_at->diffInDays(now()) }} gündür bekliyor@endif.
-                            @else
-                                {{ $record->kurum_teyidi_at?->timezone('Europe/Istanbul')->format('d.m.Y H:i') ?? '—' }}
-                            @endif
-                        </p>
+                        {{-- 🪤 Yönerge kelimeye BİTİŞİK yazılmaz: `görünmez@if (...)`
+                             derlenmez (bkz. dosya-onizleme bileşenindeki not).
+                             Metin önceden kuruluyor. --}}
+                        @php
+                            $teyitAciklamasi = $record->kurum_teyidi === null
+                                ? 'Kurum yanıtlayana kadar bu başvuru inceleme kuyruğunda görünmez'
+                                    .($record->gonderildi_at
+                                        ? ' · '.$record->gonderildi_at->diffInDays(now()).' gündür bekliyor'
+                                        : '').'.'
+                                : ($record->kurum_teyidi_at?->timezone('Europe/Istanbul')->format('d.m.Y H:i') ?? '—');
+                        @endphp
+                        <p style="margin-top:.35rem; font-size:.75rem; opacity:.6;">{{ $teyitAciklamasi }}</p>
                     </div>
                 @endif
             </x-filament::section>
@@ -263,7 +267,9 @@
                                            background:{{ $secili ? 'rgb(var(--primary-50))' : 'transparent' }};
                                            cursor:pointer;">
                                 <span style="display:block; font-size:.83rem; font-weight:600;">
-                                    {{ $evrak->turu?->ad }}
+                                    {{-- Ek talep belgesinin başlığı da burada (M2.3): yetkili
+                                         iki ayrı belge istediyse listede ayırt edebilmeli. --}}
+                                    {{ $evrak->ekranBasligi() }}
                                     {{-- İmha edilmiş evrak listede de belli olsun: yetkili
                                          tıklamadan önce dosyanın gitmiş olduğunu görmeli (M2.2). --}}
                                     @if ($evrak->imhaEdildiMi())
@@ -380,7 +386,7 @@
         <div class="bys-inceleme__onizleme" style="min-width:0;">
             <x-filament::section>
                 <x-slot name="heading">
-                    {{ $this->seciliEvrakModeli?->turu?->ad ?? 'Evrak önizleme' }}
+                    {{ $this->seciliEvrakModeli?->ekranBasligi() ?? 'Evrak önizleme' }}
                 </x-slot>
                 @php $e = $this->seciliEvrakModeli; @endphp
                 @if (! $e)

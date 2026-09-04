@@ -2,6 +2,9 @@
 
 namespace App\Filament\Yonetim\Resources\Kurumlar\Pages;
 
+use App\Enums\BasvuruDurumu;
+use App\Enums\BasvuruTuru;
+use App\Filament\Yonetim\Ortak\DegerlendirmeEylemi;
 use App\Filament\Yonetim\Ortak\DetaySayfasi;
 use App\Filament\Yonetim\Resources\Kurumlar\KurumResource;
 use App\Models\Kurum;
@@ -62,6 +65,13 @@ class KurumDetay extends DetaySayfasi
             'İl / ilçe' => collect([$k->il, $k->ilce])->filter()->implode(' / ') ?: null,
             'Çalışan sayısı' => $k->calisan_araligi?->etiket(),
             'Kontenjan' => $this->kontenjanMetni(),
+            /*
+             * M2.4 md.4: bu ikisi başvuru formunda toplanıp yalnızca inceleme
+             * ekranında görünüyordu. Kurum onaylandıktan sonra "bu kuruluş
+             * nerede yayın yapıyor" sorusunun cevabı hiçbir ekranda yoktu.
+             */
+            'Yayın platformları' => $this->listeMetni($k->yayin_platformlari),
+            'Sosyal medya' => $this->listeMetni($k->sosyal_medya),
         ];
     }
 
@@ -72,6 +82,21 @@ class KurumDetay extends DetaySayfasi
         $calisanlar = $k->calisanlar()->orderBy('name')->get();
         $akreditasyonlar = $k->akreditasyonlar()->with('kullanici')->latest('id')->get();
         $basvurular = $k->basvurular()->latest('id')->limit(20)->get();
+
+        /*
+         * Evrak sekmesinin kaynağı: kurumun EN SON ONAYLANMIŞ kurumsal
+         * başvurusu. Onaylanmış olan seçiliyor çünkü kurumun bugünkü
+         * akreditasyonu ona dayanıyor; sonradan gönderilmiş yarım bir başvuru
+         * geçerli evrakın önüne geçmemeli. Hiç onaylanmışı yoksa en son
+         * kurumsal başvuruya düşülür -- inceleme sürerken de evrak görünsün.
+         */
+        $evrakBasvurusu = $k->basvurular()
+            ->where('tur', BasvuruTuru::Kurum->value)
+            ->orderByRaw('CASE WHEN durum = ? THEN 0 ELSE 1 END', [BasvuruDurumu::Onaylandi->value])
+            ->latest('id')
+            ->first();
+
+        $evraklar = $evrakBasvurusu?->evraklar()->with('turu')->get() ?? collect();
 
         return [
             'calisanlar' => [
@@ -92,6 +117,32 @@ class KurumDetay extends DetaySayfasi
                 'view' => 'filament.yonetim.kurum.basvurular',
                 'veri' => ['basvurular' => $basvurular],
             ],
+
+            /*
+             * 💀 M2: onaylanmış bir kurumun Ticaret Sicili Gazetesi'ne ulaşmanın
+             * tek yolu Kurumlar → detay → Başvuru geçmişi → numaraya tıkla →
+             * inceleme ekranı idi. Üç tıklama ve ekran değiştirme.
+             *
+             * 🔑 Kurumsal onayda AKREDİTASYON KAYDI DOĞMUYOR
+             * (AkreditasyonAkisi:33 `return null`), yani kurumun evrakları için
+             * "Akreditasyon detayı" gibi bir ev de yok. O ev burası.
+             */
+            'evraklar' => [
+                'baslik' => 'Evraklar',
+                'rozet' => $evraklar->count() ?: null,
+                'view' => 'filament.yonetim.kurum.evraklar',
+                'veri' => ['evraklar' => $evraklar, 'basvuru' => $evrakBasvurusu],
+            ],
+
+            /*
+             * 🔒 Yalnızca `degerlendirme.yonet`. Puan ve not kulüp dışına
+             * çıkmaz; kurum kendi panelinde bunu göremez.
+             */
+            ...(auth()->user()?->can('degerlendirme.yonet') ? ['degerlendirme' => [
+                'baslik' => 'Değerlendirme',
+                'view' => 'filament.yonetim.kurum.degerlendirme',
+                'veri' => ['degerlendirme' => $k->degerlendirme, 'kurumAdi' => $k->resmi_unvan],
+            ]] : []),
         ];
     }
 
@@ -103,7 +154,30 @@ class KurumDetay extends DetaySayfasi
                 ->icon('heroicon-m-pencil-square')
                 ->visible(fn () => auth()->user()?->can('update', $this->kayit()) ?? false)
                 ->url(fn () => KurumResource::getUrl('duzenle', ['record' => $this->kayit()])),
+
+            // Puanlama Kurumlar TABLOSUNDA vardı, detayda yoktu: yetkili kurumu
+            // inceledikten sonra listeye dönmek zorunda kalıyordu (M2.4 md.2).
+            DegerlendirmeEylemi::kurumSayfasi(fn () => $this->kayit()),
         ];
+    }
+
+    /**
+     * Künye tek satır metin basar (şablon dizi bilmez), bu yüzden iki farklı
+     * şekli de düz metne indiriyoruz:
+     *   yayin_platformlari -> [['ad' => .., 'url' => ..], ..]
+     *   sosyal_medya       -> ['twitter' => url, ..]
+     * Boş değerler ayıklanır ki künyede "—" yerine yarım liste çıkmasın.
+     */
+    private function listeMetni(?array $deger): ?string
+    {
+        $satirlar = collect($deger ?? [])
+            ->map(fn ($v, $k) => is_array($v)
+                ? trim(($v['ad'] ?? '').' ('.($v['url'] ?? '').')', ' ()')
+                : (filled($v) ? "{$k}: {$v}" : null))
+            ->filter()
+            ->values();
+
+        return $satirlar->isEmpty() ? null : $satirlar->implode(' · ');
     }
 
     /** "3 / 10" ya da "3 · sınırsız" -- kontenjanDoldu() kuralının okunur hâli. */

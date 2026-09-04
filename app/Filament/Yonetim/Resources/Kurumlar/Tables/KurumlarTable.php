@@ -2,9 +2,11 @@
 
 namespace App\Filament\Yonetim\Resources\Kurumlar\Tables;
 
+use App\Enums\BasvuruDurumu;
 use App\Enums\DegerlendirmePuani;
 use App\Filament\Yonetim\Ortak\DegerlendirmeEylemi;
 use App\Filament\Yonetim\Resources\Kurumlar\KurumResource;
+use App\Models\Basvuru;
 use App\Models\Degerlendirme;
 use App\Models\Kurum;
 use App\Servisler\KurumAkreditasyonu;
@@ -13,6 +15,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -137,7 +140,66 @@ class KurumlarTable
                             : $query->whereHas('degerlendirme',
                                 fn (Builder $q) => $q->where('puan', (int) $deger));
                     }),
+
+                /*
+                 * 🟠 M4.3: M1'in ekran ayağı. "Beklemede" görünen kurumun
+                 * başvuru tarafında ne olduğunu sormanın yolu yoktu; kurum
+                 * durumu ile başvuru durumu ayrışınca (red/iptal artık kuruma
+                 * yazılıyor ama eski kayıtlar için hâlâ geçerli) bu süzgeç
+                 * "hangi kurumun başvurusu nerede takıldı"yı cevaplar.
+                 */
+                SelectFilter::make('son_basvuru_durumu')
+                    ->label('Son başvuru durumu')
+                    ->options(fn () => collect(BasvuruDurumu::cases())
+                        ->mapWithKeys(fn (BasvuruDurumu $d) => [$d->value => $d->etiket()])
+                        ->all() + ['yok' => 'Hiç başvurusu yok'])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $deger = $data['value'] ?? null;
+
+                        if (blank($deger)) {
+                            return $query;
+                        }
+
+                        if ($deger === 'yok') {
+                            return $query->whereDoesntHave('basvurular');
+                        }
+
+                        /*
+                         * 🪤 "SON" başvuru: `whereHas` yalnızca "böyle bir
+                         * başvurusu var mı" der. Kurumun eski bir reddi ve yeni
+                         * bir onayı varsa ikisinde de eşleşirdi. En son kaydın
+                         * durumu soruluyor.
+                         */
+                        return $query->whereIn('id', Basvuru::query()
+                            ->select('kurum_id')
+                            ->whereNotNull('kurum_id')
+                            ->where('durum', $deger)
+                            ->whereNotExists(fn ($alt) => $alt
+                                ->selectRaw('1')
+                                ->from('basvurular as sonraki')
+                                ->whereColumn('sonraki.kurum_id', 'basvurular.kurum_id')
+                                ->whereColumn('sonraki.id', '>', 'basvurular.id')
+                                ->whereNull('sonraki.deleted_at')));
+                    }),
+
+                // 🟠 M4.3: bölgesel akreditasyon dağılımı.
+                SelectFilter::make('il')
+                    ->label('İl')
+                    ->searchable()
+                    ->options(fn () => Kurum::query()
+                        ->whereNotNull('il')
+                        ->distinct()
+                        ->orderBy('il')
+                        ->pluck('il', 'il')
+                        ->all()),
             ])
+            /*
+             * 🔑 M4.4: süzgeçler tablonun üstünde ve oturumda kalıcı
+             * (Akreditasyonlar ekranındaki referans kalite).
+             */
+            ->filtersLayout(FiltersLayout::AboveContent)
+            ->filtersFormColumns(4)
+            ->persistFiltersInSession()
             ->recordActions([
                 DegerlendirmeEylemi::kurum(),
 

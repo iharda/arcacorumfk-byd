@@ -57,10 +57,18 @@
                          padding:.15rem .5rem; border-radius:.25rem;
                          background:rgba(127,127,127,.15);">İMHA EDİLDİ</span>
             <p style="margin:.6rem 0 .15rem; font-weight:500; overflow-wrap:anywhere;">{{ $ad ?? 'Dosya' }}</p>
-            <p style="margin:.6rem 0 0; font-size:.82rem; opacity:.75;">
-                Saklama süresi doldu, dosya imha edildi@if ($imhaTarihi)
-                    ({{ $imhaTarihi->timezone('Europe/Istanbul')->format('d.m.Y') }})@endif.
-            </p>
+            {{-- 🪤 DİREKTİFİ KELİMEYE BİTİŞTİRME: `edildi@if (...)` yazınca
+                 Blade `@if`i DERLEMEZ (yönerge deseni `\B@` ister, harften
+                 sonra gelen `@` sınırı bozar) ama eşleşen `@endif` derlenir ve
+                 BİR ÜSTTEKİ bloğu kapatır. Sonuç sayfanın kendisinde değil,
+                 derlenmiş dosyada bir ParseError olur. Metin bu yüzden
+                 önceden kuruluyor. --}}
+            @php
+                $imhaMetni = 'Saklama süresi doldu, dosya imha edildi'
+                    .($imhaTarihi ? ' ('.$imhaTarihi->timezone('Europe/Istanbul')->format('d.m.Y').')' : '')
+                    .'.';
+            @endphp
+            <p style="margin:.6rem 0 0; font-size:.82rem; opacity:.75;">{{ $imhaMetni }}</p>
             <p style="margin:.35rem 0 0; font-size:.75rem; opacity:.55;">
                 Başvuru kaydı ve karar geçmişi duruyor; yalnızca dosya silindi (KVKK).
             </p>
