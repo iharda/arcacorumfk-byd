@@ -14,7 +14,7 @@
                         {{ $b->gonderildi_at?->timezone('Europe/Istanbul')?->format('d.m.Y') ?? '—' }}
                     </span>
                     <span style="margin-left:auto;">
-                        <x-filament::badge :color="$b->durum->renk()">{{ $b->durum->etiket() }}</x-filament::badge>
+                        <x-filament::badge :color="$b->durum->renk()">{{ $b->durumEtiketi() }}</x-filament::badge>
                     </span>
 
                     {{-- Red/iptal GEREKÇESİ (M3 №6): yalnızca inceleme ekranındaki

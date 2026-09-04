@@ -477,7 +477,8 @@ class Inceleme extends Page
     public function getDurumRozeti(): array
     {
         return [
-            'etiket' => $this->record->durum->etiket(),
+            // Kararın bugünkü karşılığıyla (bkz. Basvuru::durumEtiketi).
+            'etiket' => $this->record->durumEtiketi(),
             'renk' => $this->record->durum->renk(),
             'aciklama' => $this->record->durum->aciklama(),
         ];

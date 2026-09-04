@@ -231,4 +231,62 @@ class KarariGeriAlTest extends TestCase
 
         $this->assertSame(BasvuruDurumu::Reddedildi, $basvuru->refresh()->durum);
     }
+
+    /* ─────────── Etiket: kararın BUGÜNKÜ karşılığı ─────────── */
+
+    /**
+     * 🪤 "Akredite edildi" GEÇMİŞ BİR KARARDIR. Kurumun akreditasyonu
+     * sonradan kaldırıldığında başvuru satırı hâlâ "Akredite edildi" derken
+     * Kurumlar ekranı "İptal" diyordu; ikisi de doğru ama yan yana çelişki
+     * gibi duruyordu.
+     */
+    public function test_kurum_akreditasyonu_kalkinca_etiket_soyler(): void
+    {
+        $kurum = Kurum::create([
+            'resmi_unvan' => 'Çorum Haber Ajansı',
+            'akreditasyon_durumu' => 'akredite',
+        ]);
+
+        $basvuru = Basvuru::create([
+            'tur' => BasvuruTuru::Kurum,
+            'durum' => BasvuruDurumu::Onaylandi,
+            'kurum_id' => $kurum->id,
+            'basvuran_eposta' => 'iletisim@ornek.test',
+        ]);
+
+        $this->assertSame('Akredite edildi', $basvuru->durumEtiketi());
+
+        $kurum->update(['akreditasyon_durumu' => 'iptal']);
+
+        $this->assertSame(
+            'Akredite edildi (sonradan kaldırıldı)',
+            $basvuru->fresh()->durumEtiketi(),
+        );
+    }
+
+    /** Bireyselde kartın bugünkü durumu okunur. */
+    public function test_kart_iptal_olunca_etiket_soyler(): void
+    {
+        [$basvuru, , $kart] = $this->onaylanmisBireysel();
+
+        $this->assertSame('Akredite edildi', $basvuru->durumEtiketi());
+
+        $kart->update(['durum' => AkreditasyonDurumu::Askida]);
+        $this->assertSame('Akredite edildi (askıda)', $basvuru->fresh()->durumEtiketi());
+
+        $kart->update(['durum' => AkreditasyonDurumu::Iptal]);
+        $this->assertSame('Akredite edildi (sonradan kaldırıldı)', $basvuru->fresh()->durumEtiketi());
+    }
+
+    /** 🔒 Karara bağlanmamış başvuruda ek açıklama olmamalı. */
+    public function test_diger_durumlarda_etiket_sade_kalir(): void
+    {
+        $basvuru = Basvuru::create([
+            'tur' => BasvuruTuru::BasinMensubu,
+            'durum' => BasvuruDurumu::Gonderildi,
+            'basvuran_eposta' => 'aday@ornek.test',
+        ]);
+
+        $this->assertSame('İnceleme bekliyor', $basvuru->durumEtiketi());
+    }
 }

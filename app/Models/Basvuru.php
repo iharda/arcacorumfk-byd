@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\UlidAnahtari;
+use App\Enums\AkreditasyonDurumu;
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
 use App\Servisler\DuzeltmeUygulayici;
@@ -111,6 +112,7 @@ class Basvuru extends Model
             ->orderBy('evraklar.id');
     }
 
+    /** @return HasOne<Akreditasyon, $this> */
     public function akreditasyon(): HasOne
     {
         return $this->hasOne(Akreditasyon::class, 'basvuru_id');
@@ -232,6 +234,43 @@ class Basvuru extends Model
      * Durum degistirme -- TEK kapi. Gecerli olmayan gecis sessizce yutulmaz,
      * hata firlatir; boylece bir ekranda unutulan kontrol veriyi bozamaz.
      */
+    /**
+     * Ekranda görünecek durum etiketi -- Cüneyt Bey revizyonu (05.09.2026).
+     *
+     * 🪤 "Akredite edildi" GEÇMİŞ BİR KARARDIR, bugünkü durum değil. Kurumun
+     * akreditasyonu sonradan kaldırılmış olabilir; başvuru satırı yine
+     * "Akredite edildi" derken Kurumlar ekranı "İptal" diyordu. İkisi de
+     * doğru ama yan yana görülünce çelişki gibi duruyor.
+     *
+     * Etiket artık kararın BUGÜNKÜ karşılığını da söylüyor. Enum etiketi
+     * (`BasvuruDurumu::etiket`) sade kalır -- kayda erişimi yok ve denetim
+     * kaydı gibi yerlerde tek başına kullanılıyor.
+     *
+     * ⚠️ `kurum` / `akreditasyon` ilişkileri okunur: liste kullanıyorsa
+     * `with()` ile yüklensin, yoksa satır başına sorgu açar.
+     */
+    public function durumEtiketi(): string
+    {
+        $etiket = $this->durum->etiket();
+
+        if ($this->durum !== BasvuruDurumu::Onaylandi) {
+            return $etiket;
+        }
+
+        $ek = $this->tur === BasvuruTuru::Kurum
+            // Kurumsal onay = kurumun akredite olması; bugünkü hâli oradan.
+            ? ($this->kurum && $this->kurum->akreditasyon_durumu !== 'akredite'
+                ? 'sonradan kaldırıldı' : null)
+            // Bireysel onay = kart; kartın bugünkü durumu.
+            : match ($this->akreditasyon?->durum) {
+                AkreditasyonDurumu::Iptal => 'sonradan kaldırıldı',
+                AkreditasyonDurumu::Askida => 'askıda',
+                default => null,
+            };
+
+        return $ek ? "{$etiket} ({$ek})" : $etiket;
+    }
+
     public function durumaGec(BasvuruDurumu $hedef): void
     {
         if (! $this->durum->gecebilirMi($hedef)) {

@@ -22,6 +22,19 @@ class ListKullanicilar extends ListRecords
         return 'Kullanıcılar';
     }
 
+    /**
+     * 🔒 LİSTE super'e özel kalır.
+     *
+     * Kaynağın `canAccess`i kulüp yetkilisine de açıldı (kurum detayından
+     * çalışan künyesine tıklanabilsin diye). O kapı yalnızca TEK BİR KAYDI
+     * okumak için; sistemdeki bütün kullanıcıların listesi ayrı bir şeydir ve
+     * `kullanici.yonet` ister.
+     */
+    protected function authorizeAccess(): void
+    {
+        abort_unless(auth()->user()?->can('viewAny', User::class) ?? false, 403);
+    }
+
     protected function getHeaderActions(): array
     {
         return [

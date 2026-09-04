@@ -42,7 +42,25 @@ class KullaniciResource extends Resource
     // Slug ELLE: dizin adından "users" üretiliyordu.
     protected static ?string $slug = 'kullanicilar';
 
+    /**
+     * 🔑 SAYFA erişimi ile MENÜ ayrıldı (Cüneyt Bey revizyonu 05.09.2026).
+     *
+     * `canAccess` kaynağın BÜTÜN sayfalarını kapatıyor; yalnızca politikayı
+     * gevşetmek yetmiyordu. Kulüp yetkilisi kurum detayından çalışana
+     * tıklayabilsin diye kaynak ona da açık -- ama:
+     *   · menü `shouldRegisterNavigation()` ile super'de kalır,
+     *   · liste sayfası kendi içinde ayrıca yetki sorar (ListKullanicilar),
+     *   · düzenleme/rol/2FA `UserPolicy` ile `kullanici.yonet`'te kalır.
+     * Yani yetkiliye açılan tek şey KÜNYEYİ OKUMAK.
+     */
     public static function canAccess(): bool
+    {
+        return auth()->user()?->can('viewAny', User::class)
+            || (auth()->user()?->hasRole(User::ROL_YETKILI) ?? false);
+    }
+
+    /** Menü yalnızca kullanıcı YÖNETEBİLENE görünür. */
+    public static function shouldRegisterNavigation(): bool
     {
         return auth()->user()?->can('viewAny', User::class) ?? false;
     }

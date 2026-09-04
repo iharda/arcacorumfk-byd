@@ -38,7 +38,8 @@ class BasvurusTable
              * "newQueryWithoutRelationships() on null" ile 500 döner.
              * Doğru ad: $query.
              */
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['kurum', 'kullanici', 'inceleyen']))
+            // `akreditasyon`: durum etiketi kartın bugünkü hâline bakıyor (N+1 olmasın).
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['kurum', 'kullanici', 'inceleyen', 'akreditasyon']))
             // Arama neyi kapsıyor? Kutunun kendisi söylesin.
             ->searchPlaceholder('Başvuru no, kişi veya kurum ara')
             // Bekleyen en eski başvuru en üstte: kuyruk sırası bozulmasın.
@@ -103,7 +104,9 @@ class BasvurusTable
                     ->label('Durum')
                     ->badge()
                     ->color(fn (BasvuruDurumu $state) => $state->renk())
-                    ->formatStateUsing(fn (BasvuruDurumu $state) => $state->etiket())
+                    // Kararın BUGÜNKÜ karşılığıyla: "Akredite edildi
+                    // (sonradan kaldırıldı)" gibi (bkz. Basvuru::durumEtiketi).
+                    ->formatStateUsing(fn (Basvuru $record) => $record->durumEtiketi())
                     // Durum adları yeni; ne anlama geldikleri fare üstüne gelince.
                     ->tooltip(fn (BasvuruDurumu $state) => $state->aciklama())
                     /*

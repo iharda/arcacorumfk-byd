@@ -43,12 +43,6 @@ parameters:
 			path: app/Notifications/YeniIcerik.php
 
 		-
-			message: '#^Method App\\Servisler\\AkreditasyonAkisi\:\:basvurudanOlustur\(\) should return App\\Models\\Akreditasyon\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Servisler/AkreditasyonAkisi.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$bildirim_gonderildi\.$#'
 			identifier: property.notFound
 			count: 1

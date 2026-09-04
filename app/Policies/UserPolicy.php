@@ -23,9 +23,27 @@ class UserPolicy
         return $kullanici->can('kullanici.yonet');
     }
 
+    /**
+     * Kişinin künyesini görebilir mi? -- Cüneyt Bey revizyonu (05.09.2026).
+     *
+     * 🔑 GÖRME ile YÖNETME ayrıldı. `kullanici.yonet` bilerek yalnızca
+     * super'de (hesap açma, rol değiştirme, 2FA sıfırlama). Ama kulüp
+     * yetkilisi bir kurumu incelerken çalışanına tıklayıp "bu kim, kartı ne
+     * durumda" diye bakabilmeli -- o bilgiyi zaten başvuru inceleme
+     * ekranında görüyor.
+     *
+     * ⚠️ ROL kontrolü, YETKİ kontrolü DEĞİL: `basvuru.gor` yetkisi KURUM
+     * rolünde de var (kendi çalışanlarını görsün diye). Ona bağlasaydık kurum
+     * hesabı sistemdeki HERKESİN künyesini açabilirdi. KurumPolicy::view
+     * aynı sebeple aynı kalıbı kullanıyor.
+     *
+     * Değiştirme yolları kapalı kalır: `update` ve `rolYonet` hâlâ
+     * `kullanici.yonet` istiyor; liste ve menü de super'e özel.
+     */
     public function view(User $kullanici, User $hedef): bool
     {
-        return $kullanici->can('kullanici.yonet');
+        return $kullanici->can('kullanici.yonet')
+            || $kullanici->hasRole(User::ROL_YETKILI);
     }
 
     public function update(User $kullanici, User $hedef): bool

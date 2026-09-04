@@ -362,4 +362,57 @@ class DetayEvrakDegerlendirmeTest extends TestCase
             ->assertOk()
             ->assertDontSee('Değerlendirme');
     }
+
+    /* ─────────── Çalışan detayına gidiş (05.09.2026 revizyonu) ─────────── */
+
+    /**
+     * 🔑 Kulüp yetkilisi kurum detayından çalışanın künyesine tıklayabilmeli.
+     * `kullanici.yonet` bilerek super'de (hesap açma, rol, 2FA); ama künyeyi
+     * OKUMAK yönetmek değildir.
+     */
+    public function test_yetkili_calisan_kunyesini_gorebilir(): void
+    {
+        $kisi = User::create([
+            'name' => 'Muhabir Kişi', 'email' => 'muhabir@ajans.test',
+            'password' => bcrypt('x'), 'aktif' => true,
+        ]);
+        $kisi->assignRole(User::ROL_BASIN);
+
+        $this->actingAs($this->yetkili())
+            ->get(KullaniciResource::getUrl('detay', ['record' => $kisi]))
+            ->assertOk();
+    }
+
+    /**
+     * 🔒 Açılan tek şey KÜNYE. Kullanıcı LİSTESİ hâlâ super'e özel: tek kaydı
+     * okumak ile sistemdeki herkesi listelemek ayrı şeyler.
+     */
+    public function test_yetkili_kullanici_listesini_goremez(): void
+    {
+        $this->actingAs($this->yetkili())
+            ->get(KullaniciResource::getUrl('index'))
+            ->assertForbidden();
+    }
+
+    /** 🔒 Kurum hesabı kimsenin künyesini açamaz -- `basvuru.gor` onda da var. */
+    public function test_kurum_hesabi_kunye_goremez(): void
+    {
+        $kurum = Kurum::create([
+            'resmi_unvan' => 'Çorum Haber Ajansı',
+            'akreditasyon_durumu' => 'akredite',
+        ]);
+
+        $kurumHesabi = User::create([
+            'name' => 'Kurum Yetkilisi', 'email' => 'kurumyetkili@ajans.test',
+            'password' => bcrypt('x'), 'aktif' => true, 'kurum_id' => $kurum->id,
+        ]);
+        $kurumHesabi->assignRole(User::ROL_KURUM);
+
+        $hedef = User::create([
+            'name' => 'Başkası', 'email' => 'baskasi@ornek.test',
+            'password' => bcrypt('x'), 'aktif' => true,
+        ]);
+
+        $this->assertFalse($kurumHesabi->can('view', $hedef));
+    }
 }
