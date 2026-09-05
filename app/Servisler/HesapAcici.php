@@ -101,6 +101,8 @@ class HesapAcici
 
             $kullanici->assignRole($rol);
 
+            $this->dayanaksizRolleriTemizle($kullanici, $rol);
+
             /*
              * 🔑 E-posta anahtarlı değerlendirme puanı hesaba BURADA bağlanır.
              * Yetkili puanı inceleme sırasında -- hesap doğmadan -- vermiş
@@ -119,6 +121,56 @@ class HesapAcici
             // tıklamamış da olabilir.
             return [$kullanici, $kullanici->email_verified_at === null];
         });
+    }
+
+    /**
+     * DAYANAĞI KALMAMIŞ bireysel rolleri alır -- Cüneyt Bey revizyonu
+     * (05.09.2026).
+     *
+     * 💀 Hesap e-posta ile YENİDEN KULLANILIYOR (bilerek: kişi tektir). Ama
+     * yeniden kullanılan hesap eski rollerini de yanında getiriyordu:
+     *
+     *   Ağustos'ta bir içerik üreticisi başvurusu açılıp hesap aktifleşmiş,
+     *   başvuru taslakta kalmış. Eylül'de aynı e-postayla KURUMSAL bir başvuru
+     *   onaylanınca hesap yeniden etkinleştirildi ve kişi `kurum` rolünün
+     *   yanında hâlâ `icerik_ureticisi` rolünü taşıyordu -- arkasında ne
+     *   onaylanmış bir başvuru ne de bir kart vardı.
+     *
+     * 🪤 Aşağıdaki `removeRole($eskiRol)` bunu yakalamıyor: yalnızca DİĞER
+     * bireysel türü siliyor ve kurumsal onayda `$eskiRol` zaten NULL --
+     * yani kurumsal onayda hiçbir rol temizlenmiyordu.
+     *
+     * 🔑 Ölçü ROL DEĞİL DAYANAK: bir bireysel rol ancak canlı (aktif ya da
+     * askıdaki) bir akreditasyona yaslanıyorsa kalır. Gazetenin sahibi hem
+     * kurum yetkilisi hem muhabir olabilir -- kartı varsa rolü DURUR.
+     */
+    private function dayanaksizRolleriTemizle(User $kullanici, string $verilenRol): void
+    {
+        $turler = [
+            User::ROL_BASIN => BasvuruTuru::BasinMensubu->value,
+            User::ROL_ICERIK => BasvuruTuru::IcerikUreticisi->value,
+        ];
+
+        foreach ($turler as $eskiRol => $tur) {
+            if ($eskiRol === $verilenRol || ! $kullanici->hasRole($eskiRol)) {
+                continue;
+            }
+
+            $dayanak = $kullanici->akreditasyonlar()
+                ->whereIn('durum', array_column(BasvuruUygunlugu::CANLI_AKREDITASYONLAR, 'value'))
+                ->whereHas('basvuru', fn ($sorgu) => $sorgu->where('tur', $tur))
+                ->exists();
+
+            if ($dayanak) {
+                continue;
+            }
+
+            $kullanici->removeRole($eskiRol);
+
+            $this->denetim->yaz('hesap.dayanaksiz_rol_alindi', $kullanici,
+                eski: ['rol' => $eskiRol],
+                not: 'Hesap yeniden kullanıldı; bu rolün arkasında canlı akreditasyon yok.');
+        }
     }
 
     /**

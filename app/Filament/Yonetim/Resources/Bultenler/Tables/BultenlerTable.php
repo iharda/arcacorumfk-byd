@@ -2,6 +2,7 @@
 
 namespace App\Filament\Yonetim\Resources\Bultenler\Tables;
 
+use App\Filament\Yonetim\Ortak\SiraSutunu;
 use App\Filament\Yonetim\Resources\Bultenler\BultenResource;
 use App\Filament\Yonetim\Resources\Bultenler\Schemas\BultenFormu;
 use App\Models\Bulten;
@@ -26,6 +27,8 @@ class BultenlerTable
             ->recordUrl(fn (Bulten $record) => BultenResource::getUrl('detay', ['record' => $record]))
             ->defaultSort('created_at', 'desc')
             ->columns([
+                SiraSutunu::yap(),
+
                 TextColumn::make('baslik')->label('Başlık')->searchable()->wrap()->limit(80),
 
                 TextColumn::make('ekler')

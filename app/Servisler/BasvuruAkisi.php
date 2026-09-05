@@ -43,6 +43,7 @@ class BasvuruAkisi
         private HesapAcici $hesapAcici,
         private BasvuruBiletiAkisi $bilet,
         private BasvuruNoUretici $basvuruNo,
+        private KurumAkreditasyonu $kurumAkreditasyonu,
     ) {}
 
     public function gonder(Basvuru $basvuru): void
@@ -182,7 +183,12 @@ class BasvuruAkisi
              * reddetmiş ama yetkili kuyruğunda onaylanmış gibi duruyordu.
              */
             if (! $onay) {
-                $this->reddet($basvuru, $not ?: 'Kurum, başvuranın çalışanı olduğunu teyit etmedi.');
+                // 🔑 Kulüp kararı DEĞİL: karar veren olarak kurum çalışanı yazılmasın.
+                $this->reddet(
+                    $basvuru,
+                    $not ?: 'Kurum, başvuranın çalışanı olduğunu teyit etmedi.',
+                    kulupKarari: false,
+                );
             }
         });
     }
@@ -205,7 +211,7 @@ class BasvuruAkisi
      * hesap pasife çekilir. Yetkili kararını düzeltip yeniden onaylarsa
      * `HesapAcici` aynı hesabı yeniden kullanır.
      */
-    public function karariGeriAl(Basvuru $basvuru, string $gerekce): void
+    public function karariGeriAl(Basvuru $basvuru, string $gerekce, bool $kartlariAskiyaAl = false): void
     {
         if (! in_array($basvuru->durum, self::GERI_ALINABILIR, true)) {
             throw new RuntimeException('Yalnızca karara bağlanmış başvurunun kararı geri alınabilir.');
@@ -213,8 +219,8 @@ class BasvuruAkisi
 
         $onceki = $basvuru->durum;
 
-        DB::transaction(function () use ($basvuru, $gerekce, $onceki) {
-            // 1) Kartlar: turnike erişimi ANINDA kapanmalı.
+        DB::transaction(function () use ($basvuru, $gerekce, $onceki, $kartlariAskiyaAl) {
+            // 1) Bu başvurunun kartları: turnike erişimi ANINDA kapanmalı.
             /** @var Akreditasyon $akreditasyon */
             foreach ($basvuru->akreditasyon()->get() as $akreditasyon) {
                 $this->akreditasyon->iptalEt(
@@ -223,17 +229,41 @@ class BasvuruAkisi
                 );
             }
 
-            // 2) Kurumsal onay kurumu akredite etmişti; o da geri alınır.
-            if ($basvuru->tur === BasvuruTuru::Kurum
-                && $basvuru->kurum
-                && $basvuru->kurum->akreditasyon_durumu === 'akredite') {
-                $basvuru->kurum->update(['akreditasyon_durumu' => 'beklemede']);
+            // 2) Kararın KURUM kaydına yazdığı sonuç da geri alınır.
+            $oncekiKurumDurumu = $this->kurumKararindanGeriAl($basvuru);
+
+            /*
+             * 3) ÇALIŞANLARIN KARTLARI -- M9 №1'in aynısı, öbür kapıda.
+             *
+             * 💀 Kurumun akreditasyonu iki yoldan düşüyor: "Akreditasyonu
+             * kaldır" ve buradaki "Kararı geri al". Birincisi kaç kartın
+             * etkilendiğini sayıp yetkiliye söylüyor ve askıya almayı
+             * öneriyordu; ikincisi kurumu sessizce `beklemede`ye çekip
+             * ÇALIŞANLARIN KARTLARINI AKTİF BIRAKIYORDU. Akreditasyonu
+             * düşmüş kuruluşun muhabiri turnikeden geçmeye devam ediyordu --
+             * yetkili aynı işi yaptığını sanarak farklı bir sonuç alıyordu.
+             *
+             * Kartlar burada da otomatik İPTAL EDİLMEZ: iptal geri alınamaz
+             * ve kişilerin kendi başvuruları olabilir. Yapılan şey saymak,
+             * denetime yazmak ve istenirse ASKIYA almak -- askı dönülebilir.
+             */
+            $etkilenenKart = 0;
+
+            if ($oncekiKurumDurumu === 'akredite' && $basvuru->kurum) {
+                $etkilenenKart = $this->kurumAkreditasyonu->aktifKartSayisi($basvuru->kurum);
+
+                if ($kartlariAskiyaAl && $etkilenenKart > 0) {
+                    $this->kurumAkreditasyonu->aktifKartlariAskiyaAl(
+                        $basvuru->kurum,
+                        'Kurumun akreditasyon kararı geri alındı — '.$gerekce,
+                    );
+                }
             }
 
-            // 3) Onayla verilen bireysel rol geri alınır; hesap kalır.
+            // 4) Onayla verilen bireysel rol geri alınır; hesap kalır.
             $this->erisimiKapat($basvuru);
 
-            // 4) Durum: yeniden karar verilebilsin diye İnceleniyor.
+            // 5) Durum: yeniden karar verilebilsin diye İnceleniyor.
             $this->gecir($basvuru, BasvuruDurumu::Incelemede, 'basvuru.karar_geri_alindi', [
                 'karar_at' => null,
                 'karar_veren_id' => null,
@@ -244,9 +274,71 @@ class BasvuruAkisi
 
             $this->denetim->yaz('basvuru.karar_geri_alindi', $basvuru,
                 eski: ['durum' => $onceki->value],
-                yeni: ['durum' => BasvuruDurumu::Incelemede->value],
+                yeni: [
+                    'durum' => BasvuruDurumu::Incelemede->value,
+                    // "Kaç kart etkilendi" sorusunun cevabı kayıtta dursun.
+                    'etkilenen_aktif_kart' => $etkilenenKart,
+                    'kartlar_askiya_alindi' => $kartlariAskiyaAl && $etkilenenKart > 0,
+                ],
                 not: $gerekce);
         });
+    }
+
+    /**
+     * Kurumsal kararın KURUM satırına yazdığı sonucu geri sarar.
+     * Dokunulduysa kurumun önceki durumunu, dokunulmadıysa null döndürür.
+     *
+     * 💀 Eskiden yalnızca `akredite` geri alınıyordu. Reddedilen kurumsal
+     * başvurunun kararı geri alındığında kurum `reddedildi` KALIYORDU:
+     * Kurumlar ekranı kırmızı "Reddedildi" derken Başvurular ekranı
+     * "İnceleniyor" diyordu -- M1-A'da düzeltilen çelişkinin aynısı, bu kez
+     * karar geri alma yolundan geri gelmişti. Üstelik kalıcıydı: başvuru
+     * sonra iptal edilse `kurumDurumunuSenkronla()` kurumu `beklemede`
+     * bulamadığı için erken dönüyor, kurum sonsuza kadar "Reddedildi"
+     * görünüyordu.
+     *
+     * ⚠️ `iptal`e DOKUNULMAZ. O bir başvuru kararının sonucu değil,
+     * "Akreditasyonu kaldır" ile verilmiş ayrı ve bilinçli bir karardır
+     * (KurumAkreditasyonu). Buradan sıfırlansaydı kulübün kararı sessizce
+     * silinir, üstelik yalnızca `iptal`de açılan "geri ver" eylemi de
+     * kaybolurdu.
+     */
+    private function kurumKararindanGeriAl(Basvuru $basvuru): ?string
+    {
+        if ($basvuru->tur !== BasvuruTuru::Kurum || ! $basvuru->kurum) {
+            return null;
+        }
+
+        $kurum = $basvuru->kurum;
+        $onceki = $kurum->akreditasyon_durumu;
+
+        // Yalnızca BAŞVURU KARARININ yazabildiği durumlar geri alınır.
+        if (! in_array($onceki, ['akredite', 'reddedildi', 'iptal_edildi'], true)) {
+            return null;
+        }
+
+        /*
+         * 🪤 Kurumun BAŞKA bir onaylı kurumsal başvurusu varsa akreditasyon
+         * ona dayanıyordur; eski bir kararı geri almak onu düşürmemeli.
+         */
+        $baskaOnay = $kurum->basvurular()
+            ->whereKeyNot($basvuru->getKey())
+            ->where('tur', BasvuruTuru::Kurum->value)
+            ->where('durum', BasvuruDurumu::Onaylandi->value)
+            ->exists();
+
+        if ($baskaOnay) {
+            return null;
+        }
+
+        $kurum->update(['akreditasyon_durumu' => 'beklemede']);
+
+        $this->denetim->yaz('kurum.durum_degisti', $kurum,
+            eski: ['akreditasyon_durumu' => $onceki],
+            yeni: ['akreditasyon_durumu' => 'beklemede'],
+            not: "Başvuru {$basvuru->basvuru_no} kararı geri alındı");
+
+        return $onceki;
     }
 
     /** Karar geri alınırken kişinin akreditasyon erişimini kapatır. */
@@ -436,22 +528,40 @@ class BasvuruAkisi
         });
     }
 
-    public function reddet(Basvuru $basvuru, string $gerekce): void
+    /**
+     * @param  bool  $kulupKarari  Kararı KULÜP mü verdi? Kurum teyidi reddinde
+     *                             false: oturumdaki kişi kurum çalışanıdır.
+     *
+     * 💀 `karar_veren_id` HER ZAMAN `Auth::id()` yazılıyordu. Kurum panelinden
+     * "bu kişi çalışanımız değil" denince bu metot kurum çalışanının
+     * oturumunda çalışıyor ve KURUM ÇALIŞANI kulübün karar vereni olarak
+     * kaydediliyordu: CSV'deki "Karar veren" sütununda kulübün raporunda bir
+     * kurum personeli görünüyordu. Kurumun "hayır"ı başvuruyu düşürür ama
+     * kulübün kararı değildir -- tıpkı iptalde olduğu gibi kişi yazılmaz.
+     */
+    public function reddet(Basvuru $basvuru, string $gerekce, bool $kulupKarari = true): void
     {
         // İki geçiş TEK işlemde: ikincisi patlarsa başvuru "İncelemede" diye
         // asılı kalmasın.
-        DB::transaction(function () use ($basvuru, $gerekce) {
+        DB::transaction(function () use ($basvuru, $gerekce, $kulupKarari) {
             // Kurum teyidi reddi başvuruyu doğrudan düşürür; önce incelemeye
             // alınması beklenmez (md.5.2 "Başvuru düşer").
             if (in_array($basvuru->durum, BasvuruDurumu::acilmamis(), true)) {
-                $this->gecir($basvuru, BasvuruDurumu::Incelemede, 'basvuru.incelemeye_alindi', [
-                    'incelemeye_alindi_at' => now(),
-                ]);
+                /*
+                 * 🪤 SAAT YAZILMAZ (kulüp kararı değilse). Durum makinesi
+                 * Gönderildi → Reddedildi geçişine izin vermiyor, buradan
+                 * geçmek zorunlu -- ama bu bir inceleme DEĞİL, kimse başvuruyu
+                 * açmadı. Saat yazılınca ekran "Sorumlu: (boş)" derken
+                 * "İncelemeye alındı 06:27" diyor ve yetkili bir
+                 * meslektaşının açtığını sanıyordu.
+                 */
+                $this->gecir($basvuru, BasvuruDurumu::Incelemede, 'basvuru.incelemeye_alindi',
+                    $kulupKarari ? ['incelemeye_alindi_at' => now()] : []);
             }
 
             $this->gecir($basvuru, BasvuruDurumu::Reddedildi, 'basvuru.reddedildi', [
                 'karar_at' => now(),
-                'karar_veren_id' => Auth::id(),
+                'karar_veren_id' => $kulupKarari ? Auth::id() : null,
                 'karar_gerekcesi' => $gerekce,
             ]);
 

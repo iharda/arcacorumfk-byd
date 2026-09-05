@@ -51,6 +51,16 @@
 
     {{-- Kulüp yetkilisinin kapısı ayrı (iki adımlı doğrulama orada zorunlu);
          başvurusu olmayan da buradan başvuruya geçebilsin. --}}
+    {{-- 🔑 Reddedilen adayın hesabı HİÇ AÇILMAZ; buradan giremez ve "E-posta
+         veya şifre hatalı" cümlesi ona cevap vermez. Hesabın var olup
+         olmadığını sızdırmadan cevabı bulabileceği yer burası. --}}
+    <p class="mt-6 text-center text-sm text-neutral-600">
+        Giriş yapamıyor musunuz?
+        <a href="{{ route('basvuru.durum') }}" class="font-medium text-kulup-700 hover:underline">
+            Başvurunuzun durumunu sorgulayın
+        </a>
+    </p>
+
     <div class="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 pt-5 text-sm text-neutral-600">
         <a href="{{ route('anasayfa') }}" class="hover:text-koyu">Akreditasyon başvurusu yapın</a>
         <a href="{{ route('filament.yonetim.auth.login') }}" class="hover:text-koyu">Kulüp yetkilisi girişi</a>

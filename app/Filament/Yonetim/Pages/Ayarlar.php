@@ -54,6 +54,7 @@ class Ayarlar extends Page
             'davet_gecerlilik_gun' => (int) Ayar::al('davet_gecerlilik_gun', 7),
             'duzeltme_bileti_gun' => (int) Ayar::al('duzeltme_bileti_gun', 14),
             'yeniden_basvuru_bekleme_gun' => (int) Ayar::al('yeniden_basvuru_bekleme_gun', 0),
+            'eksik_evrak_uyari_gun' => (int) Ayar::al('eksik_evrak_uyari_gun', 7),
             'kart_yil' => Ayar::al('kart_yil'),
             'sezon' => Ayar::al('sezon'),
             'sezon_baslangic' => Ayar::al('sezon_baslangic'),
@@ -100,6 +101,22 @@ class Ayarlar extends Page
                             ->required()
                             ->minValue(1)
                             ->maxValue(60),
+
+                        /*
+                         * 💀 Eksik evrak istenip UNUTULAN başvuru. Bilet süresi
+                         * dolduğunda panoda satır çıkıyordu (M9 №7) ama bilet
+                         * hâlâ geçerliyken haftalarca bekleyen başvuruyu
+                         * gösteren hiçbir şey yoktu: kulüp bekliyor sanıyor,
+                         * kuruluş yükleyeceğini unutuyordu.
+                         */
+                        TextInput::make('eksik_evrak_uyari_gun')
+                            ->label('Eksik evrak uyarı süresi')
+                            ->helperText('Belge istendikten sonra bu kadar gün geçip hâlâ yüklenmediyse başvuru panoda "Dikkat gerektirenler" listesine düşer. 0 = uyarma.')
+                            ->suffix('gün')
+                            ->numeric()
+                            ->required()
+                            ->minValue(0)
+                            ->maxValue(365),
 
                         TextInput::make('yeniden_basvuru_bekleme_gun')
                             ->label('Reddedilen başvurudan sonra bekleme süresi')

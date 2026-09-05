@@ -46,19 +46,10 @@ class KurumAkreditasyonu
              * etkilendiğini SAYMAK, denetime yazmak ve istenirse ASKIYA almak.
              * Askı geri alınabilir; yanlış düğmeye basılırsa dönülebilir.
              */
-            $aktifKartlar = $kurum->akreditasyonlar()
-                ->where('durum', AkreditasyonDurumu::Aktif->value)
-                ->get();
+            $aktifKartSayisi = $this->aktifKartSayisi($kurum);
 
             if ($kartlariAskiyaAl) {
-                $neden = 'Kurumun akreditasyonu kaldırıldı — '.$gerekce;
-
-                /** @var Akreditasyon $akreditasyon */
-                foreach ($aktifKartlar as $akreditasyon) {
-                    // Her kart KENDİ servis çağrısından geçer: denetim kaydı
-                    // kart kart yazılsın ve kişiye bildirimi gitsin.
-                    app(AkreditasyonAkisi::class)->askiyaAl($akreditasyon, $neden);
-                }
+                $this->aktifKartlariAskiyaAl($kurum, 'Kurumun akreditasyonu kaldırıldı — '.$gerekce);
             }
 
             $this->denetim->yaz('kurum.akreditasyon_kaldirildi', $kurum,
@@ -66,7 +57,7 @@ class KurumAkreditasyonu
                 yeni: [
                     'akreditasyon_durumu' => 'iptal',
                     // "Kaç kart etkilendi" sorusunun cevabı kayıtta dursun.
-                    'etkilenen_aktif_kart' => $aktifKartlar->count(),
+                    'etkilenen_aktif_kart' => $aktifKartSayisi,
                     'kartlar_askiya_alindi' => $kartlariAskiyaAl,
                 ],
                 not: $gerekce);
@@ -79,6 +70,31 @@ class KurumAkreditasyonu
         return $kurum->akreditasyonlar()
             ->where('durum', AkreditasyonDurumu::Aktif->value)
             ->count();
+    }
+
+    /**
+     * Kurumun aktif kartlarını askıya alır; etkilenen kart sayısını döndürür.
+     *
+     * 🔑 ORTAK KAPI. Kurumun akreditasyonu iki ayrı yoldan düşebiliyor:
+     * buradaki `kaldir()` ve `BasvuruAkisi::karariGeriAl()`. İkisi de aynı
+     * sonucu doğurduğu hâlde kart kapatma yalnızca birinde vardı; ikinci bir
+     * kopya yazmak yerine tek yer burası.
+     *
+     * ⚠️ Her kart KENDİ servis çağrısından geçer: denetim kaydı kart kart
+     * yazılsın ve kişiye bildirimi gitsin. Toplu `update()` ikisini de yutar.
+     */
+    public function aktifKartlariAskiyaAl(Kurum $kurum, string $neden): int
+    {
+        $kartlar = $kurum->akreditasyonlar()
+            ->where('durum', AkreditasyonDurumu::Aktif->value)
+            ->get();
+
+        /** @var Akreditasyon $akreditasyon */
+        foreach ($kartlar as $akreditasyon) {
+            app(AkreditasyonAkisi::class)->askiyaAl($akreditasyon, $neden);
+        }
+
+        return $kartlar->count();
     }
 
     /** Bir daha "beklemede"ye dönerse iz bırakması gereken durumlar. */

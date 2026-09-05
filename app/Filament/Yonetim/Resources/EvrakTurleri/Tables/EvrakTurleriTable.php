@@ -3,6 +3,7 @@
 namespace App\Filament\Yonetim\Resources\EvrakTurleri\Tables;
 
 use App\Enums\BasvuruTuru;
+use App\Filament\Yonetim\Ortak\SiraSutunu;
 use App\Filament\Yonetim\Resources\EvrakTurleri\EvrakTuruResource;
 use App\Models\EvrakTuru;
 use Filament\Tables\Columns\IconColumn;
@@ -21,6 +22,8 @@ class EvrakTurleriTable
             ->recordUrl(fn (EvrakTuru $record) => EvrakTuruResource::getUrl('duzenle', ['record' => $record]))
             ->defaultSort('sira')
             ->columns([
+                SiraSutunu::yap(),
+
                 TextColumn::make('ad')
                     ->label('Belge')
                     ->searchable()

@@ -2,8 +2,10 @@
 
 namespace App\Filament\Yonetim\Resources\Akreditasyonlar\Pages;
 
+use App\Filament\Yonetim\Ortak\AkreditasyonEylemleri;
 use App\Filament\Yonetim\Ortak\DetaySayfasi;
 use App\Filament\Yonetim\Resources\Akreditasyonlar\AkreditasyonResource;
+use App\Filament\Yonetim\Resources\Basvurus\BasvuruResource;
 use App\Models\Akreditasyon;
 use App\Models\Ayar;
 use App\Servisler\DenetimYazici;
@@ -121,9 +123,46 @@ class AkreditasyonDetay extends DetaySayfasi
         ];
     }
 
+    /**
+     * Detay sayfası artık İŞ GÖRÜYOR -- Cüneyt Bey revizyonu (05.09.2026).
+     *
+     * 💀 Sayfa yalnızca "Kart PDF indir" taşıyordu: yetkili kişinin
+     * akreditasyonunu okuyup karar veriyor, sonra kararı uygulamak için
+     * listeye geri dönüp satır menüsünü açmak zorunda kalıyordu. Kurumda bu
+     * sorun çözülmüştü, kişide duruyordu.
+     *
+     * 🔑 Eylemler KOPYALANMADI, ortak tanımdan geliyor (AkreditasyonEylemleri):
+     * aynı üç karar hem listede hem burada aynı kip metni, aynı yetki ve aynı
+     * durum koşuluyla veriliyor.
+     */
     protected function getHeaderActions(): array
     {
         return [
+            AkreditasyonEylemleri::askiyaAl(),
+            AkreditasyonEylemleri::askiyiKaldir(),
+
+            /*
+             * 🪤 EK EVRAK TALEBİ BURADA YAPILMAZ, BURADAN GİDİLİR.
+             *
+             * Belge isteme başvuru akışının adımı: yeni bir düzeltme turu açar,
+             * bilet üretir ve başvurana bildirim gönderir (BasvuruAkisi::
+             * eksikEvrakIste). Ayrıca policy gereği başvurunun "İnceleniyor"
+             * durumunda olmasını ister -- karara bağlanmış bir başvuruda önce
+             * "Akreditasyonu geri al" demek gerekir. Bu iki adımlı kararın evi
+             * inceleme ekranı; buraya kopyalanan bir düğme kuralın yarısını
+             * uygular ve yetkiliyi yarı yolda bırakırdı.
+             */
+            Action::make('basvuruyaGit')
+                ->label('Ek evrak talep et')
+                ->icon('heroicon-m-document-plus')
+                ->color('gray')
+                ->tooltip('Belge talebi başvuru ekranından açılır')
+                ->visible(fn () => $this->kayit()->basvuru !== null
+                    && (Auth::user()?->can('basvuru.incele') ?? false))
+                ->url(fn () => BasvuruResource::getUrl('inceleme', [
+                    'record' => $this->kayit()->basvuru,
+                ])),
+
             Action::make('kartPdf')
                 ->label('Kart PDF indir')
                 ->icon('heroicon-m-arrow-down-tray')
@@ -135,6 +174,9 @@ class AkreditasyonDetay extends DetaySayfasi
                 ->visible(fn () => $this->kayit()->guncelKart?->pdf_yolu !== null
                     && Auth::user()?->can('kart.indir'))
                 ->action(fn (): StreamedResponse => $this->pdfAkisi()),
+
+            // 🔻 Geri alınamaz: en sonda dursun.
+            AkreditasyonEylemleri::iptalEt(),
         ];
     }
 

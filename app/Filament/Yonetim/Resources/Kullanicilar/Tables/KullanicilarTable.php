@@ -4,6 +4,7 @@ namespace App\Filament\Yonetim\Resources\Kullanicilar\Tables;
 
 use App\Enums\DegerlendirmePuani;
 use App\Filament\Yonetim\Ortak\DegerlendirmeEylemi;
+use App\Filament\Yonetim\Ortak\SiraSutunu;
 use App\Filament\Yonetim\Resources\Kullanicilar\KullaniciResource;
 use App\Models\Degerlendirme;
 use App\Models\User;
@@ -46,6 +47,8 @@ class KullanicilarTable
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['roles', 'degerlendirme']))
             ->defaultSort('name')
             ->columns([
+                SiraSutunu::yap(),
+
                 TextColumn::make('name')->label('Ad soyad')->searchable()->sortable(),
 
                 TextColumn::make('email')->label('E-posta')->searchable()->copyable(),

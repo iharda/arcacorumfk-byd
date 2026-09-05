@@ -56,6 +56,41 @@
         @endif
     </x-filament::section>
 
+    {{-- 🔑 EKSİK EVRAK ŞERİDİ: sayfanın en üstünde, kaçırılmayacak yerde.
+         Kuruluş "bir şey mi bekleniyor" sorusunu aşağı inmeden yanıtlasın. --}}
+    @if ($this->eksikEvrakBekliyorMu())
+        <div style="border:1px solid rgb(var(--warning-400)); background:rgb(var(--warning-50));
+                    border-radius:.75rem; padding:1rem 1.15rem;">
+            <div style="display:flex; gap:.7rem; align-items:flex-start;">
+                <x-filament::icon icon="heroicon-m-exclamation-triangle"
+                                  style="width:1.4rem; height:1.4rem; flex:none; margin-top:.1rem;" />
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:700;">Eksik evrak bekleniyor</div>
+                    <p style="margin:.3rem 0 0; font-size:.875rem;">
+                        Başvurunuz için aşağıdaki belge veya bilgiler isteniyor. Tamamlamadan
+                        başvurunuz değerlendirmeye alınmaz.
+                    </p>
+
+                    @if ($this->istenenKalemler !== [])
+                        <ul style="margin:.6rem 0 0; padding-left:1.15rem; font-size:.875rem;">
+                            @foreach ($this->istenenKalemler as $kalem)
+                                <li>{{ $kalem }}</li>
+                            @endforeach
+                        </ul>
+                    @endif
+
+                    <div style="margin-top:.9rem;">
+                        {{ $this->eksikEvrakAction }}
+                    </div>
+
+                    <p style="margin:.5rem 0 0; font-size:.75rem; opacity:.7;">
+                        Yükleme sayfası açıldığında e-posta ile gönderilmiş eski bağlantı geçersiz olur.
+                    </p>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- Alan bazlı düzeltme talebi --}}
     @if (filled($basvuru->duzeltme_notlari))
         <x-filament::section>

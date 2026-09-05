@@ -3,6 +3,7 @@
 namespace App\Filament\Yonetim\Resources\GecisKayitlari\Tables;
 
 use App\Enums\GecisSonucu;
+use App\Filament\Yonetim\Ortak\SiraSutunu;
 use App\Filament\Yonetim\Resources\GecisKayitlari\GecisKaydiResource;
 use App\Models\GecisKaydi;
 use App\Servisler\CsvDisaAktar;
@@ -36,6 +37,8 @@ class GecisKayitlariTable
              */
             ->poll('30s')
             ->columns([
+                SiraSutunu::yap(),
+
                 TextColumn::make('okundu_at')
                     ->label('Zaman')
                     ->dateTime('d.m.Y H:i:s', 'Europe/Istanbul')

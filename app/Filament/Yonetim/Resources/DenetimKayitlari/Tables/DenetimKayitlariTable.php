@@ -2,6 +2,7 @@
 
 namespace App\Filament\Yonetim\Resources\DenetimKayitlari\Tables;
 
+use App\Filament\Yonetim\Ortak\SiraSutunu;
 use App\Filament\Yonetim\Resources\DenetimKayitlari\DenetimKaydiResource;
 use App\Models\DenetimKaydi;
 use App\Servisler\CsvDisaAktar;
@@ -25,6 +26,8 @@ class DenetimKayitlariTable
             ->deferLoading()          // kayıt hızla büyür; ilk açılış hafif kalsın
             ->paginated([25, 50, 100])
             ->columns([
+                SiraSutunu::yap(),
+
                 TextColumn::make('created_at')
                     ->label('Zaman')
                     ->dateTime('d.m.Y H:i:s', 'Europe/Istanbul')

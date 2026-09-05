@@ -6,6 +6,7 @@ use App\Enums\AkreditasyonDurumu;
 use App\Enums\BasvuruDurumu;
 use App\Enums\DegerlendirmePuani;
 use App\Models\Akreditasyon;
+use App\Models\Ayar;
 use App\Models\Basvuru;
 use App\Models\Degerlendirme;
 use App\Models\KapiIstemcisi;
@@ -49,6 +50,7 @@ class DikkatGerektirenler extends Widget
             ->concat(self::kontenjaniDolanlar())
             ->concat(self::suresizKartlar())
             ->concat(self::suresiBitecekler())
+            ->concat(self::eksikEvrakiGecikenler())
             ->concat(self::biletiDolanlar())
             ->concat(self::dusukDegerlendirmeler())
             ->concat(self::kartiUretilemeyenler())
@@ -94,6 +96,60 @@ class DikkatGerektirenler extends Widget
                 'ayrinti' => $k->aktif_kart.' / '.$k->kontenjan.' kart kullanılmış',
                 'adres' => route('filament.yonetim.resources.kurumlar.index'),
             ])
+            ->values();
+
+        /** @var Collection<int, array<string, mixed>> $satirlar */
+        return $satirlar;
+    }
+
+    /**
+     * 💀 EKSİK EVRAK İSTENİP UNUTULAN BAŞVURU.
+     *
+     * `biletiDolanlar()` yalnızca bağlantının SÜRESİ DOLMUŞ olanları yakalıyor.
+     * Bağlantı hâlâ geçerliyken haftalarca hiçbir şey yüklemeyen başvuru ise
+     * hiçbir listede yoktu: kulüp "belge bekleniyor" diye bırakıyor, başvuran
+     * unutuyor, başvuru sessizce ölüyordu.
+     *
+     * Eşik Ayarlar'dan gelir; 0 = uyarma.
+     *
+     * 🪤 Süre TALEP ANINDAN işler, başvurunun gönderiminden değil: ölçtüğümüz
+     * şey "ne zamandır belge bekliyoruz".
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private static function eksikEvrakiGecikenler(): Collection
+    {
+        $gun = (int) Ayar::al('eksik_evrak_uyari_gun', 7);
+
+        if ($gun <= 0) {
+            return collect();
+        }
+
+        $sinir = now()->copy()->subDays($gun);
+
+        $satirlar = Basvuru::query()
+            ->where('durum', BasvuruDurumu::EksikEvrak->value)
+            ->with(['kurum', 'duzeltmeler'])
+            // Yanıtlanmamış turun talep tarihi eşiğin gerisinde mi?
+            ->whereHas('duzeltmeler', fn ($sorgu) => $sorgu
+                ->whereNull('yanit_at')
+                ->where('talep_at', '<', $sinir))
+            ->limit(self::SEBEP_BASINA)
+            ->get()
+            ->map(function (Basvuru $b) {
+                $talep = $b->acikDuzeltme()?->talep_at;
+
+                return [
+                    'sebep' => 'Eksik evrak gecikti',
+                    'renk' => 'warning',
+                    'baslik' => $b->kurum->resmi_unvan ?? $b->basvuranAdi(),
+                    'ayrinti' => implode(' · ', array_filter([
+                        $b->basvuru_no,
+                        $talep === null ? null : (int) $talep->diffInDays(now()).' gündür yüklenmedi',
+                    ])),
+                    'adres' => route('filament.yonetim.resources.basvurular.inceleme', ['record' => $b->ulid]),
+                ];
+            })
             ->values();
 
         /** @var Collection<int, array<string, mixed>> $satirlar */

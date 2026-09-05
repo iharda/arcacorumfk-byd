@@ -2,6 +2,7 @@
 
 namespace App\Filament\Yonetim\Resources\KapiIstemcileri\Tables;
 
+use App\Filament\Yonetim\Ortak\SiraSutunu;
 use App\Filament\Yonetim\Resources\KapiIstemcileri\KapiIstemcisiResource;
 use App\Filament\Yonetim\Resources\KapiIstemcileri\Schemas\KapiIstemcisiFormu;
 use App\Models\Ayar;
@@ -35,6 +36,8 @@ class KapiIstemcileriTable
             ]))
             ->defaultSort('ad')
             ->columns([
+                SiraSutunu::yap(),
+
                 TextColumn::make('ad')->label('Kapı')->searchable()->sortable(),
                 TextColumn::make('kapi_kodu')->label('Kod')->badge()->color('gray'),
 

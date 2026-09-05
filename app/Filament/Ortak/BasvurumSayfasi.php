@@ -5,8 +5,11 @@ namespace App\Filament\Ortak;
 use App\Enums\BasvuruDurumu;
 use App\Models\Basvuru;
 use App\Models\EvrakTuru;
+use App\Servisler\BasvuruBiletiAkisi;
 use App\Servisler\BasvuruUygunlugu;
+use App\Support\DuzeltmeAlanlari;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -15,11 +18,19 @@ use Illuminate\Support\Facades\Auth;
  * "Başvurum" sayfasının ortak gövdesi — kurum ve üye panelleri aynı ekranı
  * kullanır.
  *
- * 🔑 SALT OKUNUR (Revizyon md.3.6). Evrak artık başvuru formunda alınıyor,
- * eksik evrak da panelsiz düzeltme bağlantısından tamamlanıyor; hesap ise
- * ancak ONAY sonrası açılıyor. Yani bu sayfaya ulaşan herkesin başvurusu
- * çoktan karara bağlanmıştır — burada yüklenecek bir şey kalmaz, geçmiş
- * görünür.
+ * Büyük ölçüde SALT OKUNUR (Revizyon md.3.6): evrak başvuru formunda alınır,
+ * hesap da ancak ONAY sonrası açılır.
+ *
+ * 🔑 TEK İSTİSNA EKSİK EVRAK (Cüneyt Bey revizyonu 05.09.2026). Onaylanmış bir
+ * kurumun kararı geri alınıp belge istendiğinde kurumun hesabı ARTIK VARDIR
+ * ama panelinde yükleyecek yer yoktu: tek yol e-postayla giden tek kullanımlık
+ * bağlantıydı. Posta silinmiş ya da başka birine gitmişse kuruluş çıkmaz
+ * sokaktaydı -- kulüp bekliyor, kuruluş yükleyemiyor.
+ *
+ * 🪤 Panelde AYRI BİR YÜKLEME FORMU YAZILMADI: düzeltme akışının kendi alan
+ * kuralları, evrak doğrulaması ve tur kaydı var (BasvuruDuzeltmeController).
+ * İkinci bir yol açmak o kuralların kopyalanması demekti. Panel yalnızca
+ * kişinin KENDİ başvurusu için taze bir bilet üretip aynı akışa sokar.
  *
  * Panel başına ayrı ince bir alt sınıf var; Filament sayfaları panelin kendi
  * dizininden keşfediyor.
@@ -51,6 +62,57 @@ abstract class BasvurumSayfasi extends Page
             ->where('kullanici_id', Auth::id())
             ->latest('id')
             ->first();
+    }
+
+    public function eksikEvrakBekliyorMu(): bool
+    {
+        return $this->basvuru?->durum === BasvuruDurumu::EksikEvrak;
+    }
+
+    /**
+     * İstenen kalemlerin okunur listesi -- uyarı şeridinde kullanılır.
+     *
+     * @return array<int, string>
+     */
+    public function getIstenenKalemlerProperty(): array
+    {
+        if (! $this->eksikEvrakBekliyorMu()) {
+            return [];
+        }
+
+        return collect(array_keys($this->basvuru->duzeltme_notlari ?? []))
+            ->map(fn (string $anahtar) => DuzeltmeAlanlari::etiket($this->basvuru, $anahtar))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * "Eksik evrağı yükle" -- kişiyi kendi düzeltme formuna sokar.
+     *
+     * 🔒 Bilet YALNIZCA sayfanın sahibine üretilir: `$this->basvuru` zaten
+     * `kullanici_id = Auth::id()` ile yüklendi, başka bir başvuruya bilet
+     * üretilemez. Durum kontrolü de ayrıca yapılır ki karara bağlanmış bir
+     * başvuruya bilet çıkmasın.
+     *
+     * ⚠️ Yeni bilet ESKİSİNİ İPTAL EDER (BasvuruBiletiAkisi::uret). Bu bilerek:
+     * tek anda tek geçerli bağlantı olsun. Kullanıcıya da yazıyoruz.
+     */
+    public function eksikEvrakAction(): Action
+    {
+        return Action::make('eksikEvrak')
+            ->label('Eksik evrağı yükle')
+            ->icon('heroicon-m-arrow-up-tray')
+            ->color('warning')
+            ->visible(fn () => $this->eksikEvrakBekliyorMu())
+            ->action(function () {
+                if (! $this->eksikEvrakBekliyorMu()) {
+                    return null;
+                }
+
+                $token = app(BasvuruBiletiAkisi::class)->uret($this->basvuru);
+
+                return redirect()->to(route('basvuru.duzelt', $token));
+            });
     }
 
     /** Menüde yalnızca başvurusu olanlara görünsün. */

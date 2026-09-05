@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BasvuruController;
+use App\Http\Controllers\BasvuruDurumuController;
 use App\Http\Controllers\BasvuruDuzeltmeController;
 use App\Http\Controllers\EvrakController;
 use App\Http\Controllers\GirisController;
@@ -34,6 +35,16 @@ Route::middleware('throttle:giris')->group(function () {
     Route::post('/sifremi-unuttum', [SifreController::class, 'istekGonder'])->name('sifre.istek.gonder');
     Route::get('/sifre-sifirla/{token}', [SifreController::class, 'sifirlamaFormu'])->name('password.reset');
     Route::post('/sifre-sifirla', [SifreController::class, 'sifirla'])->name('sifre.sifirla');
+});
+
+/*
+ * "Başvurum ne oldu?" -- reddedilen adayın hesabı hiç açılmadığı için giriş
+ * ekranı ona cevap veremiyordu. Cevap burada; giriş ekranı ise hesap var mı
+ * yok mu söylemeye devam ETMİYOR (bkz. BasvuruDurumuController).
+ */
+Route::middleware('throttle:basvuru-durumu')->group(function () {
+    Route::get('/basvuru-durumu', [BasvuruDurumuController::class, 'form'])->name('basvuru.durum');
+    Route::post('/basvuru-durumu', [BasvuruDurumuController::class, 'sorgula'])->name('basvuru.durum.sorgula');
 });
 
 Route::redirect('/kurum/login', '/giris');

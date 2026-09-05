@@ -13,12 +13,14 @@ use App\Notifications\EksikEvrakTalebi;
 use App\Servisler\BasvuruAkisi;
 use App\Servisler\BasvuruBiletiAkisi;
 use App\Servisler\DegerlendirmeAkisi;
+use App\Servisler\KurumAkreditasyonu;
 use App\Support\DuzeltmeAlanlari;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
@@ -196,7 +198,7 @@ class Inceleme extends Page
                 BasvuruDurumu::Reddedildi,
                 BasvuruDurumu::IptalEdildi,
             ], true) => 'Başvuru karara bağlandı ('.$this->record->durum->etiket()
-                .'). Yeniden işlem yapmak için önce "Kararı geri al" deyin.',
+                .'). Yeniden işlem yapmak için önce "Akreditasyonu geri al" deyin.',
 
             $kural === 'incele' => 'Başvuru zaten incelemeye alınmış.',
             $kural === 'eksikEvrakIste' => 'Belge istemek için başvuru "İnceleniyor" durumunda olmalı.',
@@ -217,7 +219,7 @@ class Inceleme extends Page
              * (BasvuruAkisi::karariGeriAl).
              */
             Action::make('karariGeriAl')
-                ->label('Kararı geri al')
+                ->label('Akreditasyonu geri al')
                 ->icon('heroicon-m-arrow-uturn-left')
                 ->color('danger')
                 ->visible(fn () => auth()->user()->can('karariGeriAl', $this->record))
@@ -227,14 +229,34 @@ class Inceleme extends Page
                         ->required()
                         ->rows(3)
                         ->maxLength(500),
+
+                    /*
+                     * 💀 Kurumun akreditasyonu buradan da düşüyor ama
+                     * ÇALIŞANLARIN KARTLARI aktif kalıyordu: akreditasyonu
+                     * düşmüş kuruluşun muhabiri turnikeden geçmeye devam
+                     * ediyordu. "Akreditasyonu kaldır" ekranı bu kararı sayıyla
+                     * birlikte soruyor; aynı sonucu doğuran bu adım hiç
+                     * sormuyordu. (M9 №1'in aynısı, öbür kapıda.)
+                     */
+                    Toggle::make('kartlari_askiya_al')
+                        ->label('Çalışanların kartlarını da askıya al')
+                        ->helperText(fn () => "Bu kurumun {$this->etkilenenKartSayisi()} aktif kartı var; "
+                            .'kapatılmazsa turnikeden geçmeye devam ederler. Askı geri alınabilir, '
+                            .'iptalden farklı olarak kalıcı değildir.')
+                        ->default(true)
+                        ->visible(fn () => $this->etkilenenKartSayisi() > 0),
                 ])
-                ->modalHeading('Kararı geri al')
+                ->modalHeading('Akreditasyonu geri al')
                 ->modalDescription('Başvuru "İnceleniyor" durumuna döner ve yeniden karar verilebilir. '
                     .'Üretilmiş kart İPTAL EDİLİR, verilen akreditasyon rolü geri alınır; kurumsal '
                     .'başvuruda kurumun akreditasyonu da düşer. Hesap silinmez, erişimi kapanır.')
-                ->modalSubmitActionLabel('Kararı geri al')
+                ->modalSubmitActionLabel('Akreditasyonu geri al')
                 ->action(fn (array $data) => $this->calistir(
-                    fn () => app(BasvuruAkisi::class)->karariGeriAl($this->record, $data['gerekce']),
+                    fn () => app(BasvuruAkisi::class)->karariGeriAl(
+                        $this->record,
+                        $data['gerekce'],
+                        (bool) ($data['kartlari_askiya_al'] ?? false),
+                    ),
                     'Karar geri alındı; başvuru yeniden incelemenizde.',
                 )),
 
@@ -458,6 +480,22 @@ class Inceleme extends Page
         ];
     }
 
+    /**
+     * Karar geri alınırsa kaç ÇALIŞAN kartı etkilenir?
+     *
+     * Yalnızca kurumsal onayda anlamlı: kurum akredite değilse geri alma
+     * kurumun akreditasyonunu zaten düşürmez, kartlara da dokunmaz.
+     */
+    public function etkilenenKartSayisi(): int
+    {
+        if ($this->record->tur !== BasvuruTuru::Kurum
+            || $this->record->kurum?->akreditasyon_durumu !== 'akredite') {
+            return 0;
+        }
+
+        return app(KurumAkreditasyonu::class)->aktifKartSayisi($this->record->kurum);
+    }
+
     /** Akış çağrılarını tek yerde sarmalar: hata bildirimi + kaydı tazeleme. */
     private function calistir(callable $is, string $basariMesaji): void
     {
@@ -477,10 +515,10 @@ class Inceleme extends Page
     public function getDurumRozeti(): array
     {
         return [
-            // Kararın bugünkü karşılığıyla (bkz. Basvuru::durumEtiketi).
+            // Üçü de kararın bugünkü karşılığıyla (bkz. Basvuru::durumEtiketi).
             'etiket' => $this->record->durumEtiketi(),
-            'renk' => $this->record->durum->renk(),
-            'aciklama' => $this->record->durum->aciklama(),
+            'renk' => $this->record->durumRengi(),
+            'aciklama' => $this->record->durumAciklamasi(),
         ];
     }
 

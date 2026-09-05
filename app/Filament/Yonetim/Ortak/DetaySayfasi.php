@@ -76,6 +76,22 @@ abstract class DetaySayfasi extends Page
     }
 
     /**
+     * Künyenin HEMEN ALTINDAKİ uyarı bandı -- sekmeye girmeden görülmesi
+     * gereken şeyler için.
+     *
+     * 💀 "Eksik evrak bekleniyor" gibi bir bilgi sekmenin içinde durursa
+     * yetkili o sekmeye girmedikçe görmez; kurum aylarca belge yüklemeden
+     * bekler ve kimse fark etmez. Bant sayfayı açan herkesin gözüne girer.
+     *
+     * ['renk' => 'warning', 'baslik' => '…', 'metin' => '…', 'ikon' => '…',
+     *  'baglanti' => ['etiket' => '…', 'url' => '…']] ya da null.
+     */
+    public function uyariBandi(): ?array
+    {
+        return null;
+    }
+
+    /**
      * Künye alanları. Değer null ise satır "—" basar.
      * ['E-posta' => ['deger' => 'a@b.c', 'kopyala' => true], 'İl' => 'Çorum']
      */

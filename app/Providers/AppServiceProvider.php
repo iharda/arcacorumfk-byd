@@ -118,6 +118,13 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('giris', fn (Request $r) => Limit::perMinute(20)->by($r->ip()));
 
         // Form sayfasını görüntüleme
+        /*
+         * Başvuru durumu sorgulama: numara + e-posta birlikte isteniyor, yani
+         * adres taramasına yaramaz -- ama numara deneyerek kayıt aramanın da
+         * önü kesilsin diye dar tutuldu.
+         */
+        RateLimiter::for('basvuru-durumu', fn (Request $r) => Limit::perMinutes(10, 20)->by($r->ip()));
+
         RateLimiter::for('basvuru-goruntule', fn (Request $r) => Limit::perMinute(60)->by($r->ip()));
 
         /*

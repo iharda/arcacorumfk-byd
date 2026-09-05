@@ -2,6 +2,7 @@
 
 namespace App\Filament\Yonetim\Resources\Antrenmanlar\Tables;
 
+use App\Filament\Yonetim\Ortak\SiraSutunu;
 use App\Filament\Yonetim\Resources\Antrenmanlar\AntrenmanResource;
 use App\Filament\Yonetim\Resources\Antrenmanlar\Schemas\AntrenmanFormu;
 use App\Models\Antrenman;
@@ -29,6 +30,8 @@ class AntrenmanlarTable
             // Yaklaşan antrenman en üstte: yetkili genelde ileriye bakar.
             ->defaultSort('baslangic_at', 'desc')
             ->columns([
+                SiraSutunu::yap(),
+
                 TextColumn::make('baslangic_at')
                     ->label('Başlangıç')
                     ->dateTime('d.m.Y H:i', 'Europe/Istanbul')

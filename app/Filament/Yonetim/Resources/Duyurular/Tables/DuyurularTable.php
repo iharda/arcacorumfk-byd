@@ -2,6 +2,7 @@
 
 namespace App\Filament\Yonetim\Resources\Duyurular\Tables;
 
+use App\Filament\Yonetim\Ortak\SiraSutunu;
 use App\Filament\Yonetim\Resources\Duyurular\DuyuruResource;
 use App\Filament\Yonetim\Resources\Duyurular\Schemas\DuyuruFormu;
 use App\Models\Duyuru;
@@ -26,6 +27,8 @@ class DuyurularTable
             ->recordUrl(fn (Duyuru $record) => DuyuruResource::getUrl('detay', ['record' => $record]))
             ->defaultSort('created_at', 'desc')
             ->columns([
+                SiraSutunu::yap(),
+
                 TextColumn::make('baslik')->label('Başlık')->searchable()->wrap()->limit(80),
 
                 IconColumn::make('yayinda')->label('Yayında')->boolean(),

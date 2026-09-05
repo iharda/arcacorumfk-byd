@@ -232,6 +232,175 @@ class KarariGeriAlTest extends TestCase
         $this->assertSame(BasvuruDurumu::Reddedildi, $basvuru->refresh()->durum);
     }
 
+    /* ─────────── Kurum durumu: kararın kuruma yazdığı sonuç ─────────── */
+
+    /** Kurumsal başvuru + istenirse akredite bir kurumun aktif çalışan kartı. */
+    private function kurumsalBasvuru(string $kurumDurumu, BasvuruDurumu $durum): array
+    {
+        $kurum = Kurum::create([
+            'resmi_unvan' => 'Çorum Haber Ajansı',
+            'akreditasyon_durumu' => $kurumDurumu,
+        ]);
+
+        $basvuru = Basvuru::create([
+            'tur' => BasvuruTuru::Kurum,
+            'durum' => $durum,
+            'kurum_id' => $kurum->id,
+            'basvuru_no' => '2026-BV-0044',
+            'basvuran_eposta' => 'iletisim@ornek.test',
+            'karar_at' => now()->subDay(),
+        ]);
+
+        return [$basvuru, $kurum];
+    }
+
+    private function calisanKarti(Kurum $kurum, string $kartNo = '2026-BS-0001'): Akreditasyon
+    {
+        $calisan = User::create([
+            'name' => 'Muhabir', 'email' => $kartNo.'@ornek.test',
+            'password' => bcrypt('x'), 'aktif' => true, 'kurum_id' => $kurum->id,
+        ]);
+
+        $basvuru = Basvuru::create([
+            'tur' => BasvuruTuru::BasinMensubu,
+            'durum' => BasvuruDurumu::Onaylandi,
+            'kurum_id' => $kurum->id,
+            'kullanici_id' => $calisan->id,
+            'basvuran_eposta' => $calisan->email,
+        ]);
+
+        return Akreditasyon::create([
+            'kullanici_id' => $calisan->id,
+            'basvuru_id' => $basvuru->id,
+            'kurum_id' => $kurum->id,
+            'kart_no' => $kartNo,
+            'yil' => 2026,
+            'tur_kodu' => 'BS',
+            'sira' => 1,
+            'durum' => AkreditasyonDurumu::Aktif,
+        ]);
+    }
+
+    /**
+     * 💀 Reddedilen kurumsal başvurunun kararı geri alındığında kurum
+     * `reddedildi` KALIYORDU: Kurumlar ekranı kırmızı "Reddedildi" derken
+     * Başvurular ekranı "İnceleniyor" diyordu.
+     */
+    public function test_red_karari_geri_alininca_kurum_beklemeye_doner(): void
+    {
+        [$basvuru, $kurum] = $this->kurumsalBasvuru('beklemede', BasvuruDurumu::Incelemede);
+
+        $this->akis()->reddet($basvuru, 'Evrak yetersiz.');
+        $this->assertSame('reddedildi', $kurum->fresh()->akreditasyon_durumu);
+
+        $this->akis()->karariGeriAl($basvuru->fresh(), 'Yanlış değerlendirdim.');
+
+        $this->assertSame(BasvuruDurumu::Incelemede, $basvuru->fresh()->durum);
+        $this->assertSame('beklemede', $kurum->fresh()->akreditasyon_durumu);
+    }
+
+    /** İptal edilen kurumsal başvuruda da aynısı. */
+    public function test_iptal_karari_geri_alininca_kurum_beklemeye_doner(): void
+    {
+        [$basvuru, $kurum] = $this->kurumsalBasvuru('beklemede', BasvuruDurumu::Gonderildi);
+
+        $this->akis()->iptalEt($basvuru, 'Mükerrer başvuru.');
+        $this->assertSame('iptal_edildi', $kurum->fresh()->akreditasyon_durumu);
+
+        $this->akis()->karariGeriAl($basvuru->fresh(), 'Yanlışlıkla iptal ettim.');
+
+        $this->assertSame('beklemede', $kurum->fresh()->akreditasyon_durumu);
+    }
+
+    /**
+     * 🔒 `iptal` BAŞVURU KARARININ SONUCU DEĞİL: "Akreditasyonu kaldır" ile
+     * verilmiş ayrı bir karardır. Geri alma onu sıfırlarsa kulübün kararı
+     * sessizce silinir ve yalnızca `iptal`de açılan "geri ver" eylemi kaybolur.
+     */
+    public function test_kaldirilmis_akreditasyona_dokunulmaz(): void
+    {
+        [$basvuru, $kurum] = $this->kurumsalBasvuru('iptal', BasvuruDurumu::Onaylandi);
+
+        $this->akis()->karariGeriAl($basvuru, 'Kararı gözden geçireceğim.');
+
+        $this->assertSame('iptal', $kurum->fresh()->akreditasyon_durumu);
+    }
+
+    /**
+     * 🪤 Kurumun BAŞKA bir onaylı kurumsal başvurusu varsa akreditasyon ona
+     * dayanıyordur; eski bir kararı geri almak onu düşürmemeli.
+     */
+    public function test_baska_onayli_basvuru_varsa_akreditasyon_dusmez(): void
+    {
+        [$eski, $kurum] = $this->kurumsalBasvuru('akredite', BasvuruDurumu::Onaylandi);
+
+        Basvuru::create([
+            'tur' => BasvuruTuru::Kurum,
+            'durum' => BasvuruDurumu::Onaylandi,
+            'kurum_id' => $kurum->id,
+            'basvuru_no' => '2026-BV-0045',
+            'basvuran_eposta' => 'iletisim2@ornek.test',
+        ]);
+
+        $this->akis()->karariGeriAl($eski, 'Eski kararı geri alıyorum.');
+
+        $this->assertSame('akredite', $kurum->fresh()->akreditasyon_durumu);
+    }
+
+    /* ─────────── Çalışan kartları: M9 №1'in aynısı, öbür kapıda ─────────── */
+
+    /**
+     * 💀 Kurumsal onay geri alınınca kurum `beklemede`ye düşüyor ama
+     * ÇALIŞANLARIN kartları AKTİF kalıyordu: akreditasyonu düşmüş kuruluşun
+     * muhabiri turnikeden geçmeye devam ediyordu. "Akreditasyonu kaldır" yolu
+     * bunu sayıp soruyordu, bu yol hiç sormuyordu.
+     */
+    public function test_kurumsal_onay_geri_alininca_kartlar_askiya_alinabilir(): void
+    {
+        [$basvuru, $kurum] = $this->kurumsalBasvuru('akredite', BasvuruDurumu::Onaylandi);
+        $kart = $this->calisanKarti($kurum);
+
+        $this->assertTrue($kart->gecerliMi(), 'Başlangıçta kart geçerli olmalı.');
+
+        $this->akis()->karariGeriAl($basvuru, 'Yanlış onayladım.', kartlariAskiyaAl: true);
+
+        $this->assertSame('beklemede', $kurum->fresh()->akreditasyon_durumu);
+        $this->assertSame(AkreditasyonDurumu::Askida, $kart->refresh()->durum);
+        $this->assertFalse($kart->gecerliMi(), 'Kart turnikeden geçmemeli.');
+    }
+
+    /**
+     * ⚠️ Askı İSTEĞE BAĞLI kalır (iptal gibi kalıcı değil, ama yine de bir
+     * karardır). Seçilmezse kart durur -- ama kaç kartın etkilendiği DENETİME
+     * yazılır ki karar sonradan hesabı sorulabilsin.
+     */
+    public function test_askiya_alma_secilmezse_kart_durur_ama_sayi_denetime_yazilir(): void
+    {
+        [$basvuru, $kurum] = $this->kurumsalBasvuru('akredite', BasvuruDurumu::Onaylandi);
+        $kart = $this->calisanKarti($kurum);
+
+        $this->akis()->karariGeriAl($basvuru, 'Yanlış onayladım.');
+
+        $this->assertSame(AkreditasyonDurumu::Aktif, $kart->refresh()->durum);
+
+        $kayit = DenetimKaydi::where('olay', 'basvuru.karar_geri_alindi')->latest('id')->first();
+
+        $this->assertSame(1, $kayit->yeni['etkilenen_aktif_kart']);
+        $this->assertFalse($kayit->yeni['kartlar_askiya_alindi']);
+    }
+
+    /** Bireysel başvuruda çalışan kartı kavramı yok; sayı sıfır kalmalı. */
+    public function test_bireysel_geri_almada_calisan_karti_sayilmaz(): void
+    {
+        [$basvuru] = $this->onaylanmisBireysel();
+
+        $this->akis()->karariGeriAl($basvuru, 'Yanlış kişi onaylandı.');
+
+        $kayit = DenetimKaydi::where('olay', 'basvuru.karar_geri_alindi')->latest('id')->first();
+
+        $this->assertSame(0, $kayit->yeni['etkilenen_aktif_kart']);
+    }
+
     /* ─────────── Etiket: kararın BUGÜNKÜ karşılığı ─────────── */
 
     /**
@@ -256,12 +425,39 @@ class KarariGeriAlTest extends TestCase
 
         $this->assertSame('Akredite edildi', $basvuru->durumEtiketi());
 
+        // İptal parantez içi bir dipnot değil, bugünkü gerçek durum.
         $kurum->update(['akreditasyon_durumu' => 'iptal']);
 
-        $this->assertSame(
-            'Akredite edildi (sonradan kaldırıldı)',
-            $basvuru->fresh()->durumEtiketi(),
+        $this->assertSame('İptal edildi', $basvuru->fresh()->durumEtiketi());
+        $this->assertSame('danger', $basvuru->fresh()->durumRengi());
+        $this->assertStringContainsString(
+            'iptal edildi',
+            $basvuru->fresh()->durumAciklamasi(),
         );
+    }
+
+    /**
+     * 🪤 "akredite değil" ile "iptal" AYNI ŞEY DEĞİL: kurum yeni bir başvuru
+     * kararıyla `beklemede`ye dönmüş olabilir. Bu iptal değildir ve eski
+     * dipnotlu biçimini korur -- yoksa hiç iptal edilmemiş kurum listede
+     * kırmızı "İptal edildi" diye görünür.
+     */
+    public function test_kurum_akredite_degil_ama_iptal_de_degilse_dipnot_kalir(): void
+    {
+        $kurum = Kurum::create([
+            'resmi_unvan' => 'Çorum Haber Ajansı',
+            'akreditasyon_durumu' => 'beklemede',
+        ]);
+
+        $basvuru = Basvuru::create([
+            'tur' => BasvuruTuru::Kurum,
+            'durum' => BasvuruDurumu::Onaylandi,
+            'kurum_id' => $kurum->id,
+            'basvuran_eposta' => 'iletisim@ornek.test',
+        ]);
+
+        $this->assertSame('Akredite edildi (sonradan kaldırıldı)', $basvuru->durumEtiketi());
+        $this->assertSame('success', $basvuru->durumRengi());
     }
 
     /** Bireyselde kartın bugünkü durumu okunur. */
@@ -271,11 +467,14 @@ class KarariGeriAlTest extends TestCase
 
         $this->assertSame('Akredite edildi', $basvuru->durumEtiketi());
 
+        // Askı GEÇİCİ bir hâl: karar duruyor, parantezli biçim korunur.
         $kart->update(['durum' => AkreditasyonDurumu::Askida]);
         $this->assertSame('Akredite edildi (askıda)', $basvuru->fresh()->durumEtiketi());
+        $this->assertSame('success', $basvuru->fresh()->durumRengi());
 
         $kart->update(['durum' => AkreditasyonDurumu::Iptal]);
-        $this->assertSame('Akredite edildi (sonradan kaldırıldı)', $basvuru->fresh()->durumEtiketi());
+        $this->assertSame('İptal edildi', $basvuru->fresh()->durumEtiketi());
+        $this->assertSame('danger', $basvuru->fresh()->durumRengi());
     }
 
     /** 🔒 Karara bağlanmamış başvuruda ek açıklama olmamalı. */
@@ -288,5 +487,22 @@ class KarariGeriAlTest extends TestCase
         ]);
 
         $this->assertSame('İnceleme bekliyor', $basvuru->durumEtiketi());
+        $this->assertSame($basvuru->durum->aciklama(), $basvuru->durumAciklamasi());
+    }
+
+    /**
+     * 🔒 Kuyruktan düşürülen başvurunun (`iptal_edildi`) etiketi eskisi gibi:
+     * bu başka bir olay ve rengi de farklı (gri), akreditasyon iptali değil.
+     */
+    public function test_basvurunun_kendisi_iptal_edilmisse_renk_degismez(): void
+    {
+        $basvuru = Basvuru::create([
+            'tur' => BasvuruTuru::BasinMensubu,
+            'durum' => BasvuruDurumu::IptalEdildi,
+            'basvuran_eposta' => 'aday@ornek.test',
+        ]);
+
+        $this->assertSame('İptal edildi', $basvuru->durumEtiketi());
+        $this->assertSame('gray', $basvuru->durumRengi());
     }
 }

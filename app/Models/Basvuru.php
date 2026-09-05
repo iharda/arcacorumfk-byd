@@ -246,11 +246,22 @@ class Basvuru extends Model
      * (`BasvuruDurumu::etiket`) sade kalır -- kayda erişimi yok ve denetim
      * kaydı gibi yerlerde tek başına kullanılıyor.
      *
+     * 🔤 İPTAL AYRI TUTULUR (Cüneyt Bey revizyonu 05.09.2026): iptal edilmiş
+     * akreditasyon "Akredite edildi (sonradan kaldırıldı)" diye gösteriliyordu;
+     * cümlenin baskın yarısı hâlâ "akredite" diyordu ve satır yeşildi. Bugünkü
+     * gerçek durum iptaldir, parantez içi bir dipnot değil: etiket de rengi de
+     * (bkz. durumRengi) Kurumlar ekranındaki "İptal" ile aynı şeyi söyler.
+     * "Askıda" geçici bir hâl olduğu için parantezli biçimini KORUYOR.
+     *
      * ⚠️ `kurum` / `akreditasyon` ilişkileri okunur: liste kullanıyorsa
      * `with()` ile yüklensin, yoksa satır başına sorgu açar.
      */
     public function durumEtiketi(): string
     {
+        if ($this->akreditasyonIptalEdildiMi()) {
+            return 'İptal edildi';
+        }
+
         $etiket = $this->durum->etiket();
 
         if ($this->durum !== BasvuruDurumu::Onaylandi) {
@@ -263,12 +274,79 @@ class Basvuru extends Model
                 ? 'sonradan kaldırıldı' : null)
             // Bireysel onay = kart; kartın bugünkü durumu.
             : match ($this->akreditasyon?->durum) {
-                AkreditasyonDurumu::Iptal => 'sonradan kaldırıldı',
                 AkreditasyonDurumu::Askida => 'askıda',
                 default => null,
             };
 
         return $ek ? "{$etiket} ({$ek})" : $etiket;
+    }
+
+    /**
+     * Rozetin rengi -- etiketle BİRLİKTE kullanılır.
+     *
+     * 💀 Ayrı bir metot olmasının sebebi: etiketi `durumEtiketi()`den, rengi
+     * `durum->renk()`ten alan ekran "İptal edildi" yazan YEŞİL bir rozet
+     * çiziyordu. Renk hızlı okunan taraftır; ikisi ayrı kaynaktan gelirse
+     * er geç çelişirler.
+     */
+    public function durumRengi(): string
+    {
+        return $this->akreditasyonIptalEdildiMi()
+            ? AkreditasyonDurumu::Iptal->renk()
+            : $this->durum->renk();
+    }
+
+    /**
+     * "Kararı veren" satırının metni -- ekran ve CSV aynı cümleyi yazsın.
+     *
+     * 💀 `kararVeren` ilişkisi inceleme sayfasında YÜKLENİYOR ama hiçbir yerde
+     * basılmıyordu: "bu başvuruyu kim onayladı" sorusunun ekranda cevabı yoktu,
+     * yalnızca CSV'de ve denetim kaydında vardı.
+     *
+     * 🪤 Karar veren HER ZAMAN bir kişi değildir:
+     *   · Kurum teyit vermediyse red KULÜBÜN kararı değildir; kişi yerine
+     *     kurumun adı yazılır, yoksa satır boş kalır ve yetkili "bunu kim
+     *     reddetti" diye bakakalır.
+     *   · İptal edilen başvuruda kişi bilerek yazılmaz (bkz.
+     *     BasvuruAkisi::iptalEt); orada null döner ve satır hiç çizilmez.
+     */
+    public function kararVereniMetni(): ?string
+    {
+        if ($this->kararVeren) {
+            return $this->kararVeren->name;
+        }
+
+        if ($this->durum === BasvuruDurumu::Reddedildi && $this->kurum_teyidi === false) {
+            return ($this->kurum?->resmi_unvan ?? 'Kurum').' — teyit vermedi';
+        }
+
+        return null;
+    }
+
+    /** Rozetin altındaki / fare üstündeki açıklama -- etiketle aynı gerçeği anlatır. */
+    public function durumAciklamasi(): string
+    {
+        return $this->akreditasyonIptalEdildiMi()
+            ? 'Başvuru onaylanmıştı ancak akreditasyon sonradan iptal edildi.'
+            : $this->durum->aciklama();
+    }
+
+    /**
+     * Onaylanmış başvurunun akreditasyonu BUGÜN iptal mi?
+     *
+     * 🪤 Yalnızca `iptal`e bakar. Kurum tarafındaki `beklemede` / `reddedildi`
+     * gibi diğer "akredite değil" hâlleri iptal DEĞİLDİR; onlar eskisi gibi
+     * "(sonradan kaldırıldı)" dipnotuyla gösterilmeye devam eder.
+     */
+    private function akreditasyonIptalEdildiMi(): bool
+    {
+        if ($this->durum !== BasvuruDurumu::Onaylandi) {
+            return false;
+        }
+
+        return $this->tur === BasvuruTuru::Kurum
+            ? $this->kurum?->akreditasyon_durumu === 'iptal'
+            : $this->akreditasyon?->durum === AkreditasyonDurumu::Iptal;
     }
 
     public function durumaGec(BasvuruDurumu $hedef): void

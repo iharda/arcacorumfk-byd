@@ -30,6 +30,35 @@
         </p>
     @endif
 
+    {{-- 🔑 "Eksik evrak var mı?" sorusunun sekme içindeki cevabı. Üstteki bant
+         sayfayı açan herkesin gözüne girer; buraya giren de neyin beklendiğini
+         KALEM KALEM görsün -- "belge istendi" tek başına yetmiyor. --}}
+    @if ($eksikEvrakBasvurusu ?? null)
+        <div style="margin-bottom:1rem; border:1px solid rgba(234,179,8,.35);
+                    background:rgba(234,179,8,.08); border-radius:.6rem; padding:.7rem .85rem;">
+            <div style="display:flex; gap:.5rem; align-items:center; font-weight:600; font-size:.88rem;">
+                <x-filament::icon icon="heroicon-m-clock" style="width:1.1rem; height:1.1rem;" />
+                Yüklenmeyi bekleyen evrak var
+            </div>
+
+            @if ($beklenenEvraklar !== [])
+                <ul style="margin:.5rem 0 0; padding-left:1.1rem; font-size:.85rem;">
+                    @foreach ($beklenenEvraklar as $kalem)
+                        <li>{{ $kalem }}</li>
+                    @endforeach
+                </ul>
+            @endif
+
+            @php $duzeltme = $eksikEvrakBasvurusu->acikDuzeltme(); @endphp
+            @if ($duzeltme?->talep_at)
+                <p style="margin:.5rem 0 0; font-size:.78rem; opacity:.7;">
+                    {{ $duzeltme->talep_at->timezone('Europe/Istanbul')->format('d.m.Y') }}
+                    tarihinde istendi.
+                </p>
+            @endif
+        </div>
+    @endif
+
     <x-parcalar.evrak-listesi
         :evraklar="$evraklar"
         bos-mesaj="Bu kuruma ait kurumsal başvuru evrakı yok." />

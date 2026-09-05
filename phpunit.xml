@@ -36,6 +36,14 @@
             disi birakiyoruz.
         -->
         <env name="APP_CONFIG_CACHE" value="bootstrap/cache/config.testing-yok.php" force="true"/>
+        <!--
+            AYNI TUZAGIN ROTA TARAFI: `bootstrap/cache/routes-v7.php` varken
+            `routes/web.php` HIC OKUNMAZ. Yeni eklenen bir rota testte
+            "Route [x] not defined" diye patlar; asil sebep kod degil
+            onbellektir ve `dagit.sh` her dagitimda `optimize` calistirdigi
+            icin dosya sunucuda HER ZAMAN vardir.
+        -->
+        <env name="APP_ROUTES_CACHE" value="bootstrap/cache/routes.testing-yok.php" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>

@@ -63,6 +63,31 @@
         </div>
     </x-filament::section>
 
+    {{-- ── 2b) Uyarı bandı ──────────────────────────────────────
+         Sekmeye girmeden görülmesi gerekenler (bkz. DetaySayfasi::uyariBandi).
+         Künyenin hemen altında, sekmelerin üstünde. --}}
+    @php $bant = $this->uyariBandi(); @endphp
+    @if ($bant)
+        <x-filament::section compact>
+            <div style="display:flex; gap:.7rem; align-items:flex-start;">
+                <x-filament::icon :icon="$bant['ikon'] ?? 'heroicon-m-exclamation-triangle'"
+                                  @class(['fi-color-'.($bant['renk'] ?? 'warning')])
+                                  style="width:1.35rem; height:1.35rem; flex:none; margin-top:.1rem;" />
+                <div style="min-width:0; flex:1;">
+                    <div style="font-weight:600;">{{ $bant['baslik'] }}</div>
+                    @if (filled($bant['metin'] ?? null))
+                        <p style="margin:.25rem 0 0; font-size:.85rem; opacity:.75;">{{ $bant['metin'] }}</p>
+                    @endif
+                </div>
+                @if ($bant['baglanti'] ?? null)
+                    <x-filament::link :href="$bant['baglanti']['url']" size="sm">
+                        {{ $bant['baglanti']['etiket'] }}
+                    </x-filament::link>
+                @endif
+            </div>
+        </x-filament::section>
+    @endif
+
     {{-- ── 3) İlişkili kayıtlar ─────────────────────────────────── --}}
     @php $sekmeler = $this->sekmeler(); @endphp
     @if ($sekmeler !== [])

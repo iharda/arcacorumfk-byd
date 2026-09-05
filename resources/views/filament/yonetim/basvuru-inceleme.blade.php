@@ -75,6 +75,10 @@
                         'Gönderim'  => $record->gonderildi_at?->timezone('Europe/Istanbul')->format('d.m.Y H:i'),
                         'İncelemeye alındı' => $record->incelemeye_alindi_at?->timezone('Europe/Istanbul')->format('d.m.Y H:i'),
                         'Karar'     => $record->karar_at?->timezone('Europe/Istanbul')->format('d.m.Y H:i'),
+                        {{-- "Bu başvuruyu kim onayladı" sorusunun ekrandaki cevabı.
+                             Kararı veren her zaman bir kişi değil (kurum teyidi
+                             reddi, iptal) -- metni model kuruyor. --}}
+                        'Kararı veren' => $record->kararVereniMetni(),
                     ] as $etiket => $deger)
                         @if ($deger)
                             <dt style="opacity:.6;">{{ $etiket }}</dt>

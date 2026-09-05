@@ -4,10 +4,12 @@ namespace App\Filament\Yonetim\Resources\Basvurus\Tables;
 
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
+use App\Filament\Yonetim\Ortak\SiraSutunu;
 use App\Filament\Yonetim\Resources\Basvurus\BasvuruResource;
 use App\Models\Basvuru;
 use App\Servisler\BasvuruAkisi;
 use App\Servisler\CsvDisaAktar;
+use App\Servisler\KurumAkreditasyonu;
 use App\Support\TopluIslem;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -15,6 +17,7 @@ use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
@@ -45,6 +48,8 @@ class BasvurusTable
             // Bekleyen en eski başvuru en üstte: kuyruk sırası bozulmasın.
             ->defaultSort('gonderildi_at', 'asc')
             ->columns([
+                SiraSutunu::yap(),
+
                 /*
                  * Basvuran e-postadaki numarayla ariyor (2026-BV-0137);
                  * ULID kuyrukta hic gorunmez. Gonderilmemis basvuruda numara
@@ -103,12 +108,13 @@ class BasvurusTable
                 TextColumn::make('durum')
                     ->label('Durum')
                     ->badge()
-                    ->color(fn (BasvuruDurumu $state) => $state->renk())
-                    // Kararın BUGÜNKÜ karşılığıyla: "Akredite edildi
-                    // (sonradan kaldırıldı)" gibi (bkz. Basvuru::durumEtiketi).
+                    // Etiket, renk ve açıklama TEK kaynaktan: kararın bugünkü
+                    // karşılığı ("İptal edildi", "Akredite edildi (askıda)"…).
+                    // Üçü ayrı yerden gelirse çelişirler -- bkz. Basvuru::durumRengi.
+                    ->color(fn (Basvuru $record) => $record->durumRengi())
                     ->formatStateUsing(fn (Basvuru $record) => $record->durumEtiketi())
                     // Durum adları yeni; ne anlama geldikleri fare üstüne gelince.
-                    ->tooltip(fn (BasvuruDurumu $state) => $state->aciklama())
+                    ->tooltip(fn (Basvuru $record) => $record->durumAciklamasi())
                     /*
                      * 🔑 Bekleme süresi durumun ALTINDA (saha notları T4):
                      * Genel bakış "en eski bekleyen 14 gün" diyordu ama
@@ -279,7 +285,8 @@ class BasvurusTable
                             $b->durum->etiket(),
                             $b->gonderildi_at?->timezone('Europe/Istanbul')->format('d.m.Y H:i'),
                             $b->karar_at?->timezone('Europe/Istanbul')->format('d.m.Y H:i'),
-                            $b->kararVeren?->name,
+                            // Ekranla aynı cümle (bkz. Basvuru::kararVereniMetni).
+                            $b->kararVereniMetni(),
                         ],
                         // 🔒 Toplu kişisel veri indirme denetime düşer (Düzeltme listesi md.8).
                         olay: 'basvuru.disa_aktarildi',
@@ -321,19 +328,33 @@ class BasvurusTable
                         )),
 
                     Action::make('karariGeriAl')
-                        ->label('Kararı geri al')
+                        ->label('Akreditasyonu geri al')
                         ->icon('heroicon-m-arrow-uturn-left')
                         ->color('danger')
                         ->visible(fn (Basvuru $record) => auth()->user()->can('karariGeriAl', $record))
                         ->schema([
                             Textarea::make('gerekce')->label('Gerekçe')->required()->rows(3)->maxLength(500),
+
+                            // İnceleme ekranındaki kararın aynısı buradan da
+                            // veriliyor; soru da aynı olmalı (bkz. Inceleme).
+                            Toggle::make('kartlari_askiya_al')
+                                ->label('Çalışanların kartlarını da askıya al')
+                                ->helperText(fn (Basvuru $record) => 'Bu kurumun '
+                                    .self::etkilenenKartSayisi($record).' aktif kartı var; kapatılmazsa '
+                                    .'turnikeden geçmeye devam ederler. Askı geri alınabilir.')
+                                ->default(true)
+                                ->visible(fn (Basvuru $record) => self::etkilenenKartSayisi($record) > 0),
                         ])
                         ->modalDescription('Başvuru "İnceleniyor" durumuna döner. Üretilmiş kart İPTAL '
                             .'EDİLİR, akreditasyon rolü geri alınır; kurumsal başvuruda kurumun '
                             .'akreditasyonu da düşer.')
-                        ->modalSubmitActionLabel('Kararı geri al')
+                        ->modalSubmitActionLabel('Akreditasyonu geri al')
                         ->action(fn (Basvuru $record, array $data) => self::calistir(
-                            fn () => app(BasvuruAkisi::class)->karariGeriAl($record, $data['gerekce']),
+                            fn () => app(BasvuruAkisi::class)->karariGeriAl(
+                                $record,
+                                $data['gerekce'],
+                                (bool) ($data['kartlari_askiya_al'] ?? false),
+                            ),
                             'Karar geri alındı.',
                         )),
                 ])
@@ -377,6 +398,20 @@ class BasvurusTable
     }
 
     /** Servis hatası bildirime dönsün, ekran 500 vermesin (Akreditasyonlar kalıbı). */
+    /**
+     * Karar geri alınırsa kaç ÇALIŞAN kartı etkilenir? Yalnızca akredite bir
+     * kurumun kurumsal başvurusunda anlamlı (bkz. Inceleme::etkilenenKartSayisi).
+     */
+    private static function etkilenenKartSayisi(Basvuru $record): int
+    {
+        if ($record->tur !== BasvuruTuru::Kurum
+            || $record->kurum?->akreditasyon_durumu !== 'akredite') {
+            return 0;
+        }
+
+        return app(KurumAkreditasyonu::class)->aktifKartSayisi($record->kurum);
+    }
+
     private static function calistir(callable $is, string $mesaj): void
     {
         try {

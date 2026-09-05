@@ -5,6 +5,7 @@ namespace App\Filament\Yonetim\Resources\Kurumlar\Tables;
 use App\Enums\BasvuruDurumu;
 use App\Enums\DegerlendirmePuani;
 use App\Filament\Yonetim\Ortak\DegerlendirmeEylemi;
+use App\Filament\Yonetim\Ortak\SiraSutunu;
 use App\Filament\Yonetim\Resources\Kurumlar\KurumResource;
 use App\Models\Basvuru;
 use App\Models\Degerlendirme;
@@ -53,11 +54,27 @@ class KurumlarTable
                 ->with('degerlendirme'))
             ->defaultSort('resmi_unvan')
             ->columns([
+                SiraSutunu::yap(),
+
                 TextColumn::make('resmi_unvan')
                     ->label('Ünvan')
                     ->searchable()
                     ->sortable()
                     ->wrap(),
+
+                /*
+                 * 🔎 E-POSTA SÜTUNU: adres zaten aranan bir alan ("şu adresle
+                 * kayıtlı kurum hangisi") ama yalnızca kayıtta duruyordu;
+                 * yetkili aramayı yapıp sonucu göremiyordu. Kopyalanabilir:
+                 * kuruma yazmak için detaya girmeye gerek kalmasın.
+                 */
+                TextColumn::make('eposta')
+                    ->label('E-posta')
+                    ->searchable()
+                    ->copyable()
+                    ->copyMessage('E-posta kopyalandı')
+                    ->placeholder('—')
+                    ->toggleable(),
 
                 TextColumn::make('il')
                     ->label('İl')
