@@ -30,6 +30,20 @@ class EvrakTaslagiTest extends TestCase
 
         $this->seed(EvrakTuruSeeder::class);
         Notification::fake();
+
+        /*
+         * 💀 TESTLER ÜRETİM DİSKİNE YAZIYORDU (05.09.2026). Tek tek testler
+         * yalnızca `local`i sahteliyordu -- taslağın durduğu disk. Oysa başarılı
+         * gönderim taslağı GERÇEK evraka çeviriyor ve `EvrakYukleyici` onu
+         * `evrak` diskine yazıyor; o disk sahtelenmediği için her koşu canlı
+         * `storage/app/evrak` altına 4 dosya bırakıyordu. Üç günde 322 yetim
+         * dosya böyle birikti: kaydı olmayan, kimsenin silmediği çöp.
+         *
+         * 🔑 İki disk de setUp'ta sahtelenir: sınıfa yeni bir test eklendiğinde
+         * kimse bunu yeniden hatırlamak zorunda kalmasın.
+         */
+        Storage::fake('local');
+        Storage::fake(config('bys.evrak_disk'));
     }
 
     /** Gerçek bir PNG: yükleyici türü MAGIC BYTE'tan okuyor, uzantıya bakmıyor. */
@@ -66,8 +80,6 @@ class EvrakTaslagiTest extends TestCase
 
     public function test_hatali_gonderimden_sonra_dosya_yeniden_istenmez(): void
     {
-        Storage::fake('local');
-
         // 1) Adres eksik: doğrulama patlar ama dosyalar seçilmişti.
         $this->post(route('basvuru.icerik-ureticisi.kaydet'), $this->form(['adres' => '']) + [
             'evraklar' => $this->dosyalar(),
@@ -95,8 +107,6 @@ class EvrakTaslagiTest extends TestCase
     /** Başarılı gönderimden sonra taslak diskte de oturumda da kalmamalı. */
     public function test_basarili_gonderim_taslagi_temizler(): void
     {
-        Storage::fake('local');
-
         $this->post(route('basvuru.icerik-ureticisi.kaydet'), $this->form(['adres' => '']) + [
             'evraklar' => $this->dosyalar(),
         ])->assertSessionHasErrors('adres');
@@ -118,8 +128,6 @@ class EvrakTaslagiTest extends TestCase
      */
     public function test_baska_turun_taslagi_forma_sizmaz(): void
     {
-        Storage::fake('local');
-
         $kurumEvraklari = EvrakTuru::turIcin(BasvuruTuru::Kurum)
             ->mapWithKeys(fn (EvrakTuru $t) => [$t->id => $this->png($t->kod.'.png')])->all();
 
@@ -143,8 +151,6 @@ class EvrakTaslagiTest extends TestCase
     /** Süresi geçen taslaklar süpürülür (KVKK: aralarında kimlik belgesi var). */
     public function test_eski_taslaklar_temizlik_isinde_silinir(): void
     {
-        Storage::fake('local');
-
         $this->post(route('basvuru.icerik-ureticisi.kaydet'), $this->form(['adres' => '']) + [
             'evraklar' => $this->dosyalar(),
         ])->assertSessionHasErrors('adres');
