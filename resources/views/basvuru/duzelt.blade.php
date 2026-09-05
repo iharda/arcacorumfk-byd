@@ -3,10 +3,29 @@
 
 @section('icerik')
 <div class="mx-auto max-w-2xl">
-    <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">Başvurunuzu düzeltin</h1>
+    {{-- 🔑 Akredite kişiye "başvurunuzu düzeltin" demek YANLIŞ: başvurusu
+         onaylı, kartı cebinde. Aynı sayfa iki farklı işi görüyor, başlık da
+         hangisi olduğunu söylemeli (Cüneyt Bey revizyonu 05.09.2026). --}}
+    @php $belgeTalebi = $duzeltme?->belgeTalebiMi() ?? false; @endphp
+
+    <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">
+        {{ $belgeTalebi ? 'İstenen belgeyi gönderin' : 'Başvurunuzu düzeltin' }}
+    </h1>
     <p class="mt-2 text-sm text-neutral-600">
         {{ $basvuru->tur->etiket() }}@if ($basvuru->kurum) · {{ $basvuru->kurum->resmi_unvan }}@endif
     </p>
+
+    @if ($belgeTalebi)
+        <div class="mt-4 rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700">
+            <strong class="font-medium text-koyu">{{ $basvuru->belgeTalebiGuvencesi() }}.</strong>
+            Bu talep akreditasyonunuzu askıya almaz; belgeyi gönderdiğinizde başvurunuz
+            yeniden değerlendirmeye alınmaz.
+            @if ($duzeltme?->son_tarih)
+                Son gönderim tarihi:
+                <strong class="font-medium text-koyu">{{ $duzeltme->son_tarih->timezone('Europe/Istanbul')->format('d.m.Y') }}</strong>.
+            @endif
+        </div>
+    @endif
 
     @if ($errors->any())
         <div class="mt-6 rounded-lg border border-kulup-600 bg-kulup-50 px-4 py-3 text-sm text-kulup-800">
@@ -42,9 +61,13 @@
             @endforeach
         </ul>
 
-        @if (filled($basvuru->karar_gerekcesi))
+        {{-- 🪤 Belge talebinde `karar_gerekcesi` ONAY gerekçesidir, talebin
+             mesajı değil: burada gösterilseydi kişiye kendi onay yazısı
+             "istenen" gibi görünürdü. Talebin mesajı turun üstünde. --}}
+        @php $gerekce = $belgeTalebi ? $duzeltme?->talep_gerekcesi : $basvuru->karar_gerekcesi; @endphp
+        @if (filled($gerekce))
             <p class="mt-3 border-t border-neutral-200 pt-3 text-sm text-neutral-600">
-                {{ $basvuru->karar_gerekcesi }}
+                {{ $gerekce }}
             </p>
         @endif
     </section>
@@ -425,7 +448,7 @@
             <button type="submit"
                     class="inline-flex items-center rounded-lg bg-kulup-600 px-5 py-2.5 text-sm font-medium text-white
                            transition hover:bg-kulup-700 focus:ring-2 focus:ring-kulup-600/30 focus:outline-none">
-                Başvurumu yeniden gönder
+                {{ $belgeTalebi ? 'Belgeyi gönder' : 'Başvurumu yeniden gönder' }}
             </button>
             <span class="text-xs text-neutral-500">
                 Bağlantı {{ $bilet->gecerlilik_bitis->timezone('Europe/Istanbul')->format('d.m.Y') }} tarihine kadar geçerli.

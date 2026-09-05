@@ -5,9 +5,11 @@ namespace App\Filament\Yonetim\Widgets;
 use App\Enums\AkreditasyonDurumu;
 use App\Enums\BasvuruDurumu;
 use App\Enums\DegerlendirmePuani;
+use App\Enums\DuzeltmeTuru;
 use App\Models\Akreditasyon;
 use App\Models\Ayar;
 use App\Models\Basvuru;
+use App\Models\BasvuruDuzeltmesi;
 use App\Models\Degerlendirme;
 use App\Models\KapiIstemcisi;
 use App\Models\Kurum;
@@ -37,6 +39,18 @@ class DikkatGerektirenler extends Widget
 
     private static ?Collection $onbellek = null;
 
+    /**
+     * 🧪 Statik bellek SÜREÇ boyu yaşar. Web isteğinde bu doğru -- `canView()`
+     * ve şablon aynı istekte iki kez soruyor, sorgular bir kez çalışsın. Ama
+     * tek süreçte arka arkaya koşan testlerde bir testin satırları ötekine
+     * sızıyor: pano satırını doğrulayan test tek başına geçip suite içinde
+     * düşüyordu. Sıfırlama bu yüzden var.
+     */
+    public static function onbellegiUnut(): void
+    {
+        self::$onbellek = null;
+    }
+
     public static function canView(): bool
     {
         return (auth()->user()?->can('basvuru.gor') ?? false) && static::satirlar()->isNotEmpty();
@@ -51,6 +65,7 @@ class DikkatGerektirenler extends Widget
             ->concat(self::suresizKartlar())
             ->concat(self::suresiBitecekler())
             ->concat(self::eksikEvrakiGecikenler())
+            ->concat(self::belgeTalebiGecenler())
             ->concat(self::biletiDolanlar())
             ->concat(self::dusukDegerlendirmeler())
             ->concat(self::kartiUretilemeyenler())
@@ -148,6 +163,73 @@ class DikkatGerektirenler extends Widget
                         $talep === null ? null : (int) $talep->diffInDays(now()).' gündür yüklenmedi',
                     ])),
                     'adres' => route('filament.yonetim.resources.basvurular.inceleme', ['record' => $b->ulid]),
+                ];
+            })
+            ->values();
+
+        /** @var Collection<int, array<string, mixed>> $satirlar */
+        return $satirlar;
+    }
+
+    /**
+     * SÜRESİ GEÇEN BELGE TALEBİ -- Cüneyt Bey revizyonu (05.09.2026).
+     *
+     * 🔑 Talebin YAPTIRIMI YOK ve olmayacak: süre dolunca kart askıya
+     * alınmaz, erişim kesilmez, talep kapanmaz. Sürenin tek işlevi bu satır --
+     * kayıt yetkilinin önüne düşer, kararı o verir. Otomatik bir yaptırım
+     * eklenirse buradaki cümle de değişmeli, yoksa ekran yalan söyler.
+     *
+     * 🪤 `eksikEvrakiGecikenler()` bunu YAKALAMAZ: o sorgu `durum =
+     * eksik_evrak` diyor, belge talebinde ise durum `onaylandi` kalıyor.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private static function belgeTalebiGecenler(): Collection
+    {
+        $satirlar = BasvuruDuzeltmesi::query()
+            ->where('tur', DuzeltmeTuru::BelgeTalebi->value)
+            ->whereNull('yanit_at')
+            ->whereNotNull('son_tarih')
+            ->where('son_tarih', '<', now()->startOfDay())
+            ->with(['basvuru.kurum', 'basvuru.akreditasyon'])
+            ->orderBy('son_tarih')
+            ->limit(self::SEBEP_BASINA)
+            ->get()
+            ->map(function (BasvuruDuzeltmesi $t) {
+                $basvuru = $t->basvuru;
+                $akreditasyon = $basvuru->akreditasyon;
+
+                return [
+                    'sebep' => 'Belge talebinin süresi geçti',
+                    'renk' => 'danger',
+                    'baslik' => $basvuru->kurum->resmi_unvan ?? $basvuru->basvuranAdi(),
+                    'ayrinti' => implode(' · ', array_filter([
+                        $basvuru->basvuru_no,
+                        abs((int) $t->kalanGun()).' gün gecikti',
+                        $basvuru->kurum !== null
+                            ? 'Kuruluş hâlâ akredite; kararı siz verin'
+                            : 'Kart hâlâ aktif; kararı siz verin',
+                    ])),
+                    /*
+                     * Yetkilinin karar vereceği yere götür: kişide
+                     * akreditasyon detayı, KURUMSAL başvuruda kurum detayı
+                     * (kurumsal onayda akreditasyon kaydı doğmaz). İkisi de
+                     * yoksa başvuru ekranına düşülür.
+                     */
+                    'adres' => match (true) {
+                        $akreditasyon !== null => route(
+                            'filament.yonetim.resources.akreditasyonlar.detay',
+                            ['record' => $akreditasyon->ulid],
+                        ),
+                        $basvuru->kurum !== null => route(
+                            'filament.yonetim.resources.kurumlar.detay',
+                            ['record' => $basvuru->kurum->ulid],
+                        ),
+                        default => route(
+                            'filament.yonetim.resources.basvurular.inceleme',
+                            ['record' => $basvuru->ulid],
+                        ),
+                    },
                 ];
             })
             ->values();

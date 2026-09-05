@@ -5,6 +5,7 @@ namespace App\Servisler;
 use App\Enums\AkreditasyonDurumu;
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
+use App\Enums\DuzeltmeTuru;
 use App\Models\Akreditasyon;
 use App\Models\Ayar;
 use App\Models\Basvuru;
@@ -14,6 +15,7 @@ use App\Models\User;
 use App\Notifications\BasvuruAlindi;
 use App\Notifications\BasvuruOnaylandi;
 use App\Notifications\BasvuruReddedildi;
+use App\Notifications\BelgeTalebi;
 use App\Notifications\EksikEvrakTalebi;
 use App\Notifications\KurumTeyidiIstendi;
 use Illuminate\Database\Eloquent\Collection;
@@ -30,6 +32,15 @@ use RuntimeException;
  */
 class BasvuruAkisi
 {
+    /**
+     * Belge talebinin varsayılan süresi (gün).
+     *
+     * ⚠️ BİLGİ AMAÇLI. Süre dolduğunda sistem kartı askıya almaz, erişimi
+     * kesmez, talebi kapatmaz: kayıt panoda ve akreditasyon detayında "süresi
+     * geçti" diye görünür, kararı yetkili verir.
+     */
+    public const BELGE_TALEBI_GUN = 7;
+
     /** Kararı geri alınabilecek durumlar -- hepsi bir karar sonucudur. */
     private const GERI_ALINABILIR = [
         BasvuruDurumu::Onaylandi,
@@ -406,7 +417,8 @@ class BasvuruAkisi
 
             return BasvuruDuzeltmesi::create([
                 'basvuru_id' => $basvuru->id,
-                'sira' => (int) $basvuru->duzeltmeler()->max('sira') + 1,
+                'sira' => $this->sonrakiSira($basvuru),
+                'tur' => DuzeltmeTuru::Duzeltme,
                 'talep_notlari' => $notlar,
                 'ek_talepler' => $ekTalepler ?: null,
                 'talep_gerekcesi' => $mesaj,
@@ -421,6 +433,129 @@ class BasvuruAkisi
         $basvuru->bildirimHedefi()->notify(new EksikEvrakTalebi($basvuru, $token));
 
         return $duzeltme;
+    }
+
+    /**
+     * KARARA BAĞLANMIŞ başvuruya belge talebi -- Cüneyt Bey revizyonu
+     * (05.09.2026).
+     *
+     * 💀 Akredite birinden tek bir belge istemenin yolu yoktu. `eksikEvrakIste`
+     * başvuruyu `eksik_evrak`a düşürdüğü için policy onu yalnız "İnceleniyor"da
+     * açıyor; yetkili de önce "Akreditasyonu geri al" demek zorunda kalıyordu.
+     * O adım kartı GERİ ALINAMAZ biçimde iptal ediyor (`karariGeriAl` md.1),
+     * rolü düşürüyor, paneli kapatıyor ve cevap gelince bütün onay turu baştan
+     * işliyordu. Bir eksik fotoğraf için kart yakılıyordu.
+     *
+     * 🔑 Bu metot `gecir()` ÇAĞIRMAZ: başvuru `onaylandi` kalır, kart aktif
+     * kalır, turnikeden geçiş kesilmez. Yapılan tek şey belge istemek.
+     *
+     * 🪤 `karar_gerekcesi` ALANINA DOKUNULMAZ -- orada ONAY gerekçesi duruyor;
+     * `eksikEvrakIste` oraya yazabilir çünkü karar öncesi henüz boştur. Talebin
+     * mesajı turun kendi `talep_gerekcesi` alanında saklanır.
+     *
+     * @param  array<string, string>  $notlar  alan anahtarı => açıklama
+     * @param  array<int, array<string, string>>  $ekTalepler
+     * @param  int  $sureGun  bilgi amaçlı süre; dolunca sistem HİÇBİR ŞEY yapmaz
+     */
+    public function belgeTalepEt(
+        Basvuru $basvuru,
+        array $notlar,
+        ?string $mesaj = null,
+        array $ekTalepler = [],
+        int $sureGun = self::BELGE_TALEBI_GUN,
+    ): BasvuruDuzeltmesi {
+        if ($basvuru->durum !== BasvuruDurumu::Onaylandi) {
+            throw new RuntimeException('Belge talebi yalnızca onaylanmış başvuruda açılır; '
+                .'karar öncesi için "Belge iste" adımını kullanın.');
+        }
+
+        /*
+         * 🪤 TEK AÇIK TUR. `duzeltilebilirAlanlar()` ve düzeltme formu
+         * `basvurular.duzeltme_notlari` tek alanına bakıyor: ikinci bir tur
+         * açılsaydı birincinin istediği kalemler sessizce silinirdi.
+         */
+        if ($basvuru->acikDuzeltme() !== null) {
+            throw new RuntimeException('Bu başvuruda yanıtlanmamış bir talep zaten var; '
+                .'önce o kapansın.');
+        }
+
+        if ($notlar === [] && $ekTalepler === []) {
+            throw new RuntimeException('En az bir belge işaretlenmeli.');
+        }
+
+        foreach ($ekTalepler as $ek) {
+            $notlar[$ek['anahtar']] = $ek['aciklama'] ?? '';
+        }
+
+        $sonTarih = now()->copy()->addDays(max(1, $sureGun))->startOfDay();
+
+        $duzeltme = DB::transaction(function () use ($basvuru, $notlar, $mesaj, $ekTalepler, $sonTarih) {
+            // Durum DEĞİŞMEDİĞİ için `gecir()` değil düz yazım; denetim elle.
+            $basvuru->fill(['duzeltme_notlari' => $notlar])->save();
+
+            $this->denetim->yaz('basvuru.belge_talebi', $basvuru, yeni: [
+                'istenen' => array_keys($notlar),
+                'son_tarih' => $sonTarih->toDateString(),
+            ]);
+
+            return BasvuruDuzeltmesi::create([
+                'basvuru_id' => $basvuru->id,
+                'sira' => $this->sonrakiSira($basvuru),
+                'tur' => DuzeltmeTuru::BelgeTalebi,
+                'talep_notlari' => $notlar,
+                'ek_talepler' => $ekTalepler ?: null,
+                'talep_gerekcesi' => $mesaj,
+                'talep_eden_id' => Auth::id(),
+                'talep_at' => now(),
+                'son_tarih' => $sonTarih,
+            ]);
+        });
+
+        // Hesabı olan da olmayan da aynı bağlantıyı kullanır (Revizyon md.3.3).
+        $token = $this->bilet->uret($basvuru, 'belge_talebi');
+
+        $basvuru->bildirimHedefi()->notify(new BelgeTalebi($basvuru, $duzeltme, $token));
+
+        return $duzeltme;
+    }
+
+    /**
+     * Belge talebi turunu KAPATIR -- `gonder()`in belge talebi karşılığı.
+     *
+     * 🔑 `gonder()` burada ÇAĞRILAMAZ: o metot başvuruyu `yeniden_inceleme`ye
+     * sokar, zorunlu evrak denetimini baştan çalıştırır ve yeni bir karar
+     * bekler. Onaylanmış bir başvuruda istenen şey bu değil -- belge geldi,
+     * dosyaya girdi, iş bitti. Kart ve durum aynı kalır.
+     *
+     * @param  array<string, array{eski: mixed, yeni: mixed}>  $degisiklikler
+     */
+    public function belgeTalebiniKapat(BasvuruDuzeltmesi $duzeltme, array $degisiklikler, ?string $aciklama): void
+    {
+        $this->duzeltmeyiKaydet($duzeltme, $degisiklikler, $aciklama);
+
+        $basvuru = $duzeltme->basvuru;
+
+        DB::transaction(function () use ($basvuru, $duzeltme, $degisiklikler) {
+            // Açık tur işareti kalkar; yoksa panelde "belge bekleniyor" şeridi
+            // sonsuza kadar durur (`gonder()` bunu kendi yapıyordu).
+            $basvuru->fill(['duzeltme_notlari' => null])->save();
+
+            $this->denetim->yaz('basvuru.belge_talebi_yanitlandi', $basvuru, yeni: [
+                'tur' => $duzeltme->sira,
+                'gelen' => array_keys($degisiklikler),
+            ], aktorTip: 'sistem');
+        });
+
+        $this->duzeltmeyiKapat($duzeltme);
+    }
+
+    /**
+     * Tur numarası başvuru genelinde TEK seridir: düzeltme ve belge talebi
+     * ayrı sayılsaydı `(basvuru_id, sira)` benzersiz indeksi çakışırdı.
+     */
+    private function sonrakiSira(Basvuru $basvuru): int
+    {
+        return (int) $basvuru->duzeltmeler()->max('sira') + 1;
     }
 
     /**

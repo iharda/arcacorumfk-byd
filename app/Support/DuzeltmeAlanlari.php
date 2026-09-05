@@ -157,6 +157,27 @@ class DuzeltmeAlanlari
     }
 
     /**
+     * Bu başvuruda istenebilecek EVRAK türleri: anahtar => ad.
+     *
+     * 🔑 Belge talebi (karar sonrası) yalnızca bunları işaretleyebilir. Veri
+     * alanları bilerek dışarıda: onaylanmış bir başvurudaki ad, kurum ya da
+     * telefon bilgisini düzeltme turuyla sessizce değiştirmek, kararın
+     * dayandığı veriyi karar sonrası oynatmak demektir.
+     *
+     * @return array<string, string>
+     */
+    public static function evrakAlanlari(Basvuru $basvuru): array
+    {
+        $alanlar = [];
+
+        foreach (EvrakTuru::turIcin($basvuru->tur) as $tur) {
+            $alanlar[self::EVRAK_ONEK.$tur->kod] = $tur->ad;
+        }
+
+        return $alanlar;
+    }
+
+    /**
      * Anahtarın ekranda görünecek adı. Tanınmayan anahtar (eski bilet)
      * olduğu gibi döner -- yolda olan düzeltme boş etiketle gösterilmesin.
      *

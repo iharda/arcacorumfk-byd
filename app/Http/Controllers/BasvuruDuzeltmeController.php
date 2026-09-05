@@ -124,6 +124,26 @@ class BasvuruDuzeltmeController extends Controller
             ]);
         }
 
+        $belgeTalebi = $duzeltme?->belgeTalebiMi() ?? false;
+
+        /*
+         * 🔑 BELGE TALEBİ AYRI KAPANIR. `gonder()` başvuruyu
+         * `yeniden_inceleme`ye sokar, zorunlu evrak denetimini baştan
+         * çalıştırır ve yeni bir karar bekler. Onaylanmış bir başvuruda
+         * istenen bu değil: belge geldi, dosyaya girdi, kart yerinde duruyor.
+         */
+        if ($belgeTalebi) {
+            $this->akis->belgeTalebiniKapat(
+                $duzeltme, $degisimler + $ekDegisimler + $evrakDegisimleri, $aciklama,
+            );
+
+            $this->biletAkisi->tuket($bilet);
+
+            return redirect()->route('basvuru.gonderildi')
+                ->with('eposta', $basvuru->basvuranEpostasi())
+                ->with('belge_talebi', true);
+        }
+
         /*
          * 🔑 Değişiklikler ÖNCE kaydedilir, tur SONRA kapanır. `gonder()`
          * başarısız olursa (zorunlu evrak hâlâ eksik) başvuranın düzelttiği
@@ -163,10 +183,18 @@ class BasvuruDuzeltmeController extends Controller
         $bilet = $this->biletAkisi->tokenlaBul($token)
             ?? abort(410, 'Bu düzeltme bağlantısı geçersiz veya süresi dolmuş. Kulüple iletişime geçerek yeni bağlantı isteyebilirsiniz.');
 
+        /*
+         * 🔑 İKİ AYRI BEKLEME HÂLİ var (Cüneyt Bey revizyonu 05.09.2026):
+         *   - karar öncesi düzeltme  -> başvuru `eksik_evrak` durumundadır
+         *   - karar sonrası belge talebi -> başvuru `onaylandi` KALIR; durum
+         *     sorulsaydı akredite kişinin bağlantısı 410 ile kapanırdı.
+         * Ortak ölçüt durum değil, YANITLANMAMIŞ TUR.
+         */
         abort_unless(
-            $bilet->basvuru?->durum === BasvuruDurumu::EksikEvrak,
+            $bilet->basvuru?->durum === BasvuruDurumu::EksikEvrak
+                || $bilet->basvuru?->acikBelgeTalebi() !== null,
             410,
-            'Bu başvuru için düzeltme beklenmiyor. Başvurunuz incelemede olabilir.',
+            'Bu başvuru için belge beklenmiyor. Başvurunuz incelemede olabilir.',
         );
 
         return $bilet;

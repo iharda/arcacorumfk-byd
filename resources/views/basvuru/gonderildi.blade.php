@@ -13,13 +13,20 @@
          doğrulayabilmeli (Cüneyt Bey revizyonu 03.09.2026). --}}
     @php
         $baslik = match (true) {
+            $belgeTalebi => 'Belgeniz alındı',
             $duzeltme => 'Düzeltmeniz alındı',
             $tur !== null => $tur->basvuruSifati().' başvurunuz alındı',
             default => 'Başvurunuz alındı',
         };
     @endphp
     <h1 class="mt-5 text-2xl font-semibold tracking-tight">{{ $baslik }}</h1>
-    @if ($duzeltme)
+    @if ($belgeTalebi)
+        <p class="mt-3 text-neutral-600">
+            Gönderdiğiniz belge dosyanıza eklendi. <strong class="font-medium text-koyu">Basın kartınız
+            geçerliliğini koruyor</strong>; yeniden değerlendirme süreci başlamaz.
+        </p>
+        <p class="mt-2 text-sm text-neutral-500">Kullandığınız yükleme bağlantısı artık geçerli değil.</p>
+    @elseif ($duzeltme)
         <p class="mt-3 text-neutral-600">
             Başvurunuz yeniden incelemeye alındı. Sonuç
             <strong class="font-medium text-koyu">{{ $eposta }}</strong> adresine bildirilecek.

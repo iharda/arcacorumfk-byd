@@ -2,6 +2,8 @@
 
 namespace App\Policies;
 
+use App\Enums\AkreditasyonDurumu;
+use App\Enums\BasvuruDurumu;
 use App\Models\Akreditasyon;
 use App\Models\User;
 
@@ -39,6 +41,25 @@ class AkreditasyonPolicy
         return $user->hasRole(User::ROL_KURUM)
             ? $akreditasyon->kurum_id === $user->kurum_id
             : $akreditasyon->kullanici_id === $user->id;
+    }
+
+    /**
+     * Akredite kişiden belge isteyebilir mi? -- Cüneyt Bey revizyonu
+     * (05.09.2026).
+     *
+     * 🔑 Başvurunun "İnceleniyor" olması İSTENMEZ; istenen tam tersi:
+     * karara bağlanmış ve kartı AKTİF bir akreditasyon. `BasvuruPolicy::
+     * eksikEvrakIste` karar öncesinin kuralıdır, bu onun karar sonrası eşi.
+     *
+     * ⚠️ "Zaten açık bir talep var" durumu BURADA sorulmaz: o geçici bir
+     * engel, yetkisizlik değil. Ekran düğmeyi pasifleştirip sebebini yazar
+     * (Inceleme::pasifSebebi kalıbı), servis de ayrıca doğrular.
+     */
+    public function belgeIste(User $user, Akreditasyon $akreditasyon): bool
+    {
+        return $user->can('basvuru.incele')
+            && $akreditasyon->durum === AkreditasyonDurumu::Aktif
+            && $akreditasyon->basvuru?->durum === BasvuruDurumu::Onaylandi;
     }
 
     public function create(User $user): bool

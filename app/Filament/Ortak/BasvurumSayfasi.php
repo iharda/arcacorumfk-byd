@@ -4,6 +4,7 @@ namespace App\Filament\Ortak;
 
 use App\Enums\BasvuruDurumu;
 use App\Models\Basvuru;
+use App\Models\BasvuruDuzeltmesi;
 use App\Models\EvrakTuru;
 use App\Servisler\BasvuruBiletiAkisi;
 use App\Servisler\BasvuruUygunlugu;
@@ -70,13 +71,50 @@ abstract class BasvurumSayfasi extends Page
     }
 
     /**
+     * KARAR SONRASI belge talebi -- Cüneyt Bey revizyonu (05.09.2026).
+     *
+     * 💀 Akredite kişiden belge istenebilir hâle gelince bu sayfa onu HİÇ
+     * göstermiyordu: tek ölçüt `durum === eksik_evrak` idi, belge talebinde
+     * ise durum `onaylandi` kalıyor. Kişi e-postayı silmişse yükleyecek yer
+     * bulamazdı -- kurum tarafında düzeltilen çıkmazın (md.3.6) aynısı.
+     */
+    public function belgeTalebiBekliyorMu(): bool
+    {
+        return $this->belgeTalebi() !== null;
+    }
+
+    public function belgeTalebi(): ?BasvuruDuzeltmesi
+    {
+        return $this->basvuru?->acikBelgeTalebi();
+    }
+
+    /** Şeritte yazılan süre cümlesi; son tarih yoksa null. */
+    public function belgeTalebiSuresi(): ?string
+    {
+        $talep = $this->belgeTalebi();
+
+        if ($talep?->son_tarih === null) {
+            return null;
+        }
+
+        $tarih = $talep->son_tarih->timezone('Europe/Istanbul')->format('d.m.Y');
+        $kalan = $talep->kalanGun();
+
+        return match (true) {
+            $talep->suresiGectiMi() => 'Son gönderim tarihi '.$tarih.' idi; lütfen en kısa sürede gönderin.',
+            $kalan === 0 => 'Son gönderim tarihi bugün ('.$tarih.').',
+            default => 'Lütfen '.$tarih.' tarihine kadar gönderin ('.$kalan.' gün kaldı).',
+        };
+    }
+
+    /**
      * İstenen kalemlerin okunur listesi -- uyarı şeridinde kullanılır.
      *
      * @return array<int, string>
      */
     public function getIstenenKalemlerProperty(): array
     {
-        if (! $this->eksikEvrakBekliyorMu()) {
+        if (! $this->eksikEvrakBekliyorMu() && ! $this->belgeTalebiBekliyorMu()) {
             return [];
         }
 
@@ -100,16 +138,19 @@ abstract class BasvurumSayfasi extends Page
     public function eksikEvrakAction(): Action
     {
         return Action::make('eksikEvrak')
-            ->label('Eksik evrağı yükle')
+            ->label(fn () => $this->belgeTalebiBekliyorMu() ? 'İstenen belgeyi gönder' : 'Eksik evrağı yükle')
             ->icon('heroicon-m-arrow-up-tray')
             ->color('warning')
-            ->visible(fn () => $this->eksikEvrakBekliyorMu())
+            ->visible(fn () => $this->eksikEvrakBekliyorMu() || $this->belgeTalebiBekliyorMu())
             ->action(function () {
-                if (! $this->eksikEvrakBekliyorMu()) {
+                if (! $this->eksikEvrakBekliyorMu() && ! $this->belgeTalebiBekliyorMu()) {
                     return null;
                 }
 
-                $token = app(BasvuruBiletiAkisi::class)->uret($this->basvuru);
+                $token = app(BasvuruBiletiAkisi::class)->uret(
+                    $this->basvuru,
+                    $this->belgeTalebiBekliyorMu() ? 'belge_talebi' : 'eksik_evrak',
+                );
 
                 return redirect()->to(route('basvuru.duzelt', $token));
             });

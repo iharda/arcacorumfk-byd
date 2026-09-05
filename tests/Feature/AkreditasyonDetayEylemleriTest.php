@@ -133,14 +133,24 @@ class AkreditasyonDetayEylemleriTest extends TestCase
             ->assertActionHidden('iptal');
     }
 
-    /** Ek evrak talebi başvuru ekranına götürür; kural orada yaşıyor. */
-    public function test_ek_evrak_talebi_basvuruya_yonlendirir(): void
+    /**
+     * 💀 BU TEST ESKİDEN YANLIŞ DAVRANIŞI KORUYORDU: "Ek evrak talep et"in
+     * başvuru ekranına GÖTÜRMESİNİ doğruluyordu. Gidilen yerde düğme pasifti
+     * ve "önce Akreditasyonu geri al" diyordu -- yani test, yetkiliyi kartı
+     * yakmaya zorlayan yolu güvenceye alıyordu (Cüneyt Bey, 05.09.2026).
+     *
+     * Talep artık burada açılıyor ve akreditasyona dokunmuyor; ayrıntılı
+     * sözleşme AkreditasyonBelgeTalebiTest'te.
+     */
+    public function test_belge_talebi_detayda_acilir(): void
     {
         $kart = $this->kart();
 
         $this->get("/yonetim/akreditasyonlar/{$kart->ulid}/detay")
             ->assertSuccessful()
-            ->assertSee('Ek evrak talep et')
-            ->assertSee("/yonetim/basvurular/{$kart->basvuru->ulid}/inceleme", escape: false);
+            ->assertSee('Belge iste')
+            ->assertDontSee('Ek evrak talep et');
+
+        $this->sayfa($kart)->assertActionVisible('belgeIste');
     }
 }

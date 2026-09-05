@@ -36,6 +36,25 @@ class KurumPolicy
         return $user->can('kurum.akredite');
     }
 
+    /**
+     * Akredite kuruluştan belge isteyebilir mi? -- Test User 2 vakası
+     * (05.09.2026).
+     *
+     * 💀 Belge talebi ilk sürümde YALNIZ KİŞİ tarafına konmuştu; düğme
+     * `AkreditasyonDetay`'da yaşıyor ve o sayfa bir akreditasyon kaydı
+     * gerektiriyor. Kurumsal onayda böyle bir kayıt doğmuyor, dolayısıyla
+     * onaylanmış bir kurum başvurusunda belge istemenin tek yolu yine
+     * "Akreditasyonu geri al" kalmıştı -- düzeltmek istediğimiz şeyin ta
+     * kendisi, sadece öbür kapıda.
+     *
+     * 🔑 Kişideki kuralın kurum karşılığı: kart AKTİF yerine kuruluş
+     * AKREDİTE, başvuru yine ONAYLANMIŞ (bkz. AkreditasyonPolicy::belgeIste).
+     */
+    public function belgeIste(User $user, Kurum $kurum): bool
+    {
+        return $user->can('basvuru.incele') && $kurum->akrediteMi();
+    }
+
     public function delete(User $user, Kurum $kurum): bool
     {
         return false;

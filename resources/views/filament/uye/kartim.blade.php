@@ -2,7 +2,40 @@
      yerleşim satır içi stille. --}}
 <x-filament-panels::page>
 
-    @php $a = $this->akreditasyon; $mesaj = $this->durumMesaji(); @endphp
+    @php $a = $this->akreditasyon; $mesaj = $this->durumMesaji(); $talep = $this->belgeTalebi; @endphp
+
+    {{-- 🔑 Bekleyen belge talebi kartın ÜSTÜNDE. Kart sahibi panele kartına
+         bakmaya gelir; talep yalnızca "Başvurum" sayfasında dursaydı görülmez,
+         süre boşuna işlerdi. Şeridin ilk cümlesi kartın DURDUĞUNU söylüyor:
+         "belge istendi" ifadesi tek başına akreditasyonun düştüğü gibi
+         okunabiliyor. --}}
+    @if ($talep)
+        <x-filament::section>
+            <x-slot name="heading">Belge bekleniyor</x-slot>
+            <x-slot name="description">
+                Kartınız geçerliliğini koruyor; bu talep akreditasyonunuzu askıya almaz.
+            </x-slot>
+
+            @if ($this->belgeTalebiSuresi())
+                <p style="font-size:.875rem; font-weight:600;">{{ $this->belgeTalebiSuresi() }}</p>
+            @endif
+
+            <ul style="margin:.6rem 0 0; padding-left:1.15rem; font-size:.875rem;">
+                @foreach ($talep->talep_notlari as $anahtar => $aciklama)
+                    <li>
+                        <span style="font-weight:600;">{{ $talep->basvuru->duzeltmeEtiketi($anahtar) }}</span>
+                        @if (filled($aciklama))<span style="opacity:.75;"> — {{ $aciklama }}</span>@endif
+                    </li>
+                @endforeach
+            </ul>
+
+            <div style="margin-top:.9rem;">
+                <x-filament::link :href="\App\Filament\Uye\Pages\Basvurum::getUrl()">
+                    Belgeyi göndermek için Başvurum sayfasına gidin
+                </x-filament::link>
+            </div>
+        </x-filament::section>
+    @endif
 
     <x-filament::section>
         <x-slot name="heading">Kart durumu</x-slot>

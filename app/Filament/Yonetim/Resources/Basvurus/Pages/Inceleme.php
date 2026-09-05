@@ -5,6 +5,7 @@ namespace App\Filament\Yonetim\Resources\Basvurus\Pages;
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
 use App\Filament\Yonetim\Ortak\DegerlendirmeEylemi;
+use App\Filament\Yonetim\Ortak\TalepAlanlari;
 use App\Filament\Yonetim\Resources\Basvurus\BasvuruResource;
 use App\Models\Ayar;
 use App\Models\Basvuru;
@@ -16,10 +17,7 @@ use App\Servisler\DegerlendirmeAkisi;
 use App\Servisler\KurumAkreditasyonu;
 use App\Support\DuzeltmeAlanlari;
 use Filament\Actions\Action;
-use Filament\Forms\Components\Repeater;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
@@ -283,84 +281,43 @@ class Inceleme extends Page
                 ->disabled(fn () => ! auth()->user()->can('eksikEvrakIste', $this->record))
                 ->tooltip(fn () => $this->pasifSebebi('eksikEvrakIste'))
                 ->schema([
-                    Repeater::make('notlar')
-                        ->label('Düzeltilmesi istenen alanlar')
-                        ->addActionLabel('Alan ekle')
-                        ->minItems(1)
-                        ->defaultItems(1)
-                        ->schema([
-                            // Liste kısa (~15) — arama kutusu yerine düz açılır liste:
-                            // daha az tıklama, klavyeyle daha hızlı.
-                            Select::make('alan')
-                                ->label('Alan')
-                                ->options(fn () => $this->isaretlenebilirAlanlar())
-                                ->native()
-                                ->required(),
-                            TextInput::make('aciklama')
-                                ->label('Açıklama')
-                                ->required()
-                                ->maxLength(300),
-                        ])
-                        ->columns(2),
                     /*
-                     * Listemizde OLMAYAN talep (Yusuf revizyonu 25.08.2026):
-                     * "bizim alanlarımızda yok ama şu belgeyi de isteyelim".
-                     * Başvurana kendi başlığıyla bir yükleme ya da metin
-                     * kutusu açılır.
+                     * Alanlar ORTAK tanımdan (TalepAlanlari): aynı iki liste
+                     * akreditasyon detayındaki belge talebinde de kullanılıyor.
+                     * Liste kısa (~15) -- arama kutusu yerine düz açılır liste.
                      */
-                    Repeater::make('ek_talepler')
-                        ->label('Listede olmayan ek talep')
-                        ->addActionLabel('Ek talep ekle')
-                        ->defaultItems(0)
-                        ->schema([
-                            TextInput::make('etiket')
-                                ->label('Başlık')
-                                ->placeholder('Örn. Yayın sözleşmesi')
-                                ->required()
-                                ->maxLength(120),
-                            Select::make('tip')
-                                ->label('İstenen')
-                                ->options(['dosya' => 'Dosya yüklemesi', 'metin' => 'Yazılı bilgi'])
-                                ->default('dosya')
-                                ->native()
-                                ->required(),
-                            TextInput::make('aciklama')
-                                ->label('Açıklama')
-                                ->required()
-                                ->maxLength(300)
-                                ->columnSpanFull(),
-                        ])
-                        ->columns(2),
+                    TalepAlanlari::kalemler(
+                        fn () => $this->isaretlenebilirAlanlar(),
+                        etiket: 'Düzeltilmesi istenen alanlar',
+                        ekleEtiketi: 'Alan ekle',
+                    ),
+                    TalepAlanlari::ekTalep(),
                     Textarea::make('mesaj')
                         ->label('Ek not (isteğe bağlı)')
                         ->rows(3)
                         ->maxLength(1000),
                 ])
-                ->action(function (array $data) {
-                    $notlar = collect($data['notlar'] ?? [])
-                        ->filter(fn ($s) => filled($s['alan'] ?? null))
-                        ->mapWithKeys(fn ($s) => [$s['alan'] => $s['aciklama']])
-                        ->all();
-
+                ->action(function (array $data, Action $action) {
                     /*
-                     * 🔑 Ek talebin anahtarı BAŞLIKTAN DEĞİL sıradan üretilir
-                     * (`ek:1`): başlık serbest metin, sonradan düzeltilse bile
-                     * bağ kopmamalı -- md.11'de tam bu hataya düşülmüştü.
+                     * 💀 Üstteki liste `minItems(1)` idi ve yalnızca EK TALEP
+                     * göndermek isteyeni kilitliyordu: "en az bir öğe
+                     * içermelidir" hatası veriyor, çıkış yolunu söylemiyordu
+                     * (İbrahim Bey, 05.09.2026). Zorunluluk artık iki listeye
+                     * BİRDEN bakıyor; `halt()` modalı açık tutuyor ki yazılan
+                     * başlık ve açıklama kaybolmasın.
                      */
-                    $ekTalepler = collect($data['ek_talepler'] ?? [])
-                        ->filter(fn ($e) => filled($e['etiket'] ?? null))
-                        ->values()
-                        ->map(fn ($e, $i) => [
-                            'anahtar' => DuzeltmeAlanlari::EK_ONEK.($i + 1),
-                            'etiket' => $e['etiket'],
-                            'tip' => $e['tip'] ?? 'dosya',
-                            'aciklama' => $e['aciklama'] ?? '',
-                        ])
-                        ->all();
+                    if ($hata = TalepAlanlari::kalemHatasi($data['notlar'] ?? null, $data['ek_talepler'] ?? null)) {
+                        Notification::make()->title($hata)->danger()->send();
+
+                        $action->halt();
+                    }
 
                     $this->calistir(
                         fn () => app(BasvuruAkisi::class)->eksikEvrakIste(
-                            $this->record, $notlar, $data['mesaj'] ?? null, $ekTalepler,
+                            $this->record,
+                            TalepAlanlari::kalemleriTopla($data['notlar'] ?? null),
+                            $data['mesaj'] ?? null,
+                            TalepAlanlari::ekTalepleriTopla($data['ek_talepler'] ?? null),
                         ),
                         'Düzeltme talebi gönderildi.',
                     );

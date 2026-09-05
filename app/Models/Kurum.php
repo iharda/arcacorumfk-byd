@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\UlidAnahtari;
+use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
 use App\Enums\CalisanAraligi;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -94,6 +95,7 @@ class Kurum extends Model
         return $this->hasMany(User::class, 'kurum_id');
     }
 
+    /** @return HasMany<Basvuru, $this> */
     public function basvurular(): HasMany
     {
         return $this->hasMany(Basvuru::class, 'kurum_id');
@@ -126,6 +128,27 @@ class Kurum extends Model
     public function akrediteMi(): bool
     {
         return $this->akreditasyon_durumu === 'akredite';
+    }
+
+    /**
+     * Kuruluşun AKREDİTASYON KARARINI taşıyan onaylanmış kurumsal başvuru.
+     *
+     * 🔑 Belge talebinin evi burasıdır: kurumsal onayda akreditasyon kaydı
+     * DOĞMAZ (AkreditasyonAkisi -- kart kişiye çıkar, kuruluşa değil), yani
+     * kişi tarafındaki `Akreditasyon` karşılığı kurumda bu başvurudur. Evrak
+     * da zaten bu başvurunun dosyasında duruyor.
+     *
+     * 🪤 `basvurular()` ilişkisi `kurum_id` üzerinden çalıştığı için
+     * ÇALIŞANLARIN bireysel başvuruları da gelir; onların kararı kuruluşun
+     * akreditasyonunu değiştirmez. Yalnız kurumsal olanlara bakılır.
+     */
+    public function onayliKurumsalBasvuru(): ?Basvuru
+    {
+        return $this->basvurular()
+            ->where('tur', BasvuruTuru::Kurum->value)
+            ->where('durum', BasvuruDurumu::Onaylandi->value)
+            ->latest('id')
+            ->first();
     }
 
     /** Kontenjan doldu mu? null kontenjan = sinirsiz. */

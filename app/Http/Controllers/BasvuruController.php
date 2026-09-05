@@ -362,6 +362,12 @@ class BasvuruController extends Controller
             'tur' => BasvuruTuru::tryFrom((string) session('tur')),
             // Panelsiz düzeltmeden gelindiyse metin farklı.
             'duzeltme' => (bool) session('duzeltme', false),
+            /*
+             * Akredite kişinin belge yüklemesi ÜÇÜNCÜ bir hâl: başvuru
+             * yeniden incelemeye girmiyor, kart da yerinde. "Başvurunuz
+             * yeniden incelemeye alındı" cümlesi burada düpedüz yanlış olur.
+             */
+            'belgeTalebi' => (bool) session('belge_talebi', false),
         ]);
     }
 }

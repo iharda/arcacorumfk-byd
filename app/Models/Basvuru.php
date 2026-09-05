@@ -391,6 +391,35 @@ class Basvuru extends Model
         return $this->duzeltmeler()->whereNull('yanit_at')->first();
     }
 
+    /**
+     * Belge talebinde "ne DEĞİŞMİYOR" cümlesi -- başvuru türüne göre.
+     *
+     * 💀 Metin kişi ağzından yazılmıştı ("Basın kartınız geçerliliğini
+     * koruyor") ve kurum paneline de o çıkıyordu. Kuruluşun basın kartı YOK;
+     * cümle hem yanlış hem güven kırıcı -- talebin akreditasyonu düşürmediğini
+     * söylemesi gereken tek cümle bu (İbrahim Bey, 05.09.2026).
+     */
+    public function belgeTalebiGuvencesi(): string
+    {
+        return $this->tur === BasvuruTuru::Kurum
+            ? 'Kuruluşunuzun akreditasyonu geçerliliğini koruyor'
+            : 'Basın kartınız geçerliliğini koruyor';
+    }
+
+    /**
+     * Açık tur KARAR SONRASI açılmış bir belge talebi mi?
+     *
+     * 🔑 Ayrımı sormak zorunda olan yerler var: bu turda başvurunun durumu
+     * `onaylandi` kalır, cevap gelince yeniden inceleme AÇILMAZ ve kart hiç
+     * dokunulmaz (bkz. DuzeltmeTuru).
+     */
+    public function acikBelgeTalebi(): ?BasvuruDuzeltmesi
+    {
+        $acik = $this->acikDuzeltme();
+
+        return $acik?->belgeTalebiMi() ? $acik : null;
+    }
+
     /** Basvuran yalnizca isaretli alanlari duzeltebilir (Plan v1.0 md.4). */
     public function duzeltilebilirAlanlar(): array
     {

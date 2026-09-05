@@ -4,11 +4,13 @@ namespace App\Filament\Yonetim\Resources\Kurumlar\Pages;
 
 use App\Enums\BasvuruDurumu;
 use App\Enums\BasvuruTuru;
+use App\Filament\Yonetim\Ortak\BelgeTalebiEylemi;
 use App\Filament\Yonetim\Ortak\DegerlendirmeEylemi;
 use App\Filament\Yonetim\Ortak\DetaySayfasi;
 use App\Filament\Yonetim\Resources\Basvurus\BasvuruResource;
 use App\Filament\Yonetim\Resources\Kurumlar\KurumResource;
 use App\Models\Basvuru;
+use App\Models\BasvuruDuzeltmesi;
 use App\Models\Kurum;
 use App\Models\User;
 use App\Support\DuzeltmeAlanlari;
@@ -32,6 +34,9 @@ class KurumDetay extends DetaySayfasi
 
     /** `eksikEvrakBasvurusu()` belleği; aynı kalıp. */
     private Basvuru|false|null $eksikEvrakBasvurusu = false;
+
+    /** `acikBelgeTalebi()` belleği; aynı kalıp. */
+    private BasvuruDuzeltmesi|false|null $acikBelgeTalebi = false;
 
     /** ⚠️ `iptal` ile `iptal_edildi` ayrımı için bkz. KurumlarTable::DURUMLAR (M1-A). */
     private const DURUMLAR = [
@@ -72,6 +77,16 @@ class KurumDetay extends DetaySayfasi
      */
     public function uyariBandi(): ?array
     {
+        /*
+         * 🔑 ÖNCE KARAR SONRASI TALEP. İkisi aynı anda olamaz (tek açık tur)
+         * ama söyledikleri neredeyse zıt: eksik evrakta başvuru karar
+         * bekliyor, belge talebinde kuruluş AKREDİTE ve öyle kalıyor. Tek
+         * banda sığdırılsaydı yetkili akreditasyonun düştüğünü sanırdı.
+         */
+        if ($bant = $this->belgeTalebiBandi()) {
+            return $bant;
+        }
+
         $basvuru = $this->eksikEvrakBasvurusu();
 
         if (! $basvuru) {
@@ -92,6 +107,62 @@ class KurumDetay extends DetaySayfasi
             'baglanti' => [
                 'etiket' => 'Başvuru detayına git',
                 'url' => BasvuruResource::getUrl('inceleme', ['record' => $basvuru]),
+            ],
+        ];
+    }
+
+    /**
+     * Karar sonrası açılmış, henüz yanıtlanmamış belge talebi.
+     *
+     * 🪤 `??=` KULLANILAMAZ: başlangıç değeri `false` (null değil).
+     */
+    private function acikBelgeTalebi(): ?BasvuruDuzeltmesi
+    {
+        if ($this->acikBelgeTalebi !== false) {
+            return $this->acikBelgeTalebi;
+        }
+
+        return $this->acikBelgeTalebi = $this->kayit()
+            ->onayliKurumsalBasvuru()?->acikBelgeTalebi();
+    }
+
+    /**
+     * "Belge bekleniyor" bandı -- AkreditasyonDetay'daki bandın kurum eşi.
+     *
+     * ⚠️ Süre geçtiğinde bant KIRMIZIYA döner ve o kadar: kuruluşun
+     * akreditasyonu düşmez, çalışanların kartları etkilenmez. Kararı okuyan
+     * kişi verir.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function belgeTalebiBandi(): ?array
+    {
+        $talep = $this->acikBelgeTalebi();
+
+        if ($talep === null) {
+            return null;
+        }
+
+        $kalan = $talep->kalanGun();
+        $gecti = $talep->suresiGectiMi();
+
+        $sure = match (true) {
+            $kalan === null => '',
+            $gecti => sprintf(' — süresi %d gün önce doldu, kararı siz verin', abs($kalan)),
+            $kalan === 0 => ' — süre bugün doluyor',
+            default => sprintf(' — son gün %s (%d gün kaldı)',
+                $talep->son_tarih->timezone('Europe/Istanbul')->format('d.m.Y'), $kalan),
+        };
+
+        return [
+            'renk' => $gecti ? 'danger' : 'warning',
+            'ikon' => 'heroicon-m-document-plus',
+            'baslik' => 'Belge bekleniyor',
+            'metin' => 'Bu kuruluştan belge istendi'.$sure.'. Akreditasyonu AKREDİTE kalmaya '
+                .'devam ediyor; kuruluş kendi panelinden yükleyebilir.',
+            'baglanti' => [
+                'etiket' => 'Başvuru detayına git',
+                'url' => BasvuruResource::getUrl('inceleme', ['record' => $talep->basvuru]),
             ],
         ];
     }
@@ -234,8 +305,12 @@ class KurumDetay extends DetaySayfasi
                     'basvuru' => $evrakBasvurusu,
                     // Yüklenmeyi bekleyen kalemler: sekmenin kendisi de
                     // "eksik var mı" sorusunu yanıtlasın (bant üstte duruyor).
-                    'eksikEvrakBasvurusu' => $this->eksikEvrakBasvurusu(),
-                    'beklenenEvraklar' => ($b = $this->eksikEvrakBasvurusu())
+                    // Karar ÖNCESİ eksik evrak ya da karar SONRASI belge
+                    // talebi -- sekme ikisini de "bekleyen kalem" sayar.
+                    'eksikEvrakBasvurusu' => $this->eksikEvrakBasvurusu()
+                        ?? $this->acikBelgeTalebi()?->basvuru,
+                    'beklenenEvraklar' => ($b = $this->eksikEvrakBasvurusu()
+                        ?? $this->acikBelgeTalebi()?->basvuru)
                         ? $this->beklenenEvraklar($b) : [],
                 ],
             ],
@@ -289,6 +364,20 @@ class KurumDetay extends DetaySayfasi
                 ->url(fn () => ($d = $this->basvuruDugmesi())
                     ? BasvuruResource::getUrl('inceleme', ['record' => $d['basvuru']])
                     : null),
+
+            /*
+             * 💀 Kurum tarafı ilk sürümde ATLANMIŞTI: belge talebi düğmesi
+             * yalnız `AkreditasyonDetay`'a konmuştu ve o sayfa bir akreditasyon
+             * kaydı istiyor. Kurumsal onayda öyle bir kayıt doğmadığı için
+             * onaylanmış bir kuruluştan belge istemenin tek yolu yine
+             * "Akreditasyonu geri al" kalmıştı. (Test User 2 vakası.)
+             *
+             * 🔑 Yukarıdaki "başvuruya git" kuralıyla çelişmiyor: o kural
+             * KARAR eylemleri için. Bu bir karar değil -- kararı değiştirmeden
+             * belge istiyor ve öznesi tek: kuruluşun onaylanmış kurumsal
+             * başvurusu (Kurum::onayliKurumsalBasvuru).
+             */
+            BelgeTalebiEylemi::kurum(fn () => $this->kayit()),
 
             Action::make('duzenle')
                 ->label('Künyeyi düzenle')

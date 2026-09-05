@@ -3,11 +3,13 @@
 namespace App\Filament\Yonetim\Resources\Akreditasyonlar\Pages;
 
 use App\Filament\Yonetim\Ortak\AkreditasyonEylemleri;
+use App\Filament\Yonetim\Ortak\BelgeTalebiEylemi;
 use App\Filament\Yonetim\Ortak\DetaySayfasi;
 use App\Filament\Yonetim\Resources\Akreditasyonlar\AkreditasyonResource;
 use App\Filament\Yonetim\Resources\Basvurus\BasvuruResource;
 use App\Models\Akreditasyon;
 use App\Models\Ayar;
+use App\Models\BasvuruDuzeltmesi;
 use App\Servisler\DenetimYazici;
 use App\Support\Telefon;
 use Filament\Actions\Action;
@@ -48,6 +50,55 @@ class AkreditasyonDetay extends DetaySayfasi
         $durum = $this->kayit()->durum;
 
         return ['etiket' => $durum->etiket(), 'renk' => $durum->renk()];
+    }
+
+    /**
+     * "Belge bekleniyor" bandı -- KurumDetay'daki bandın kişi tarafındaki eşi.
+     *
+     * 💀 Talep açılabilir hâle gelince ikinci bir kör nokta doğuyordu: talebin
+     * varlığı yalnızca inceleme ekranında görünseydi, akreditasyona bakan
+     * yetkili "bu kişiden bir şey bekliyor muyuz" sorusunu yine
+     * yanıtlayamazdı. Bant sekmeye girmeden görünür.
+     *
+     * ⚠️ Süre geçtiğinde bant KIRMIZIYA döner ve o kadar: kart askıya
+     * alınmaz, erişim kesilmez. Kararı okuyan kişi verir.
+     */
+    public function uyariBandi(): ?array
+    {
+        $talep = $this->acikTalep();
+
+        if ($talep === null) {
+            return null;
+        }
+
+        $kalan = $talep->kalanGun();
+        $gecti = $talep->suresiGectiMi();
+
+        $sure = match (true) {
+            $kalan === null => '',
+            $gecti => sprintf(' — süresi %d gün önce doldu, kararı siz verin', abs($kalan)),
+            $kalan === 0 => ' — süre bugün doluyor',
+            default => sprintf(' — son gün %s (%d gün kaldı)',
+                $talep->son_tarih->timezone('Europe/Istanbul')->format('d.m.Y'), $kalan),
+        };
+
+        return [
+            'renk' => $gecti ? 'danger' : 'warning',
+            'ikon' => 'heroicon-m-document-plus',
+            'baslik' => 'Belge bekleniyor',
+            'metin' => 'Bu akreditasyon için belge istendi'.$sure.'. '
+                .'Kart aktif kalmaya devam ediyor; kişi yükleme bağlantısıyla gönderebilir.',
+            'baglanti' => [
+                'etiket' => 'Başvuru detayına git',
+                'url' => BasvuruResource::getUrl('inceleme', ['record' => $this->kayit()->basvuru]),
+            ],
+        ];
+    }
+
+    /** Karar sonrası açılmış, henüz yanıtlanmamış belge talebi. */
+    private function acikTalep(): ?BasvuruDuzeltmesi
+    {
+        return $this->kayit()->basvuru?->acikBelgeTalebi();
     }
 
     public function kunye(): array
@@ -118,6 +169,8 @@ class AkreditasyonDetay extends DetaySayfasi
                 'veri' => [
                     'basvuru' => $a->basvuru,
                     'evraklar' => $a->basvuru?->evraklar()->with('turu')->get() ?? collect(),
+                    // Açık belge talebi: ne istendi, ne zamana kadar.
+                    'talep' => $this->acikTalep(),
                 ],
             ],
         ];
@@ -142,26 +195,18 @@ class AkreditasyonDetay extends DetaySayfasi
             AkreditasyonEylemleri::askiyiKaldir(),
 
             /*
-             * 🪤 EK EVRAK TALEBİ BURADA YAPILMAZ, BURADAN GİDİLİR.
+             * 💀 BURASI ESKİDEN SADECE BİR BAĞLANTIYDI ("Ek evrak talep et" →
+             * inceleme ekranı) ve yetkiliyi çıkmaza sokuyordu: inceleme
+             * ekranında "Belge iste" karara bağlanmış başvuruda pasif, tooltip
+             * de "önce Akreditasyonu geri al" diyor. O adım kartı GERİ
+             * ALINAMAZ biçimde iptal edip bütün onay turunu baştan başlatıyor.
+             * Tek bir eksik belge için ödenen bedel buydu.
              *
-             * Belge isteme başvuru akışının adımı: yeni bir düzeltme turu açar,
-             * bilet üretir ve başvurana bildirim gönderir (BasvuruAkisi::
-             * eksikEvrakIste). Ayrıca policy gereği başvurunun "İnceleniyor"
-             * durumunda olmasını ister -- karara bağlanmış bir başvuruda önce
-             * "Akreditasyonu geri al" demek gerekir. Bu iki adımlı kararın evi
-             * inceleme ekranı; buraya kopyalanan bir düğme kuralın yarısını
-             * uygular ve yetkiliyi yarı yolda bırakırdı.
+             * 🔑 Talep artık burada, akreditasyona dokunmadan açılıyor
+             * (BasvuruAkisi::belgeTalepEt). Karar ÖNCESİ düzeltme hâlâ inceleme
+             * ekranının işi -- iki ekran iki farklı soruyu yanıtlıyor.
              */
-            Action::make('basvuruyaGit')
-                ->label('Ek evrak talep et')
-                ->icon('heroicon-m-document-plus')
-                ->color('gray')
-                ->tooltip('Belge talebi başvuru ekranından açılır')
-                ->visible(fn () => $this->kayit()->basvuru !== null
-                    && (Auth::user()?->can('basvuru.incele') ?? false))
-                ->url(fn () => BasvuruResource::getUrl('inceleme', [
-                    'record' => $this->kayit()->basvuru,
-                ])),
+            BelgeTalebiEylemi::akreditasyon(fn () => $this->kayit()),
 
             Action::make('kartPdf')
                 ->label('Kart PDF indir')

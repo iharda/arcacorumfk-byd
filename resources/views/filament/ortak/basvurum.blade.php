@@ -91,8 +91,54 @@
         </div>
     @endif
 
+    {{-- 🔑 BELGE TALEBİ ŞERİDİ (karar sonrası). Eksik evrak şeridinden AYRI
+         çizilir çünkü söylediği şey neredeyse zıt: orada "tamamlamadan
+         değerlendirmeye alınmaz", burada "kartınız aktif, sadece belge
+         istiyoruz". İkisi tek şeride sığdırılsaydı akredite kişi
+         akreditasyonunun düştüğünü sanırdı. --}}
+    @if ($this->belgeTalebiBekliyorMu())
+        @php $talep = $this->belgeTalebi(); @endphp
+        <div style="border:1px solid rgb(var(--warning-400)); background:rgb(var(--warning-50));
+                    border-radius:.75rem; padding:1rem 1.15rem;">
+            <div style="display:flex; gap:.7rem; align-items:flex-start;">
+                <x-filament::icon icon="heroicon-m-document-plus"
+                                  style="width:1.4rem; height:1.4rem; flex:none; margin-top:.1rem;" />
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:700;">Belge bekleniyor</div>
+                    <p style="margin:.3rem 0 0; font-size:.875rem;">
+                        Akreditasyonunuz kapsamında aşağıdaki belge veya bilgi isteniyor.
+                        <strong>{{ $basvuru->belgeTalebiGuvencesi() }}</strong>; bu talep
+                        akreditasyonunuzu askıya almaz.
+                    </p>
+
+                    @if ($this->belgeTalebiSuresi())
+                        <p style="margin:.35rem 0 0; font-size:.875rem; font-weight:600;">
+                            {{ $this->belgeTalebiSuresi() }}
+                        </p>
+                    @endif
+
+                    @if ($this->istenenKalemler !== [])
+                        <ul style="margin:.6rem 0 0; padding-left:1.15rem; font-size:.875rem;">
+                            @foreach ($this->istenenKalemler as $kalem)
+                                <li>{{ $kalem }}</li>
+                            @endforeach
+                        </ul>
+                    @endif
+
+                    @if (filled($talep?->talep_gerekcesi))
+                        <p style="margin:.6rem 0 0; font-size:.875rem; opacity:.85;">{{ $talep->talep_gerekcesi }}</p>
+                    @endif
+
+                    <div style="margin-top:.9rem;">
+                        {{ $this->eksikEvrakAction }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- Alan bazlı düzeltme talebi --}}
-    @if (filled($basvuru->duzeltme_notlari))
+    @if (filled($basvuru->duzeltme_notlari) && ! $this->belgeTalebiBekliyorMu())
         <x-filament::section>
             <x-slot name="heading">Düzeltilmesi istenen noktalar</x-slot>
             <x-slot name="description">Yalnızca aşağıdaki maddeleri güncelleyip başvurunuzu yeniden gönderin.</x-slot>

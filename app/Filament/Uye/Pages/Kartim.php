@@ -3,6 +3,7 @@
 namespace App\Filament\Uye\Pages;
 
 use App\Models\Akreditasyon;
+use App\Models\BasvuruDuzeltmesi;
 use App\Servisler\DenetimYazici;
 use App\Support\KartDurumu;
 use BackedEnum;
@@ -35,10 +36,41 @@ class Kartim extends Page
 
     public function getAkreditasyonProperty(): ?Akreditasyon
     {
-        return Akreditasyon::with(['guncelKart', 'kurum'])
+        return Akreditasyon::with(['guncelKart', 'kurum', 'basvuru'])
             ->where('kullanici_id', Auth::id())
             ->latest('id')
             ->first();
+    }
+
+    /**
+     * Açık belge talebi -- Cüneyt Bey revizyonu (05.09.2026).
+     *
+     * 🔑 Talep "Başvurum" sayfasında da yazıyor ama kart sahibi orada
+     * YAŞAMIYOR: akredite biri panele kartına bakmak için girer. Bekleyen bir
+     * belge varsa buradan da görünmeli, yoksa talep sessizce beklemeye devam
+     * eder ve süre boşuna işler.
+     */
+    public function getBelgeTalebiProperty(): ?BasvuruDuzeltmesi
+    {
+        $basvuru = $this->akreditasyon?->basvuru;
+
+        return $basvuru?->acikBelgeTalebi();
+    }
+
+    /** Şeritte yazılacak süre cümlesi; son tarih yoksa null. */
+    public function belgeTalebiSuresi(): ?string
+    {
+        $talep = $this->belgeTalebi;
+
+        if ($talep?->son_tarih === null) {
+            return null;
+        }
+
+        $tarih = $talep->son_tarih->timezone('Europe/Istanbul')->format('d.m.Y');
+
+        return $talep->suresiGectiMi()
+            ? 'Son gönderim tarihi '.$tarih.' idi.'
+            : 'Son gönderim tarihi '.$tarih.'.';
     }
 
     public function getGorselAdresiProperty(): ?string
