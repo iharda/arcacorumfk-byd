@@ -49,6 +49,19 @@
         </button>
     </form>
 
+    {{-- 💀 KULÜP YETKİLİSİ UYARISI BURADA, DÜĞMENİN ALTINDA (İbrahim Bey,
+         05.09.2026). Aynı bağlantı sayfanın en dibinde gri ve küçük duruyordu;
+         kimse görmüyordu. Yetkili e-postasını VE şifresini buraya yazıyor,
+         sistem şifreyi doğruladıktan SONRA onu yönetim girişine atıyordu --
+         uyarı hem çok geç geliyor hem de köşede 6 saniyede kayboluyordu.
+         Doğru zaman: kişi daha hiçbir şey yazmadan önce. --}}
+    <p class="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-center text-sm text-neutral-700">
+        Kulüp yetkilisi misiniz?
+        <a href="{{ route('filament.yonetim.auth.login') }}"
+           class="font-semibold text-kulup-700 underline hover:text-kulup-800">Yönetim girişi ayrıdır</a>
+        <span class="mt-0.5 block text-xs text-neutral-500">İki adımlı doğrulama orada zorunludur.</span>
+    </p>
+
     {{-- Kulüp yetkilisinin kapısı ayrı (iki adımlı doğrulama orada zorunlu);
          başvurusu olmayan da buradan başvuruya geçebilsin. --}}
     {{-- 🔑 Reddedilen adayın hesabı HİÇ AÇILMAZ; buradan giremez ve "E-posta
@@ -61,9 +74,10 @@
         </a>
     </p>
 
+    {{-- Yetkili bağlantısı buradan YUKARI taşındı: iki yerde durunca ikisi de
+         sıradanlaşıyordu. Burada yalnız başvuru yolu kalıyor. --}}
     <div class="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 pt-5 text-sm text-neutral-600">
         <a href="{{ route('anasayfa') }}" class="hover:text-koyu">Akreditasyon başvurusu yapın</a>
-        <a href="{{ route('filament.yonetim.auth.login') }}" class="hover:text-koyu">Kulüp yetkilisi girişi</a>
     </div>
 </div>
 @endsection

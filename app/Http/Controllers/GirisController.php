@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Filament\Yonetim\Auth\YonetimGirisi;
 use App\Models\User;
 use App\Support\GirisHedefi;
 use Filament\Notifications\Notification;
@@ -100,7 +101,17 @@ class GirisController extends Controller
                 ->info()
                 ->send();
 
-            return redirect()->route('filament.yonetim.auth.login');
+            /*
+             * 🔑 E-POSTA TAŞINIR, ŞİFRE TAŞINMAZ. Kişi iki alanı da doğru
+             * doldurmuştu; ikisini birden yeniden yazdırmak boş sürtünme.
+             * Sızıntı değil: buraya ancak şifre DOĞRUYSA düşülüyor, yani
+             * "bu adres yönetici mi" bilgisi zaten karşı tarafta.
+             *
+             * 🪤 Flash, oturum `oturumuKapat()` ile geçersizleştirildikten
+             * SONRA yazılıyor; yeni oturuma düşer, yoksa silinirdi.
+             */
+            return redirect()->route('filament.yonetim.auth.login')
+                ->with(YonetimGirisi::EPOSTA_ANAHTARI, $veri['email']);
         }
 
         $istek->session()->regenerate();

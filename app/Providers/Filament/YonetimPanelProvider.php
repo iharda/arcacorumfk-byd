@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Yonetim\Auth\YonetimGirisi;
 use App\Filament\Yonetim\Pages\Pano;
 use App\Filament\Yonetim\Widgets\OzetSayilar;
 use App\Support\KulupRengi;
@@ -51,7 +52,9 @@ class YonetimPanelProvider extends PanelProvider
             ])
             // Yetkilinin kapısı AYRI kalır: 2FA burada zorunlu, tek giriş
             // sayfası (`/giris`) yetkiliyi içeri almaz (Revizyon md.4.2).
-            ->login()
+            // Kendi giriş sayfası: sabit alt başlık + kamu girişinden taşınan
+            // e-posta (bkz. YonetimGirisi).
+            ->login(YonetimGirisi::class)
             /*
              * 🪤 `->passwordReset()` KALDIRILDI: şifre sıfırlama tek rotada
              * (`/sifremi-unuttum`). Üç ayrı sıfırlama kapısı, üç ayrı e-posta
