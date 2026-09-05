@@ -8,7 +8,6 @@ use App\Filament\Yonetim\Ortak\DegerlendirmeEylemi;
 use App\Filament\Yonetim\Ortak\SiraSutunu;
 use App\Filament\Yonetim\Resources\Kurumlar\KurumResource;
 use App\Models\Basvuru;
-use App\Models\Degerlendirme;
 use App\Models\Kurum;
 use App\Servisler\KurumAkreditasyonu;
 use Filament\Actions\Action;
@@ -49,9 +48,7 @@ class KurumlarTable
             ->modifyQueryUsing(fn (Builder $query) => $query
                 ->withCount([
                     'akreditasyonlar as aktif_kart_sayisi' => fn (Builder $query) => $query->where('durum', 'aktif'),
-                ])
-                // Değerlendirme sütunu satır başına sorgu açmasın.
-                ->with('degerlendirme'))
+                ]))
             ->defaultSort('resmi_unvan')
             ->columns([
                 SiraSutunu::yap(),
@@ -101,35 +98,6 @@ class KurumlarTable
                     ->label('Kontenjan')
                     ->placeholder('Sınırsız')
                     ->toggleable(),
-
-                /*
-                 * 🔒 Yalnızca kulüp tarafı. Sütun `visible()` ile gizlenir ama
-                 * asıl güvence bu tablonun YÖNETİM panelinde olması: kurum ve
-                 * üye panelinde bu veriyi getiren hiçbir sorgu yok.
-                 */
-                TextColumn::make('degerlendirme.puan')
-                    ->label('Değerlendirme')
-                    ->badge()
-                    ->color(fn (?DegerlendirmePuani $state) => $state?->renk() ?? 'gray')
-                    ->formatStateUsing(fn (?DegerlendirmePuani $state) => $state
-                        ? $state->value.' · '.$state->etiket()
-                        : '—')
-                    ->placeholder('—')
-                    /*
-                     * 🪤 Nokta yazımlı ilişki sütununda çıplak `sortable()`
-                     * JOIN üretmez; `order by degerlendirmeler.puan` geçersiz
-                     * SQL olur. Sıralama ilişkili ALT SORGUYLA yapılır
-                     * (`degerlendirmeler.kurum_id` indeksli).
-                     */
-                    ->sortable(query: fn (Builder $query, string $direction) => $query->orderBy(
-                        Degerlendirme::query()
-                            ->select('puan')
-                            ->whereColumn('degerlendirmeler.kurum_id', 'kurumlar.id')
-                            ->where('hedef_tip', Degerlendirme::HEDEF_KURUM)
-                            ->limit(1),
-                        $direction,
-                    ))
-                    ->visible(fn () => auth()->user()?->can('degerlendirme.yonet') ?? false),
 
                 TextColumn::make('created_at')
                     ->label('Kayıt')
